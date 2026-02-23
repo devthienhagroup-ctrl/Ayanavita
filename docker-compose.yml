@@ -61,6 +61,25 @@ services:
 
 
 
+
+  ayanavita-fontend:
+    image: node:20-alpine
+    container_name: ayanavita-fontend
+    working_dir: /app
+    volumes:
+      - ./ayanavita-fontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5178"
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8090
+    depends_on:
+      - backend
+    ports:
+      - "5178:5178"
+    networks:
+      - aya_net
+
   frontend-final:
     image: node:20-alpine
     container_name: ayanavita-frontend-final

@@ -22,7 +22,7 @@ function getBaseUrl() {
     (import.meta as any)?.env?.VITE_API_URL ||
     (import.meta as any)?.env?.VITE_BACKEND_URL;
 
-  return (viteUrl || "http://localhost:3000").replace(/\/+$/, "");
+  return (viteUrl || "http://localhost:8090").replace(/\/+$/, "");
 }
 
 
