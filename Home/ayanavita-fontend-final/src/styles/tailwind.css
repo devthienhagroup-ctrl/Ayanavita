@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Giữ lại variables brand */
+:root{
+  --aya-primary-1:#4F46E5;
+  --aya-primary-2:#7C3AED;
+  --aya-accent-1:#F59E0B;
+  --aya-accent-2:#FBBF24;
+  --aya-secondary-1:#06B6D4;
+  --aya-secondary-2:#22C55E;
+  --aya-ink:#0B1220;
+}
+
+/* Nếu bạn muốn giữ các class custom từ HTML cũ: */
+.btn-primary {
+  background: linear-gradient(135deg, var(--aya-primary-1) 0%, var(--aya-primary-2) 100%);
+  color: white;
+  transition: all 0.25s;
+  box-shadow: 0 12px 24px rgba(79,70,229,0.28);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(79,70,229,0.36);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--aya-accent-1) 0%, var(--aya-accent-2) 100%);
+  color: #111827;
+  transition: all 0.25s;
+  box-shadow: 0 12px 24px rgba(245,158,11,0.22);
+}
+.btn-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(245,158,11,0.30);
+}

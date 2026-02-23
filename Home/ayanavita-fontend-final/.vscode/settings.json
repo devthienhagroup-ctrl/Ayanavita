@@ -1,0 +1,8 @@
+{
+    "liveServer.settings.port": 5501,
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "less.lint.unknownAtRules": "ignore"
+
+}
