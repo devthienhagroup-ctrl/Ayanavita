@@ -1,164 +1,296 @@
-diff --git a/ayanavita-fontend/Dockerfile b/ayanavita-fontend/Dockerfile
-new file mode 100644
-index 0000000000000000000000000000000000000000..c31f5af0d776d2d528ce03beef1b1f69ca723827
---- /dev/null
-+++ b/ayanavita-fontend/Dockerfile
-@@ -0,0 +1,12 @@
-+FROM node:20-alpine
-+
-+WORKDIR /app
-+
-+COPY package*.json ./
-+RUN npm install
-+
-+COPY . .
-+
-+EXPOSE 5178
-+
-+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5178"]
-diff --git a/ayanavita-fontend/vite.config.ts b/ayanavita-fontend/vite.config.ts
-index 081c8d9f69fcb741cce28e9eb3562517df8dbb14..0f88419079a310e3b68e3d44c0a8d083d345994e 100644
---- a/ayanavita-fontend/vite.config.ts
-+++ b/ayanavita-fontend/vite.config.ts
-@@ -1,6 +1,10 @@
- import { defineConfig } from "vite";
- import react from "@vitejs/plugin-react";
+diff --git a/ayanavita-fontend/src/App.tsx b/ayanavita-fontend/src/App.tsx
+index af6586bfc6f7b7635dae9cb8a5b22455f0a69b74..6552147b537a21e3f9e5a6e7a1c0b7bb933ffc38 100644
+--- a/ayanavita-fontend/src/App.tsx
++++ b/ayanavita-fontend/src/App.tsx
+@@ -1,14 +1,11 @@
+ import React from "react";
+ import { BrowserRouter } from "react-router-dom";
+-import { AuthProvider } from "./auth/AuthProvider";
+ import { AppRoutes } from "./routes/AppRoutes";
 
- export default defineConfig({
-   plugins: [react()],
-+  server: {
-+    host: true,
-+    port: 5178,
-+  },
- });
-diff --git a/backend/ayanavitabackend/app/api/src/main.ts b/backend/ayanavitabackend/app/api/src/main.ts
-index f2a1da3d887b653b2f8aa0fd71a7ffdcf2bace4c..b1986298421ddae132adf448d8cc77ad503aa3e0 100644
---- a/backend/ayanavitabackend/app/api/src/main.ts
-+++ b/backend/ayanavitabackend/app/api/src/main.ts
-@@ -7,50 +7,52 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+ export default function App() {
+   return (
+     <BrowserRouter>
+-      <AuthProvider>
+-        <AppRoutes />
+-      </AuthProvider>
++      <AppRoutes />
+     </BrowserRouter>
+   );
+ }
+diff --git a/ayanavita-fontend/src/auth/RequireAdmin.tsx b/ayanavita-fontend/src/auth/RequireAdmin.tsx
+index b7f59207a341cd89e40e87efe23d6f7eea0c74e8..7c3c795361b2ffad4dbac11e115d88ccecafc184 100644
+--- a/ayanavita-fontend/src/auth/RequireAdmin.tsx
++++ b/ayanavita-fontend/src/auth/RequireAdmin.tsx
+@@ -1,13 +1,13 @@
+ import React from "react";
+ import { Navigate } from "react-router-dom";
+-import { useAuth } from "./AuthProvider";
++import { useAuth } from "../state/auth.store";
 
- async function bootstrap() {
-   const app = await NestFactory.create(AppModule, {
-     logger: ["log", "error", "warn", "debug", "verbose"],
-   });
+ export function RequireAdmin({ children }: { children: React.ReactNode }) {
+-  const { user, loading } = useAuth();
++  const { status, user } = useAuth();
 
-   // ✅ CORS – chuẩn cho cả production + admin + dev
-   const allow = new Set<string>([
-     // 🌍 Production main domain
-     "http://ayanavita-germany.com",
-     "https://ayanavita-germany.com",
+-  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
+-  if (!user) return <Navigate to="/login" replace />;
++  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
++  if (status !== "authed" || !user) return <Navigate to="/login" replace />;
+   if (user.role !== "ADMIN") return <Navigate to="/courses" replace />;
 
-     // 🔐 Admin subdomain
-     "http://admin.ayanavita.com",
-     "https://admin.ayanavita.com",
+   return <>{children}</>;
+ }
+diff --git a/ayanavita-fontend/src/auth/RequireAuth.tsx b/ayanavita-fontend/src/auth/RequireAuth.tsx
+index 67542e999fc955ef98b3942040f0ff2638268ad2..d68f7e06e98a0e5dd966f5b47e2e9e0e3a6048a6 100644
+--- a/ayanavita-fontend/src/auth/RequireAuth.tsx
++++ b/ayanavita-fontend/src/auth/RequireAuth.tsx
+@@ -1,10 +1,10 @@
+ import React from "react";
+ import { Navigate } from "react-router-dom";
+-import { useAuth } from "./AuthProvider";
++import { useAuth } from "../state/auth.store";
 
-     // 🧪 Dev local
-     "http://localhost:5173",
-     "http://127.0.0.1:5173",
-     "http://localhost:5174",
-     "http://127.0.0.1:5174",
-     "http://localhost:5175",
-     "http://127.0.0.1:5175",
-     "http://localhost:5176",
-     "http://127.0.0.1:5176",
-+    "http://localhost:5178",
-+    "http://127.0.0.1:5178",
-     "http://localhost:5050",
-     "http://127.0.0.1:5050",
-   ]);
+ export function RequireAuth({ children }: { children: React.ReactNode }) {
+-  const { user, loading } = useAuth();
+-  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
+-  if (!user) return <Navigate to="/login" replace />;
++  const { status } = useAuth();
++  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
++  if (status !== "authed") return <Navigate to="/login" replace />;
+   return <>{children}</>;
+ }
+diff --git a/ayanavita-fontend/src/auth/RequireRole.tsx b/ayanavita-fontend/src/auth/RequireRole.tsx
+index ed398eb9d2bfbd2fe28af33347ffca3b1e230353..3d8a58a6e2c46315736edc62a56508b2c20750a0 100644
+--- a/ayanavita-fontend/src/auth/RequireRole.tsx
++++ b/ayanavita-fontend/src/auth/RequireRole.tsx
+@@ -1,21 +1,19 @@
+ import React from "react";
+ import { Navigate } from "react-router-dom";
+-import { useAuth } from "./AuthProvider";
++import { useAuth } from "../state/auth.store";
 
-   app.enableCors({
-     origin: (origin, callback) => {
-       // Cho phép server-to-server hoặc curl
-       if (!origin) return callback(null, true);
+ export function RequireRole({
+-                              role,
+-                              children,
+-                            }: {
++  role,
++  children,
++}: {
+   role: "ADMIN" | "USER";
+   children: React.ReactNode;
+ }) {
+-  const { user } = useAuth();
++  const { status, user } = useAuth();
 
-       if (allow.has(origin)) {
-         return callback(null, true);
+-  console.log("USER:", user);
+-  console.log("EXPECTED ROLE:", role);
+-
+-  if (!user) return <Navigate to="/login" replace />;
++  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
++  if (status !== "authed" || !user) return <Navigate to="/login" replace />;
+   if (user.role !== role) return <Navigate to="/courses" replace />;
+
+   return <>{children}</>;
+ }
+diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
+index ca1b6b47fa492d680235012641da20f7a9207c66..b63976fb92db77fd57f9d24de5805cbe645e07a9 100644
+--- a/ayanavita-fontend/src/pages/CoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/CoursesPage.tsx
+@@ -1,29 +1,29 @@
+ import React, { useEffect, useState } from "react";
+ import { Link } from "react-router-dom";
+ import { coursesApi, type Course } from "../api/courses.api";
+-import { useAuth } from "../auth/AuthProvider";
++import { useAuth } from "../state/auth.store";
+
+ export function CoursesPage() {
+   const { logout, user } = useAuth();
+   const [items, setItems] = useState<Course[]>([]);
+   const [err, setErr] = useState<string | null>(null);
+
+   useEffect(() => {
+     (async () => {
+       try {
+         setErr(null);
+         const data = await coursesApi.list();
+         setItems(data);
+       } catch (e: any) {
+         setErr(e?.message || "Load courses failed");
        }
+     })();
+   }, []);
 
-       console.error(`❌ CORS blocked for origin: ${origin}`);
-       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
-     },
-     credentials: true,
-     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-     optionsSuccessStatus: 204,
-   });
+   return (
+     <div style={{ maxWidth: 960, margin: "24px auto", padding: 16 }}>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+         <h2>Khoá học</h2>
 
-   // ✅ Global Exception Filter
-   app.useGlobalFilters(new AllExceptionsFilter());
+         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+           <span>{user?.email}</span>
+diff --git a/ayanavita-fontend/src/pages/RegisterPage.tsx b/ayanavita-fontend/src/pages/RegisterPage.tsx
+index 804c306a45af293b07a0f496d58c3cb7197d09fc..71901a743d475dece14e880d2387bfbb50502cae 100644
+--- a/ayanavita-fontend/src/pages/RegisterPage.tsx
++++ b/ayanavita-fontend/src/pages/RegisterPage.tsx
+@@ -1,28 +1,28 @@
+ import React, { useState } from "react";
+ import { Link, useNavigate } from "react-router-dom";
+-import { useAuth } from "../auth/AuthProvider";
++import { useAuth } from "../state/auth.store";
 
-diff --git a/docker-compose.yml b/docker-compose.yml
-index 03b948e2e8e90fedef0ce14ee128301ca74fc2d4..0ed30bc9db0df4de693ab6a1477e170f04990dfe 100644
---- a/docker-compose.yml
-+++ b/docker-compose.yml
-@@ -39,50 +39,69 @@ services:
-       - "8090:8090"
-     networks:
-       - aya_net
+ export function RegisterPage() {
+   const nav = useNavigate();
+   const { register } = useAuth();
+   const [name, setName] = useState("");
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
 
-   # =====================
-   # FRONTEND (VITE DEV)
-   # =====================
-   frontend:
-     image: node:20-alpine
-     container_name: ayanavita-frontend
-     working_dir: /app
-     volumes:
-       - ./frontend:/app
-       - ./frontend/landingpageayanavita:/app
-       - /app/node_modules
-     command: sh -c "npm install && npm run dev"
-     environment:
-       NODE_ENV: development
-     ports:
-       - "5174:5174"
-     networks:
-       - aya_net
+   const [err, setErr] = useState<string | null>(null);
+   const [busy, setBusy] = useState(false);
+
+   async function onSubmit(e: React.FormEvent) {
+     e.preventDefault();
+     setErr(null);
+     setBusy(true);
+     try {
+       await register(email.trim(), password, name.trim() || undefined);
+       nav("/courses");
+     } catch (e: any) {
+       setErr(e?.message || "Register failed");
+     } finally {
+       setBusy(false);
+     }
+   }
+
+diff --git a/ayanavita-fontend/src/routes/AppRoutes.tsx b/ayanavita-fontend/src/routes/AppRoutes.tsx
+index 80491865f68c91a74b44d0539f3b2b8b20f55534..1c8dcdadb2501b7fa9c80f3bcfb6acf8913f8a86 100644
+--- a/ayanavita-fontend/src/routes/AppRoutes.tsx
++++ b/ayanavita-fontend/src/routes/AppRoutes.tsx
+@@ -1,29 +1,29 @@
+ import React from "react";
+ import { Navigate, Route, Routes } from "react-router-dom";
+
+-import { RequireAuth } from "../auth/RequireAuth";
++import { RequireAuth } from "../components/RequireAuth";
+ import { RequireRole } from "../auth/RequireRole";
 
 
+ import { RegisterPage } from "../pages/RegisterPage";
+ import { CoursesPage } from "../pages/CoursesPage";
+ import { CourseDetailPage } from "../pages/CourseDetailPage";
+ import { LessonPage } from "../pages/LessonPage";
+ import { MyCoursesPage } from "../pages/MyCoursesPage";
+ import { MyOrdersPage } from "../pages/MyOrdersPage";
+ import { LessonDetailPage } from "../pages/LessonDetailPage";
+ import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
+ import LoginPage from "../pages/LoginPage";
 
+ export function AppRoutes() {
+   return (
+     <Routes>
+       {/* Public */}
+       <Route path="/login" element={<LoginPage />} />
+       <Route path="/register" element={<RegisterPage />} />
+       <Route path="/lessons/:id" element={<LessonDetailPage />} />
+
+       {/* Default */}
+       <Route path="/" element={<Navigate to="/courses" replace />} />
+
+       {/* Protected */}
+diff --git a/ayanavita-fontend/src/state/auth.store.tsx b/ayanavita-fontend/src/state/auth.store.tsx
+index f089f3315e2bd3169ed9daf66441877c419801bb..43a11a27ef395a2661810af6e095d444aa5a028c 100644
+--- a/ayanavita-fontend/src/state/auth.store.tsx
++++ b/ayanavita-fontend/src/state/auth.store.tsx
+@@ -1,86 +1,92 @@
+ // src/state/auth.store.tsx
+ import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+ import { authApi, type MeRes } from "../api/auth.api";
+ import { clearAccessToken, getAccessToken, setAccessToken } from "../api/http";
+
+ export type AuthStatus = "loading" | "guest" | "authed";
+
+ export type AuthState = {
+   status: AuthStatus;
+   token: string;
+   user: MeRes | null;
+ };
+
+ type AuthCtx = AuthState & {
+   bootstrap: () => Promise<void>;
+   login: (email: string, password: string) => Promise<void>;
++  register: (email: string, password: string, name?: string) => Promise<void>;
+   logout: () => void;
+ };
+
+ const Ctx = createContext<AuthCtx | null>(null);
+
+ export function AuthProvider({ children }: { children: React.ReactNode }) {
+   const [status, setStatus] = useState<AuthStatus>("loading");
+   const [token, setToken] = useState<string>(getAccessToken());
+   const [user, setUser] = useState<MeRes | null>(null);
+
+   const bootstrap = async () => {
+     const t = getAccessToken();
+     setToken(t);
+
+     if (!t) {
+       setUser(null);
+       setStatus("guest");
+       return;
+     }
+
+     setStatus("loading");
+     try {
+       const me = await authApi.me();
+       setUser(me);
+       setStatus("authed");
+     } catch {
+       // http.ts đã auto clear token khi 401, nhưng vẫn clear chắc chắn
+       clearAccessToken();
+       setToken("");
+       setUser(null);
+       setStatus("guest");
+     }
+   };
+
+   useEffect(() => {
+     void bootstrap();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
+
+   const login = async (email: string, password: string) => {
+     setStatus("loading");
+     const res = await authApi.login({ email, password });
+     setAccessToken(res.accessToken);
+     setToken(res.accessToken);
+
+     const me = await authApi.me();
+     setUser(me);
+     setStatus("authed");
+   };
+
++  const register = async (email: string, password: string, name?: string) => {
++    await authApi.register({ email, password, name });
++    await login(email, password);
++  };
 +
-+  ayanavita-fontend:
-+    image: node:20-alpine
-+    container_name: ayanavita-fontend
-+    working_dir: /app
-+    volumes:
-+      - ./ayanavita-fontend:/app
-+      - /app/node_modules
-+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5178"
-+    environment:
-+      NODE_ENV: development
-+      VITE_API_URL: http://localhost:8090
-+    depends_on:
-+      - backend
-+    ports:
-+      - "5178:5178"
-+    networks:
-+      - aya_net
-+
-   frontend-final:
-     image: node:20-alpine
-     container_name: ayanavita-frontend-final
-     working_dir: /app
-     volumes:
-       - ./Home/ayanavita-fontend-final:/app
-       - /app/node_modules
-     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5176"
-     environment:
-       NODE_ENV: development
-       VITE_API_URL: http://backend:8090
-     depends_on:
-       - backend
-     ports:
-       - "5176:5176"
-     networks:
-       - aya_net
+   const logout = () => {
+     clearAccessToken();
+     setToken("");
+     setUser(null);
+     setStatus("guest");
+   };
 
-   # =====================
-   # ADMIN (REACT DEV)
-   # =====================
-   admin:
-     image: node:20-alpine
-     container_name: ayanavita-admin
-     working_dir: /app
+   const value = useMemo<AuthCtx>(
+-    () => ({ status, token, user, bootstrap, login, logout }),
++    () => ({ status, token, user, bootstrap, login, register, logout }),
+     [status, token, user]
+   );
+
+   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+ }
+
+ export function useAuth() {
+   const v = useContext(Ctx);
+   if (!v) throw new Error("useAuth must be used within <AuthProvider>");
+   return v;
+ }

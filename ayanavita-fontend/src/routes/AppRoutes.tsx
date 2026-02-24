@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { RequireAuth } from "../auth/RequireAuth";
+import { RequireAuth } from "../components/RequireAuth";
 import { RequireRole } from "../auth/RequireRole";
 
 

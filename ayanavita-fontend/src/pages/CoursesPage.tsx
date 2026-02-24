@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { coursesApi, type Course } from "../api/courses.api";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuth } from "../state/auth.store";
 
 export function CoursesPage() {
   const { logout, user } = useAuth();

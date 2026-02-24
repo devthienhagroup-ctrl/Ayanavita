@@ -1,20 +1,18 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "./AuthProvider";
+import { useAuth } from "../state/auth.store";
 
 export function RequireRole({
-                              role,
-                              children,
-                            }: {
+  role,
+  children,
+}: {
   role: "ADMIN" | "USER";
   children: React.ReactNode;
 }) {
-  const { user } = useAuth();
+  const { status, user } = useAuth();
 
-  console.log("USER:", user);
-  console.log("EXPECTED ROLE:", role);
-
-  if (!user) return <Navigate to="/login" replace />;
+  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
+  if (status !== "authed" || !user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to="/courses" replace />;
 
   return <>{children}</>;

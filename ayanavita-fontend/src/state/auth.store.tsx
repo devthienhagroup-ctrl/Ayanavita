@@ -14,6 +14,7 @@ export type AuthState = {
 type AuthCtx = AuthState & {
   bootstrap: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -64,6 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("authed");
   };
 
+  const register = async (email: string, password: string, name?: string) => {
+    await authApi.register({ email, password, name });
+    await login(email, password);
+  };
+
   const logout = () => {
     clearAccessToken();
     setToken("");
@@ -72,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo<AuthCtx>(
-    () => ({ status, token, user, bootstrap, login, logout }),
+    () => ({ status, token, user, bootstrap, login, register, logout }),
     [status, token, user]
   );
 
