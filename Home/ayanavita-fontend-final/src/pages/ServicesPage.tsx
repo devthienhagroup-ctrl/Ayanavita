@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ParticlesBackground } from "../components/layout/ParticlesBackground";
@@ -9,19 +9,40 @@ import { AuthModal } from "../components/home/AuthModal";
 import { SuccessModal } from "../components/home/SuccessModal";
 
 import { money } from "../services/booking.utils";
-import {
-  SERVICES,
-  type Service,
-  type ServiceCat,
-  type ServiceGoal,
-} from "../data/services.data";
+import { http } from "../api/http";
 
 type AuthTab = "login" | "register";
-
 type DurRule = "all" | "lt60" | "60-90" | "gt90";
-type GoalRule = "all" | ServiceGoal;
-type CatRule = "all" | ServiceCat;
 type SortRule = "popular" | "priceAsc" | "priceDesc" | "rating";
+
+type ApiService = {
+  id: string;
+  dbId: number;
+  name: string;
+  cat: string;
+  goal: string[];
+  duration: number;
+  price: number;
+  rating: number;
+  booked: number;
+  img?: string | null;
+  tag: string;
+};
+
+const CAT_LABELS: Record<string, string> = {
+  skin: "Chăm sóc da",
+  body: "Body / Thư giãn",
+  health: "Sức khoẻ trị liệu",
+  package: "Gói liệu trình",
+};
+
+const GOAL_LABELS: Record<string, string> = {
+  relax: "Thư giãn",
+  acne: "Giảm mụn",
+  bright: "Sáng da",
+  restore: "Phục hồi",
+  pain: "Giảm đau nhức",
+};
 
 function matchDur(dur: number, rule: DurRule) {
   if (rule === "all") return true;
@@ -32,19 +53,19 @@ function matchDur(dur: number, rule: DurRule) {
 }
 
 function Stars({ rating }: { rating: number }) {
-  const full = Math.floor(rating);
+  const full = Math.max(1, Math.floor(rating));
   const icons = Array.from({ length: full }, (_, i) => (
     <i key={i} className="fa-solid fa-star star" />
   ));
   return <span className="flex items-center gap-1">{icons}</span>;
 }
 
-function ServiceCard({ s }: { s: Service }) {
+function ServiceCard({ s }: { s: ApiService }) {
   return (
     <article className="card p-4">
       <img
         className="h-36 w-full rounded-2xl object-cover ring-1 ring-slate-200"
-        src={s.img}
+        src={s.img || "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=70"}
         alt={s.name}
       />
 
@@ -88,13 +109,15 @@ function ServiceCard({ s }: { s: Service }) {
 }
 
 export default function ServicesPage() {
-  // shared auth/success (đồng bộ Home)
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<AuthTab>("login");
   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
     open: false,
     message: "",
   });
+
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<ApiService[]>([]);
 
   const openAuth = useCallback((tab: AuthTab) => {
     setAuthTab(tab);
@@ -105,26 +128,47 @@ export default function ServicesPage() {
     setSuccess({ open: true, message });
   }, []);
 
-  // filters
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState<CatRule>("all");
-  const [goal, setGoal] = useState<GoalRule>("all");
+  const [cat, setCat] = useState("all");
+  const [goal, setGoal] = useState("all");
   const [dur, setDur] = useState<DurRule>("all");
   const [sort, setSort] = useState<SortRule>("popular");
 
-  // paging
   const [page, setPage] = useState(1);
   const pageSize = 6;
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await http.get("/booking/services-page");
+        if (!mounted) return;
+        setServices(Array.isArray(data) ? data : []);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const availableCats = useMemo(
+    () => Array.from(new Set(services.map((s) => s.cat).filter(Boolean))),
+    [services]
+  );
+
+  const availableGoals = useMemo(
+    () => Array.from(new Set(services.flatMap((s) => s.goal || []).filter(Boolean))),
+    [services]
+  );
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
 
-    let list = SERVICES.filter((s) => {
-      const okQ =
-        !qq ||
-        s.name.toLowerCase().includes(qq) ||
-        s.id.toLowerCase().includes(qq);
-
+    let list = services.filter((s) => {
+      const okQ = !qq || s.name.toLowerCase().includes(qq) || s.id.toLowerCase().includes(qq);
       const okC = cat === "all" ? true : s.cat === cat;
       const okG = goal === "all" ? true : (s.goal || []).includes(goal);
       const okD = matchDur(s.duration, dur);
@@ -137,7 +181,7 @@ export default function ServicesPage() {
     if (sort === "rating") list = [...list].sort((a, b) => b.rating - a.rating);
 
     return list;
-  }, [q, cat, goal, dur, sort]);
+  }, [services, q, cat, goal, dur, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -156,20 +200,14 @@ export default function ServicesPage() {
     setPage(1);
   }
 
-  function bumpToFirstPage() {
-    setPage(1);
-  }
-
   return (
     <div className="bg-slate-50 text-slate-900">
       <ParticlesBackground />
-
       <div className="page-content">
         <Header onLogin={() => openAuth("login")} onRegister={() => openAuth("register")} />
 
         <main className="px-4 pb-10">
           <div className="max-w-6xl mx-auto card overflow-hidden">
-            {/* Hero */}
             <div className="relative">
               <img
                 className="h-52 w-full object-cover"
@@ -182,178 +220,61 @@ export default function ServicesPage() {
                 <h1 className="text-2xl md:text-3xl font-extrabold text-white">
                   Trải nghiệm Spa chuyên sâu, chuẩn hoá theo hệ thống
                 </h1>
-                <div className="mt-2 flex gap-2 flex-wrap">
-                  <span className="chip">
-                    <i className="fa-solid fa-shield-halved text-emerald-600" />
-                    Quy trình chuẩn
-                  </span>
-                  <span className="chip">
-                    <i className="fa-solid fa-user-doctor text-indigo-600" />
-                    Chuyên viên
-                  </span>
-                  <span className="chip">
-                    <i className="fa-solid fa-star star" />
-                    Đánh giá cao
-                  </span>
-                </div>
               </div>
             </div>
 
             <div className="p-6 grid gap-4 lg:grid-cols-4">
-              {/* Filters */}
               <aside className="lg:col-span-1">
                 <div className="card p-5">
                   <div className="flex items-center justify-between">
                     <div className="font-extrabold">Bộ lọc dịch vụ</div>
-                    <button
-                      onClick={reset}
-                      className="btn px-3 py-2"
-                      type="button"
-                      aria-label="reset"
-                    >
+                    <button onClick={reset} className="btn px-3 py-2" type="button" aria-label="reset">
                       <i className="fa-solid fa-rotate-left" />
                     </button>
                   </div>
 
                   <div className="mt-3">
                     <label className="text-sm font-extrabold text-slate-700">Tìm theo tên</label>
-                    <input
-                      className="field mt-2"
-                      placeholder="VD: chăm sóc da, trị liệu..."
-                      value={q}
-                      onChange={(e) => {
-                        setQ(e.target.value);
-                        bumpToFirstPage();
-                      }}
-                    />
+                    <input className="field mt-2" placeholder="VD: chăm sóc da, trị liệu..." value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
                   </div>
 
                   <div className="mt-4">
                     <label className="text-sm font-extrabold text-slate-700">Danh mục</label>
-                    <select
-                      className="field mt-2"
-                      value={cat}
-                      onChange={(e) => {
-                        setCat(e.target.value as CatRule);
-                        bumpToFirstPage();
-                      }}
-                    >
+                    <select className="field mt-2" value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}>
                       <option value="all">Tất cả</option>
-                      <option value="skin">Chăm sóc da</option>
-                      <option value="body">Body / Thư giãn</option>
-                      <option value="health">Sức khoẻ trị liệu</option>
-                      <option value="package">Gói liệu trình</option>
+                      {availableCats.map((c) => <option key={c} value={c}>{CAT_LABELS[c] || c}</option>)}
                     </select>
                   </div>
 
                   <div className="mt-4">
                     <label className="text-sm font-extrabold text-slate-700">Mục tiêu</label>
-                    <select
-                      className="field mt-2"
-                      value={goal}
-                      onChange={(e) => {
-                        setGoal(e.target.value as GoalRule);
-                        bumpToFirstPage();
-                      }}
-                    >
+                    <select className="field mt-2" value={goal} onChange={(e) => { setGoal(e.target.value); setPage(1); }}>
                       <option value="all">Tất cả</option>
-                      <option value="relax">Thư giãn</option>
-                      <option value="acne">Giảm mụn</option>
-                      <option value="bright">Sáng da</option>
-                      <option value="restore">Phục hồi</option>
-                      <option value="pain">Giảm đau nhức</option>
+                      {availableGoals.map((g) => <option key={g} value={g}>{GOAL_LABELS[g] || g}</option>)}
                     </select>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="text-sm font-extrabold text-slate-700">Thời lượng</label>
-                    <select
-                      className="field mt-2"
-                      value={dur}
-                      onChange={(e) => {
-                        setDur(e.target.value as DurRule);
-                        bumpToFirstPage();
-                      }}
-                    >
-                      <option value="all">Tất cả</option>
-                      <option value="lt60">&lt; 60 phút</option>
-                      <option value="60-90">60–90 phút</option>
-                      <option value="gt90">&gt; 90 phút</option>
-                    </select>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="text-sm font-extrabold text-slate-700">Sắp xếp</label>
-                    <select
-                      className="field mt-2"
-                      value={sort}
-                      onChange={(e) => {
-                        setSort(e.target.value as SortRule);
-                        bumpToFirstPage();
-                      }}
-                    >
-                      <option value="popular">Phổ biến</option>
-                      <option value="priceAsc">Giá tăng</option>
-                      <option value="priceDesc">Giá giảm</option>
-                      <option value="rating">Đánh giá</option>
-                    </select>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
-                    Demo: filter + sort realtime bằng React state.
                   </div>
                 </div>
               </aside>
 
-              {/* List */}
               <section className="lg:col-span-3">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <div className="text-xs font-extrabold text-slate-500">Danh sách</div>
                     <h2 className="text-xl font-extrabold">Dịch vụ nổi bật</h2>
-                    <div className="text-sm text-slate-600">
-                      Hiển thị <b>{filtered.length}</b> dịch vụ
-                    </div>
+                    <div className="text-sm text-slate-600">Hiển thị <b>{filtered.length}</b> dịch vụ</div>
                   </div>
-
-                  <Link to="/booking" className="btn btn-primary">
-                    <i className="fa-solid fa-calendar-check" />
-                    Đặt lịch
-                  </Link>
+                  <Link to="/booking" className="btn btn-primary"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
                 </div>
 
+                {loading ? <div className="mt-4 text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div> : null}
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {pageItems.length ? (
-                    pageItems.map((s) => <ServiceCard key={s.id} s={s} />)
-                  ) : (
-                    <div className="text-slate-600 p-6">Không có dịch vụ phù hợp bộ lọc.</div>
-                  )}
+                  {pageItems.length ? pageItems.map((s) => <ServiceCard key={s.id} s={s} />) : <div className="text-slate-600 p-6">Không có dịch vụ phù hợp bộ lọc.</div>}
                 </div>
 
-                {/* Pagination */}
                 <div className="mt-5 flex items-center justify-between">
-                  <button
-                    className={`btn ${safePage <= 1 ? "opacity-50" : ""}`}
-                    disabled={safePage <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    type="button"
-                  >
-                    Trước
-                  </button>
-
-                  <div className="chip">
-                    Trang <span className="mx-1 font-extrabold">{safePage}</span>/
-                    <span className="ml-1 font-extrabold">{totalPages}</span>
-                  </div>
-
-                  <button
-                    className={`btn ${safePage >= totalPages ? "opacity-50" : ""}`}
-                    disabled={safePage >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    type="button"
-                  >
-                    Sau
-                  </button>
+                  <button className={`btn ${safePage <= 1 ? "opacity-50" : ""}`} disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} type="button">Trước</button>
+                  <div className="chip">Trang <span className="mx-1 font-extrabold">{safePage}</span>/<span className="ml-1 font-extrabold">{totalPages}</span></div>
+                  <button className={`btn ${safePage >= totalPages ? "opacity-50" : ""}`} disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} type="button">Sau</button>
                 </div>
               </section>
             </div>
@@ -363,25 +284,14 @@ export default function ServicesPage() {
         <Footer />
       </div>
 
-      <SuccessModal
-        open={success.open}
-        message={success.message}
-        onClose={() => setSuccess({ open: false, message: "" })}
-      />
-
+      <SuccessModal open={success.open} message={success.message} onClose={() => setSuccess({ open: false, message: "" })} />
       <AuthModal
         open={authOpen}
         tab={authTab}
         onClose={() => setAuthOpen(false)}
         onSwitchTab={setAuthTab}
-        onLoginSuccess={() => {
-          setAuthOpen(false);
-          openSuccess("Đăng nhập thành công.");
-        }}
-        onRegisterSuccess={() => {
-          setAuthOpen(false);
-          openSuccess("Đăng ký thành công.");
-        }}
+        onLoginSuccess={() => { setAuthOpen(false); openSuccess("Đăng nhập thành công."); }}
+        onRegisterSuccess={() => { setAuthOpen(false); openSuccess("Đăng ký thành công."); }}
       />
     </div>
   );

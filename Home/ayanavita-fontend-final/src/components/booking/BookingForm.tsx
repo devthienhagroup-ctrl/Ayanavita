@@ -41,9 +41,9 @@ export function BookingForm({
     phone: "",
     email: "",
     notify: "zalo",
-    serviceId: services[0]?.id || "sv1",
+    serviceId: services[0]?.id || "",
     staffId: "",
-    branchId: branches[0]?.id || "b1",
+    branchId: branches[0]?.id || "",
     date: tomorrow,
     note: "",
   }));
@@ -60,14 +60,23 @@ export function BookingForm({
       phone: "",
       email: "",
       notify: "zalo",
-      serviceId: services[0]?.id || "sv1",
+      serviceId: services[0]?.id || "",
       staffId: "",
-      branchId: branches[0]?.id || "b1",
+      branchId: branches[0]?.id || "",
       date: tomorrow,
       note: "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onResetSignal]);
+
+
+  useEffect(() => {
+    setDraft((d) => ({
+      ...d,
+      serviceId: d.serviceId || services[0]?.id || "",
+      branchId: d.branchId || branches[0]?.id || "",
+    }));
+  }, [services, branches]);
 
   const svc = useMemo(() => services.find((s) => s.id === draft.serviceId), [services, draft.serviceId]);
   const staffPick = useMemo(() => staff.find((s) => s.id === draft.staffId), [staff, draft.staffId]);
@@ -83,6 +92,8 @@ export function BookingForm({
     if (!name) return onToast("Thiếu thông tin", "Vui lòng nhập họ và tên.");
     if (!isValidPhone(phone)) return onToast("Số điện thoại chưa đúng", "Vui lòng nhập số bắt đầu bằng 0 và đủ 10–11 số.");
     if (!date) return onToast("Thiếu ngày", "Vui lòng chọn ngày.");
+    if (!svc) return onToast("Thiếu dịch vụ", "Vui lòng chọn dịch vụ.");
+    if (!branchPick) return onToast("Thiếu chi nhánh", "Vui lòng chọn chi nhánh.");
     if (!selectedSlot) return onToast("Chưa chọn giờ", "Vui lòng chọn một khung giờ.");
 
     const booking: Booking = {

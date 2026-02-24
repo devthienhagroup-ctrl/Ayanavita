@@ -11,7 +11,8 @@ import { AuthModal } from "../components/booking/AuthModal";
 import { PolicyModal } from "../components/booking/PolicyModal";
 import { ToastStack } from "../components/booking/ToastStack";
 
-import { DEMO_BRANCHES, DEMO_SERVICES, DEMO_STAFF } from "../services/booking.demo";
+import { useBookingCatalog } from "../services/booking.demo";
+import { http } from "../api/http";
 import { useToast } from "../services/useToast";
 import { useBookingSlots } from "../services/useBookingSlots";
 import { useBookings } from "../services/useBookings";
@@ -23,6 +24,7 @@ export default function BookingPage() {
   const { items: toasts, push: toast, remove } = useToast();
   const slots = useBookingSlots();
   const bookings = useBookings();
+  const catalog = useBookingCatalog();
 
   const [authOpen, setAuthOpen] = React.useState(false);
   const [policyOpen, setPolicyOpen] = React.useState(false);
@@ -102,15 +104,32 @@ export default function BookingPage() {
         <section id="form" className="mt-5 grid gap-4 lg:grid-cols-3" ref={formRef}>
           <div className="lg:col-span-2 space-y-4">
             <BookingForm
-              services={DEMO_SERVICES}
-              staff={DEMO_STAFF}
-              branches={DEMO_BRANCHES}
+              services={catalog.services}
+              staff={catalog.staff}
+              branches={catalog.branches}
               selectedSlot={slots.selectedSlot}
               onToast={toast}
-              onCreate={(b) => bookings.add(b)}
+              onCreate={async (b) => {
+                bookings.add(b);
+                try {
+                  await http.post("/booking/appointments", {
+                    customerName: b.name,
+                    customerPhone: b.phone,
+                    customerEmail: b.email || undefined,
+                    appointmentAt: `${b.date}T${b.time}:00`,
+                    note: b.note || undefined,
+                    branchId: Number(b.branchId),
+                    serviceId: Number(b.serviceId),
+                    specialistId: b.staffId ? Number(b.staffId) : undefined,
+                  });
+                } catch {
+                  toast("Lưu DB chưa thành công", "Vui lòng kiểm tra backend (localhost:8090).");
+                }
+              }}
               onResetSignal={resetSignal}
               initialName={user?.name || ""}
             />
+            {catalog.loading && <div className="text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div>}
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 ring-1 ring-slate-200">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

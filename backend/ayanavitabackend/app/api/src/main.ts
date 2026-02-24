@@ -1,6 +1,8 @@
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { join } from "path";
+import * as express from "express";
 
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
@@ -52,6 +54,9 @@ async function bootstrap() {
     allowedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 204,
   });
+
+  // ✅ serve temporary uploaded images
+  app.use("/booking-temp-images", express.static(join(process.cwd(), "temp-images")));
 
   // ✅ Global Exception Filter
   app.useGlobalFilters(new AllExceptionsFilter());

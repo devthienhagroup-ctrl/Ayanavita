@@ -1,24 +1,67 @@
-// src/services/booking.demo.ts
+import { useEffect, useState } from "react";
+import { bookingApi } from "../api/booking.api";
+
 export type DemoService = { id: string; name: string; duration: number; price: number; tag: string };
 export type DemoStaff = { id: string; name: string; level: string };
 export type DemoBranch = { id: string; name: string; address: string };
 
-export const DEMO_SERVICES: DemoService[] = [
-  { id: "sv1", name: "Chăm sóc da chuyên sâu", duration: 75, price: 690000, tag: "Da" },
-  { id: "sv2", name: "Massage trị liệu cổ vai gáy", duration: 60, price: 490000, tag: "Sức khoẻ" },
-  { id: "sv3", name: "Gội đầu dưỡng sinh", duration: 45, price: 320000, tag: "Thư giãn" },
-  { id: "sv4", name: "Combo: Da + Massage", duration: 120, price: 1050000, tag: "Combo" },
-];
+type CatalogState = {
+  services: DemoService[];
+  staff: DemoStaff[];
+  branches: DemoBranch[];
+  loading: boolean;
+};
 
-export const DEMO_STAFF: DemoStaff[] = [
-  { id: "st1", name: "Chuyên viên Linh", level: "Senior" },
-  { id: "st2", name: "Chuyên viên Trang", level: "Expert" },
-  { id: "st3", name: "Chuyên viên Mai", level: "Senior" },
-  { id: "st4", name: "Chuyên viên Nam", level: "Therapist" },
-];
+const EMPTY_STATE: CatalogState = { services: [], staff: [], branches: [], loading: true };
 
-export const DEMO_BRANCHES: DemoBranch[] = [
-  { id: "b1", name: "AYANAVITA • Quận 1 (HCM)", address: "Số 12, đường A, Q1" },
-  { id: "b2", name: "AYANAVITA • Cầu Giấy (HN)", address: "Số 88, đường B, Cầu Giấy" },
-  { id: "b3", name: "AYANAVITA • Hải Châu (ĐN)", address: "Số 25, đường C, Hải Châu" },
-];
+export function useBookingCatalog() {
+  const [state, setState] = useState<CatalogState>(EMPTY_STATE);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const [servicesRes, staffRes, branchesRes] = await Promise.all([
+          bookingApi.services(),
+          bookingApi.specialists(),
+          bookingApi.branches(),
+        ]);
+
+        if (!mounted) return;
+
+        const services: DemoService[] = (servicesRes || []).map((s: any) => ({
+          id: String(s.id),
+          name: s.name,
+          duration: Number(s.durationMin ?? 0),
+          price: Number(s.price ?? 0),
+          tag: "Spa",
+        }));
+
+        const staff: DemoStaff[] = (staffRes || []).map((s: any) => ({
+          id: String(s.id),
+          name: s.name,
+          level: s.level,
+        }));
+
+        const branches: DemoBranch[] = (branchesRes || []).map((b: any) => ({
+          id: String(b.id),
+          name: b.name,
+          address: b.address,
+        }));
+
+        setState({ services, staff, branches, loading: false });
+      } catch {
+        if (!mounted) return;
+        setState({ services: [], staff: [], branches: [], loading: false });
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return state;
+}
