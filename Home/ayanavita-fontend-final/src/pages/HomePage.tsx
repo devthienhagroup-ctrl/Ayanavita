@@ -115,13 +115,11 @@ export default function HomePage() {
         onSwitchTab={setAuthTab}
         onLoginSuccess={() => {
           setAuthOpen(false);
-          openSuccess("Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.");
+          openSuccess("Đăng nhập thành công.");
         }}
         onRegisterSuccess={() => {
           setAuthOpen(false);
-          openSuccess(
-            "Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực."
-          );
+          openSuccess("Đăng ký thành công.");
         }}
       />
     </div>

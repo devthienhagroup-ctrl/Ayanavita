@@ -1,296 +1,1088 @@
-diff --git a/ayanavita-fontend/src/App.tsx b/ayanavita-fontend/src/App.tsx
-index af6586bfc6f7b7635dae9cb8a5b22455f0a69b74..6552147b537a21e3f9e5a6e7a1c0b7bb933ffc38 100644
---- a/ayanavita-fontend/src/App.tsx
-+++ b/ayanavita-fontend/src/App.tsx
-@@ -1,14 +1,11 @@
- import React from "react";
- import { BrowserRouter } from "react-router-dom";
--import { AuthProvider } from "./auth/AuthProvider";
- import { AppRoutes } from "./routes/AppRoutes";
+diff --git a/Home/ayanavita-fontend-final/src/api/auth.api.ts b/Home/ayanavita-fontend-final/src/api/auth.api.ts
+index eeeeed325b46919b4b93eeb7f1e1f5f40b9243fb..61434e6fbb205f0231f3b5b2c49915e1bac6dd42 100644
+--- a/Home/ayanavita-fontend-final/src/api/auth.api.ts
++++ b/Home/ayanavita-fontend-final/src/api/auth.api.ts
+@@ -1,10 +1,36 @@
+ import { http } from "./http";
 
- export default function App() {
+ export type MeRes = { id: string; email?: string; role?: string };
+
++export type LoginReq = { email: string; password: string };
++export type SendOtpReq = { email: string };
++export type RegisterNewReq = {
++  name?: string;
++  phone: string;
++  email: string;
++  password: string;
++  otp: string;
++  acceptedPolicy: boolean;
++};
++
+ export const authApi = {
+   async me(): Promise<MeRes> {
+     const { data } = await http.get("/auth/me");
+     return data;
+   },
++
++  async login(payload: LoginReq) {
++    const { data } = await http.post("/auth/login", payload);
++    return data;
++  },
++
++  async sendOtp(payload: SendOtpReq) {
++    const { data } = await http.post("/auth/send-otp", payload);
++    return data;
++  },
++
++  async registerNew(payload: RegisterNewReq) {
++    const { data } = await http.post("/auth/register-new", payload);
++    return data;
++  },
+ };
+diff --git a/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx b/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx
+index 3a2502553252cec49af5984b9ae485f3de25fdea..39eed37066e4351576413ab73f947b381ea57dee 100644
+--- a/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx
++++ b/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx
+@@ -1,193 +1,255 @@
+ // src/components/home/AuthModal.tsx
+-import React, { useMemo, useState } from "react";
++import React, { useMemo, useRef, useState } from "react";
+ import { Modal } from "../ui/Modal";
++import { authApi } from "../../api/auth.api";
+
+ type AuthTab = "login" | "register";
+
++const OTP_LEN = 6;
++
+ export function AuthModal({
+   open,
+   tab,
+   onClose,
+   onSwitchTab,
+   onLoginSuccess,
+   onRegisterSuccess,
+ }: {
+   open: boolean;
+   tab: AuthTab;
+   onClose: () => void;
+   onSwitchTab: (t: AuthTab) => void;
+   onLoginSuccess: () => void;
+   onRegisterSuccess: () => void;
+ }) {
+   const [loginEmail, setLoginEmail] = useState("");
+   const [loginPass, setLoginPass] = useState("");
+   const [reg, setReg] = useState({ name: "", phone: "", email: "", pass: "", confirm: "", terms: false });
++  const [otpDigits, setOtpDigits] = useState(Array.from({ length: OTP_LEN }, () => ""));
++  const [otpOpen, setOtpOpen] = useState(false);
++
++  const [loading, setLoading] = useState(false);
++  const [sendingOtp, setSendingOtp] = useState(false);
++  const [error, setError] = useState("");
++  const [info, setInfo] = useState("");
++
++  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+   const emailOk = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail), [loginEmail]);
+   const loginPassOk = useMemo(() => loginPass.trim().length > 0, [loginPass]);
+
+   const regEmailOk = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reg.email), [reg.email]);
+   const regPassOk = useMemo(() => reg.pass.length >= 8, [reg.pass]);
+   const regConfirmOk = useMemo(() => reg.pass === reg.confirm, [reg.pass, reg.confirm]);
++  const regBaseOk = useMemo(
++    () => Boolean(reg.name.trim() && reg.phone.trim() && regEmailOk && regPassOk && regConfirmOk && reg.terms),
++    [reg.name, reg.phone, regEmailOk, regPassOk, regConfirmOk, reg.terms],
++  );
++
++  const otpValue = otpDigits.join("");
++  const otpCompleted = otpValue.length === OTP_LEN;
++
++  async function handleLogin() {
++    if (!(emailOk && loginPassOk)) return;
++    setError("");
++    setInfo("");
++    setLoading(true);
++    try {
++      const res = await authApi.login({ email: loginEmail.trim(), password: loginPass });
++      if (res?.accessToken) localStorage.setItem("aya_access_token", res.accessToken);
++      if (res?.refreshToken) localStorage.setItem("aya_refresh_token", res.refreshToken);
++      onLoginSuccess();
++    } catch (e: any) {
++      setError(e?.response?.data?.message || "Đăng nhập thất bại");
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  async function sendOtpAndOpenModal() {
++    if (!regBaseOk) {
++      setError("Vui lòng điền đủ thông tin đăng ký và chấp nhận chính sách.");
++      return;
++    }
++
++    setError("");
++    setInfo("");
++    setSendingOtp(true);
++    try {
++      await authApi.sendOtp({ email: reg.email.trim() });
++      setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
++      setOtpOpen(true);
++      setInfo("OTP đã được gửi qua email, hiệu lực 5 phút.");
++      setTimeout(() => otpInputRefs.current[0]?.focus(), 0);
++    } catch (e: any) {
++      setError(e?.response?.data?.message || "Không gửi được OTP");
++    } finally {
++      setSendingOtp(false);
++    }
++  }
++
++  async function handleRegisterWithOtp() {
++    if (!regBaseOk || !otpCompleted) return;
++
++    setError("");
++    setInfo("");
++    setLoading(true);
++    try {
++      const res = await authApi.registerNew({
++        name: reg.name.trim(),
++        phone: reg.phone.trim(),
++        email: reg.email.trim(),
++        password: reg.pass,
++        otp: otpValue,
++        acceptedPolicy: reg.terms,
++      });
++
++      if (res?.accessToken) localStorage.setItem("aya_access_token", res.accessToken);
++      if (res?.refreshToken) localStorage.setItem("aya_refresh_token", res.refreshToken);
++
++      setOtpOpen(false);
++      onRegisterSuccess();
++    } catch (e: any) {
++      setError(e?.response?.data?.message || "OTP không đúng hoặc đã hết hạn");
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  function handleOtpChange(index: number, value: string) {
++    const digit = value.replace(/\D/g, "").slice(-1);
++    setOtpDigits((prev) => {
++      const next = [...prev];
++      next[index] = digit;
++      return next;
++    });
++    if (digit && index < OTP_LEN - 1) otpInputRefs.current[index + 1]?.focus();
++  }
++
++  function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
++    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
++      otpInputRefs.current[index - 1]?.focus();
++    }
++  }
++
++  function handleOtpPaste(e: React.ClipboardEvent<HTMLInputElement>) {
++    e.preventDefault();
++    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LEN);
++    if (!pasted) return;
++    const filled = Array.from({ length: OTP_LEN }, (_, i) => pasted[i] ?? "");
++    setOtpDigits(filled);
++    const nextFocus = Math.min(pasted.length, OTP_LEN - 1);
++    otpInputRefs.current[nextFocus]?.focus();
++  }
+
    return (
-     <BrowserRouter>
--      <AuthProvider>
--        <AppRoutes />
--      </AuthProvider>
-+      <AppRoutes />
-     </BrowserRouter>
+-    <Modal open={open} onClose={onClose} ariaLabel="Đăng nhập / Đăng ký">
+-      <div className="flex items-start justify-between gap-4">
+-        <div>
+-          <div className="text-xs font-semibold text-slate-500">Tài khoản AYANAVITA</div>
+-          <h3 className="text-xl font-bold text-slate-900">Đăng nhập / Đăng ký</h3>
+-        </div>
+-        <button
+-          type="button"
+-          onClick={onClose}
+-          className="h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100"
+-          aria-label="Close"
+-        >
+-          ✕
+-        </button>
+-      </div>
+-
+-      <div className="mt-5 flex gap-2">
+-        <button
+-          type="button"
+-          className={`w-1/2 rounded-[14px] px-3 py-2 font-bold text-sm ${tab === "login" ? "bg-slate-900 text-white" : "bg-white ring-1 ring-slate-200"}`}
+-          onClick={() => onSwitchTab("login")}
+-        >
+-          Đăng nhập
+-        </button>
+-        <button
+-          type="button"
+-          className={`w-1/2 rounded-[14px] px-3 py-2 font-bold text-sm ${tab === "register" ? "bg-slate-900 text-white" : "bg-white ring-1 ring-slate-200"}`}
+-          onClick={() => onSwitchTab("register")}
+-        >
+-          Đăng ký
+-        </button>
+-      </div>
+-
+-      {tab === "login" ? (
+-        <form
+-          className="mt-5 grid gap-3"
+-          onSubmit={(e) => {
+-            e.preventDefault();
+-            if (emailOk && loginPassOk) onLoginSuccess();
+-          }}
+-        >
++    <>
++      <Modal open={open} onClose={onClose} ariaLabel="Đăng nhập / Đăng ký">
++        <div className="flex items-start justify-between gap-4">
+           <div>
+-            <label className="form-label">Email *</label>
+-            <input
+-              value={loginEmail}
+-              onChange={(e) => setLoginEmail(e.target.value)}
+-              type="email"
+-              className={`form-input ${loginEmail && !emailOk ? "error" : ""}`}
+-              placeholder="email@example.com"
+-            />
+-            {loginEmail && !emailOk ? <div className="error-message">Email không hợp lệ</div> : null}
++            <div className="text-xs font-semibold text-slate-500">Tài khoản AYANAVITA</div>
++            <h3 className="text-xl font-bold text-slate-900">Đăng nhập / Đăng ký</h3>
+           </div>
++          <button type="button" onClick={onClose} className="h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100" aria-label="Close">✕</button>
++        </div>
+
+-          <div>
+-            <label className="form-label">Mật khẩu *</label>
+-            <input
+-              value={loginPass}
+-              onChange={(e) => setLoginPass(e.target.value)}
+-              type="password"
+-              className={`form-input ${loginPass === "" ? "" : !loginPassOk ? "error" : ""}`}
+-              placeholder="Nhập mật khẩu"
+-            />
+-            {loginPass !== "" && !loginPassOk ? <div className="error-message">Mật khẩu không được để trống</div> : null}
+-          </div>
++        <div className="mt-5 flex gap-2">
++          <button type="button" className={`w-1/2 rounded-[14px] px-3 py-2 font-bold text-sm ${tab === "login" ? "bg-slate-900 text-white" : "bg-white ring-1 ring-slate-200"}`} onClick={() => onSwitchTab("login")}>Đăng nhập</button>
++          <button type="button" className={`w-1/2 rounded-[14px] px-3 py-2 font-bold text-sm ${tab === "register" ? "bg-slate-900 text-white" : "bg-white ring-1 ring-slate-200"}`} onClick={() => onSwitchTab("register")}>Đăng ký</button>
++        </div>
+
+-          <button type="submit" className="rounded-2xl btn-primary px-6 py-3 font-semibold">
+-            Đăng nhập
+-          </button>
++        {error ? <div className="mt-3 rounded-xl bg-rose-50 text-rose-700 p-3 text-sm">{error}</div> : null}
++        {info ? <div className="mt-3 rounded-xl bg-emerald-50 text-emerald-700 p-3 text-sm">{info}</div> : null}
+
+-          <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
+-            Demo: nhập email hợp lệ và mật khẩu bất kỳ để hiện “Đăng nhập thành công”.
+-          </div>
+-        </form>
+-      ) : (
+-        <form
+-          className="mt-5 grid gap-3"
+-          onSubmit={(e) => {
+-            e.preventDefault();
+-            const ok = reg.name.trim() && reg.phone.trim() && regEmailOk && regPassOk && regConfirmOk && reg.terms;
+-            if (ok) onRegisterSuccess();
+-          }}
+-        >
+-          <div className="grid grid-cols-2 gap-3">
++        {tab === "login" ? (
++          <form className="mt-5 grid gap-3" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+             <div>
+-              <label className="form-label">Họ tên *</label>
+-              <input
+-                value={reg.name}
+-                onChange={(e) => setReg((s) => ({ ...s, name: e.target.value }))}
+-                className={`form-input ${reg.name && !reg.name.trim() ? "error" : ""}`}
+-                placeholder="Nguyễn Văn A"
+-              />
++              <label className="form-label">Email *</label>
++              <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" className={`form-input ${loginEmail && !emailOk ? "error" : ""}`} placeholder="email@example.com" />
+             </div>
+             <div>
+-              <label className="form-label">Số điện thoại *</label>
+-              <input
+-                value={reg.phone}
+-                onChange={(e) => setReg((s) => ({ ...s, phone: e.target.value }))}
+-                className="form-input"
+-                placeholder="0912 345 678"
+-              />
++              <label className="form-label">Mật khẩu *</label>
++              <input value={loginPass} onChange={(e) => setLoginPass(e.target.value)} type="password" className={`form-input ${loginPass === "" ? "" : !loginPassOk ? "error" : ""}`} placeholder="Nhập mật khẩu" />
++            </div>
++            <button disabled={loading} type="submit" className="rounded-2xl btn-primary px-6 py-3 font-semibold disabled:opacity-60">{loading ? "Đang xử lý..." : "Đăng nhập"}</button>
++          </form>
++        ) : (
++          <form className="mt-5 grid gap-3" onSubmit={(e) => { e.preventDefault(); sendOtpAndOpenModal(); }}>
++            <div className="grid grid-cols-2 gap-3">
++              <div><label className="form-label">Họ tên *</label><input value={reg.name} onChange={(e) => setReg((s) => ({ ...s, name: e.target.value }))} className="form-input" /></div>
++              <div><label className="form-label">Số điện thoại *</label><input value={reg.phone} onChange={(e) => setReg((s) => ({ ...s, phone: e.target.value }))} className="form-input" /></div>
+             </div>
+-          </div>
+-
+-          <div>
+-            <label className="form-label">Email *</label>
+-            <input
+-              value={reg.email}
+-              onChange={(e) => setReg((s) => ({ ...s, email: e.target.value }))}
+-              className={`form-input ${reg.email && !regEmailOk ? "error" : ""}`}
+-              placeholder="email@example.com"
+-            />
+-            {reg.email && !regEmailOk ? <div className="error-message">Email không hợp lệ</div> : null}
+-          </div>
+
+-          <div className="grid grid-cols-2 gap-3">
+             <div>
+-              <label className="form-label">Mật khẩu *</label>
+-              <input
+-                value={reg.pass}
+-                onChange={(e) => setReg((s) => ({ ...s, pass: e.target.value }))}
+-                className={`form-input ${reg.pass && !regPassOk ? "error" : ""}`}
+-                placeholder="Ít nhất 8 ký tự"
+-                type="password"
+-              />
+-              {reg.pass && !regPassOk ? <div className="error-message">Mật khẩu phải có ít nhất 8 ký tự</div> : null}
++              <label className="form-label">Email *</label>
++              <input value={reg.email} onChange={(e) => setReg((s) => ({ ...s, email: e.target.value }))} className={`form-input ${reg.email && !regEmailOk ? "error" : ""}`} placeholder="email@example.com" />
+             </div>
+-            <div>
+-              <label className="form-label">Xác nhận *</label>
+-              <input
+-                value={reg.confirm}
+-                onChange={(e) => setReg((s) => ({ ...s, confirm: e.target.value }))}
+-                className={`form-input ${reg.confirm && !regConfirmOk ? "error" : ""}`}
+-                placeholder="Nhập lại mật khẩu"
+-                type="password"
+-              />
+-              {reg.confirm && !regConfirmOk ? <div className="error-message">Mật khẩu không khớp</div> : null}
++
++            <div className="grid grid-cols-2 gap-3">
++              <div><label className="form-label">Mật khẩu *</label><input value={reg.pass} onChange={(e) => setReg((s) => ({ ...s, pass: e.target.value }))} className={`form-input ${reg.pass && !regPassOk ? "error" : ""}`} type="password" /></div>
++              <div><label className="form-label">Xác nhận *</label><input value={reg.confirm} onChange={(e) => setReg((s) => ({ ...s, confirm: e.target.value }))} className={`form-input ${reg.confirm && !regConfirmOk ? "error" : ""}`} type="password" /></div>
+             </div>
+-          </div>
+
+-          <label className="flex items-start gap-2 text-sm text-slate-600">
+-            <input
+-              checked={reg.terms}
+-              onChange={(e) => setReg((s) => ({ ...s, terms: e.target.checked }))}
+-              type="checkbox"
+-              className="h-4 w-4 rounded border-slate-300 mt-1"
+-            />
+-            <span>
+-              Tôi đồng ý với <span className="font-semibold text-indigo-600">Điều khoản</span> và{" "}
+-              <span className="font-semibold text-indigo-600">Chính sách bảo mật</span>
+-            </span>
+-          </label>
+-
+-          <button type="submit" className="rounded-2xl btn-accent px-6 py-3 font-semibold">
+-            Tạo tài khoản
+-          </button>
+-        </form>
+-      )}
+-    </Modal>
++            <label className="flex items-start gap-2 text-sm text-slate-600">
++              <input checked={reg.terms} onChange={(e) => setReg((s) => ({ ...s, terms: e.target.checked }))} type="checkbox" className="h-4 w-4 rounded border-slate-300 mt-1" />
++              <span>Tôi đồng ý với <span className="font-semibold text-indigo-600">Điều khoản</span> và <span className="font-semibold text-indigo-600">Chính sách bảo mật</span></span>
++            </label>
++
++            <button disabled={sendingOtp || !regBaseOk} type="submit" className="rounded-2xl btn-accent px-6 py-3 font-semibold disabled:opacity-60">{sendingOtp ? "Đang gửi OTP..." : "Nhận OTP & tiếp tục"}</button>
++          </form>
++        )}
++      </Modal>
++
++      {otpOpen ? (
++        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 p-4">
++          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
++            <div className="flex items-center justify-between gap-3">
++              <div>
++                <div className="text-xs font-semibold text-slate-500">Xác nhận OTP</div>
++                <h4 className="text-xl font-bold text-slate-900">Nhập mã gồm 6 chữ số</h4>
++              </div>
++              <button type="button" onClick={() => setOtpOpen(false)} className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
++            </div>
++
++            <p className="mt-2 text-sm text-slate-600">Mã đã gửi đến <span className="font-semibold">{reg.email}</span> và có hiệu lực trong 5 phút.</p>
++
++            <div className="mt-5 flex justify-between gap-2">
++              {otpDigits.map((digit, idx) => (
++                <input
++                  key={idx}
++                  ref={(el) => { otpInputRefs.current[idx] = el; }}
++                  value={digit}
++                  onChange={(e) => handleOtpChange(idx, e.target.value)}
++                  onKeyDown={(e) => handleOtpKeyDown(idx, e)}
++                  onPaste={handleOtpPaste}
++                  inputMode="numeric"
++                  maxLength={1}
++                  className="h-12 w-12 rounded-2xl border border-slate-300 text-center text-xl font-bold tracking-widest text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
++                />
++              ))}
++            </div>
++
++            <div className="mt-5 grid gap-2">
++              <button
++                type="button"
++                onClick={handleRegisterWithOtp}
++                disabled={loading || !otpCompleted}
++                className="rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
++              >
++                {loading ? "Đang xác nhận..." : "Xác nhận OTP & tạo tài khoản"}
++              </button>
++              <button
++                type="button"
++                onClick={sendOtpAndOpenModal}
++                disabled={sendingOtp}
++                className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
++              >
++                {sendingOtp ? "Đang gửi lại..." : "Gửi lại OTP"}
++              </button>
++            </div>
++          </div>
++        </div>
++      ) : null}
++    </>
    );
  }
-diff --git a/ayanavita-fontend/src/auth/RequireAdmin.tsx b/ayanavita-fontend/src/auth/RequireAdmin.tsx
-index b7f59207a341cd89e40e87efe23d6f7eea0c74e8..7c3c795361b2ffad4dbac11e115d88ccecafc184 100644
---- a/ayanavita-fontend/src/auth/RequireAdmin.tsx
-+++ b/ayanavita-fontend/src/auth/RequireAdmin.tsx
-@@ -1,13 +1,13 @@
- import React from "react";
- import { Navigate } from "react-router-dom";
--import { useAuth } from "./AuthProvider";
-+import { useAuth } from "../state/auth.store";
+diff --git a/Home/ayanavita-fontend-final/src/pages/HomePage.tsx b/Home/ayanavita-fontend-final/src/pages/HomePage.tsx
+index d9ecc3e67b89f195e1305544ad7a97961f4abe9f..5c91e78f480ea1a2b328c1abbfa4a520d6578420 100644
+--- a/Home/ayanavita-fontend-final/src/pages/HomePage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/HomePage.tsx
+@@ -93,37 +93,35 @@ export default function HomePage() {
 
- export function RequireAdmin({ children }: { children: React.ReactNode }) {
--  const { user, loading } = useAuth();
-+  const { status, user } = useAuth();
+         <Outcomes />
 
--  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
--  if (!user) return <Navigate to="/login" replace />;
-+  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
-+  if (status !== "authed" || !user) return <Navigate to="/login" replace />;
-   if (user.role !== "ADMIN") return <Navigate to="/courses" replace />;
+         <Reviews />
 
-   return <>{children}</>;
+         <PricingSection />
+
+         <ContactSection onSubmit={() => openSuccess("Đã nhận yêu cầu tư vấn (prototype).")} />
+
+         <Footer />
+       </div>
+
+       <SuccessModal
+         open={success.open}
+         message={success.message}
+         onClose={() => setSuccess({ open: false, message: "" })}
+       />
+
+       <AuthModal
+         open={authOpen}
+         tab={authTab}
+         onClose={() => setAuthOpen(false)}
+         onSwitchTab={setAuthTab}
+         onLoginSuccess={() => {
+           setAuthOpen(false);
+-          openSuccess("Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.");
++          openSuccess("Đăng nhập thành công.");
+         }}
+         onRegisterSuccess={() => {
+           setAuthOpen(false);
+-          openSuccess(
+-            "Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực."
+-          );
++          openSuccess("Đăng ký thành công.");
+         }}
+       />
+     </div>
+   );
  }
-diff --git a/ayanavita-fontend/src/auth/RequireAuth.tsx b/ayanavita-fontend/src/auth/RequireAuth.tsx
-index 67542e999fc955ef98b3942040f0ff2638268ad2..d68f7e06e98a0e5dd966f5b47e2e9e0e3a6048a6 100644
---- a/ayanavita-fontend/src/auth/RequireAuth.tsx
-+++ b/ayanavita-fontend/src/auth/RequireAuth.tsx
-@@ -1,10 +1,10 @@
- import React from "react";
- import { Navigate } from "react-router-dom";
--import { useAuth } from "./AuthProvider";
-+import { useAuth } from "../state/auth.store";
+diff --git a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
+index c61e641d676bf92321648cc49e84fbe9e9d921b5..a0e630921259d3b5c909dab6c1ff20a87849dd73 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
+@@ -330,35 +330,35 @@ export default function ServiceDetailPage() {
+                   <li className="flex gap-2">
+                     <span className="text-emerald-600 font-extrabold">•</span>Tư vấn trước và sau dịch vụ
+                   </li>
+                 </ul>
+               </div>
+             </aside>
+           </div>
+         </main>
 
- export function RequireAuth({ children }: { children: React.ReactNode }) {
--  const { user, loading } = useAuth();
--  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
--  if (!user) return <Navigate to="/login" replace />;
-+  const { status } = useAuth();
-+  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
-+  if (status !== "authed") return <Navigate to="/login" replace />;
-   return <>{children}</>;
+         <Footer />
+       </div>
+
+       <SuccessModal
+         open={success.open}
+         message={success.message}
+         onClose={() => setSuccess({ open: false, message: "" })}
+       />
+
+       <AuthModal
+         open={authOpen}
+         tab={authTab}
+         onClose={() => setAuthOpen(false)}
+         onSwitchTab={setAuthTab}
+         onLoginSuccess={() => {
+           setAuthOpen(false);
+-          openSuccess("Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.");
++          openSuccess("Đăng nhập thành công.");
+         }}
+         onRegisterSuccess={() => {
+           setAuthOpen(false);
+-          openSuccess("Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực.");
++          openSuccess("Đăng ký thành công.");
+         }}
+       />
+     </div>
+   );
  }
-diff --git a/ayanavita-fontend/src/auth/RequireRole.tsx b/ayanavita-fontend/src/auth/RequireRole.tsx
-index ed398eb9d2bfbd2fe28af33347ffca3b1e230353..3d8a58a6e2c46315736edc62a56508b2c20750a0 100644
---- a/ayanavita-fontend/src/auth/RequireRole.tsx
-+++ b/ayanavita-fontend/src/auth/RequireRole.tsx
-@@ -1,21 +1,19 @@
- import React from "react";
- import { Navigate } from "react-router-dom";
--import { useAuth } from "./AuthProvider";
-+import { useAuth } from "../state/auth.store";
+diff --git a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
+index ae19c4ac8a3b849bab889fefc815552b18f0b995..200d09d975eb5eb3f9d0c2e0bf9e7ee0103c2f10 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
+@@ -354,35 +354,35 @@ export default function ServicesPage() {
+                   >
+                     Sau
+                   </button>
+                 </div>
+               </section>
+             </div>
+           </div>
+         </main>
 
- export function RequireRole({
--                              role,
--                              children,
--                            }: {
-+  role,
-+  children,
-+}: {
-   role: "ADMIN" | "USER";
-   children: React.ReactNode;
- }) {
--  const { user } = useAuth();
-+  const { status, user } = useAuth();
+         <Footer />
+       </div>
 
--  console.log("USER:", user);
--  console.log("EXPECTED ROLE:", role);
--
--  if (!user) return <Navigate to="/login" replace />;
-+  if (status === "loading") return <div style={{ padding: 16 }}>Loading...</div>;
-+  if (status !== "authed" || !user) return <Navigate to="/login" replace />;
-   if (user.role !== role) return <Navigate to="/courses" replace />;
+       <SuccessModal
+         open={success.open}
+         message={success.message}
+         onClose={() => setSuccess({ open: false, message: "" })}
+       />
 
-   return <>{children}</>;
+       <AuthModal
+         open={authOpen}
+         tab={authTab}
+         onClose={() => setAuthOpen(false)}
+         onSwitchTab={setAuthTab}
+         onLoginSuccess={() => {
+           setAuthOpen(false);
+-          openSuccess("Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.");
++          openSuccess("Đăng nhập thành công.");
+         }}
+         onRegisterSuccess={() => {
+           setAuthOpen(false);
+-          openSuccess("Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực.");
++          openSuccess("Đăng ký thành công.");
+         }}
+       />
+     </div>
+   );
  }
-diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
-index ca1b6b47fa492d680235012641da20f7a9207c66..b63976fb92db77fd57f9d24de5805cbe645e07a9 100644
---- a/ayanavita-fontend/src/pages/CoursesPage.tsx
-+++ b/ayanavita-fontend/src/pages/CoursesPage.tsx
-@@ -1,29 +1,29 @@
- import React, { useEffect, useState } from "react";
- import { Link } from "react-router-dom";
- import { coursesApi, type Course } from "../api/courses.api";
--import { useAuth } from "../auth/AuthProvider";
-+import { useAuth } from "../state/auth.store";
+diff --git a/backend/ayanavitabackend/app/api/.env b/backend/ayanavitabackend/app/api/.env
+index 242d9df0afe7f64ed5889c386aca85caa78b2e25..59ad53cdcdcd4d927a04414608743a9aae91e0b7 100644
+--- a/backend/ayanavitabackend/app/api/.env
++++ b/backend/ayanavitabackend/app/api/.env
+@@ -1,17 +1,21 @@
+ # MySQL
+ MYSQL_ROOT_PASSWORD=rootpassword
+ MYSQL_DATABASE=ayanavita
+ MYSQL_USER=ayanavita
+ MYSQL_PASSWORD=ayanavita_pw
 
- export function CoursesPage() {
-   const { logout, user } = useAuth();
-   const [items, setItems] = useState<Course[]>([]);
-   const [err, setErr] = useState<string | null>(null);
+ # Prisma
+ DATABASE_URL="mysql://ayanavita:ayanavita_pw@mysql:3306/ayanavita"
+ SHADOW_DATABASE_URL="mysql://ayanavita:ayanavita_pw@mysql:3306/ayanavita_shadow"
 
-   useEffect(() => {
-     (async () => {
-       try {
-         setErr(null);
-         const data = await coursesApi.list();
-         setItems(data);
-       } catch (e: any) {
-         setErr(e?.message || "Load courses failed");
-       }
-     })();
-   }, []);
+ # JWT
+ JWT_ACCESS_SECRET=ayanavita_access_secret
+ JWT_REFRESH_SECRET=ayanavita_refresh_secret
+ JWT_ACCESS_EXPIRES_IN=15m
+ JWT_REFRESH_EXPIRES_IN=7d
+ JWT_SECRET=ayanavita_dev_secret_123
+ JWT_EXPIRES_IN=900s
++
++# Mail OTP
++MAIL_USER=manage.ayanavita@gmail.com
++MAIL_PASS="xetp fhph luse qydj"
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/20260224023000_add_phone_and_registration_otp/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/20260224023000_add_phone_and_registration_otp/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7a00975b23e1f1cc11eb666272cf05ce1ad6345
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/20260224023000_add_phone_and_registration_otp/migration.sql
+@@ -0,0 +1,16 @@
++-- AlterTable
++ALTER TABLE `User` ADD COLUMN `phone` VARCHAR(191) NULL;
++
++-- CreateTable
++CREATE TABLE `RegistrationOtp` (
++  `id` INTEGER NOT NULL AUTO_INCREMENT,
++  `email` VARCHAR(191) NOT NULL,
++  `code` VARCHAR(6) NOT NULL,
++  `expiresAt` DATETIME(3) NOT NULL,
++  `usedAt` DATETIME(3) NULL,
++  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++  `updatedAt` DATETIME(3) NOT NULL,
++
++  UNIQUE INDEX `RegistrationOtp_email_key`(`email`),
++  PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 46824f15bc4ab7cc9db26821afebf3457e441d4f..aeb842d2887c36ab2adf98211b317226f5624b54 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -1,56 +1,68 @@
+ generator client {
+   provider = "prisma-client-js"
+ }
 
-   return (
-     <div style={{ maxWidth: 960, margin: "24px auto", padding: 16 }}>
-       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-         <h2>Khoá học</h2>
+ datasource db {
+   provider          = "mysql"
+   url               = env("DATABASE_URL")
+   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+ }
 
-         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-           <span>{user?.email}</span>
-diff --git a/ayanavita-fontend/src/pages/RegisterPage.tsx b/ayanavita-fontend/src/pages/RegisterPage.tsx
-index 804c306a45af293b07a0f496d58c3cb7197d09fc..71901a743d475dece14e880d2387bfbb50502cae 100644
---- a/ayanavita-fontend/src/pages/RegisterPage.tsx
-+++ b/ayanavita-fontend/src/pages/RegisterPage.tsx
-@@ -1,28 +1,28 @@
- import React, { useState } from "react";
- import { Link, useNavigate } from "react-router-dom";
--import { useAuth } from "../auth/AuthProvider";
-+import { useAuth } from "../state/auth.store";
+ model User {
+   id                 Int      @id @default(autoincrement())
+   email              String   @unique
+   password           String
+   name               String?
++  phone              String?
+   role               Role     @default(USER)
+   isActive           Boolean  @default(true)
+   hashedRefreshToken String?  @db.Text
+   createdAt          DateTime @default(now())
+   updatedAt          DateTime @updatedAt
 
- export function RegisterPage() {
-   const nav = useNavigate();
-   const { register } = useAuth();
-   const [name, setName] = useState("");
-   const [email, setEmail] = useState("");
-   const [password, setPassword] = useState("");
+   // ✅ ADD
+   enrollments    Enrollment[]
+   lessonProgress LessonProgress[]
+   orders         Order[] // <— opposite for Order.user
 
-   const [err, setErr] = useState<string | null>(null);
-   const [busy, setBusy] = useState(false);
+   // ✅ CMS (optional relations)
+   cmsSectionVersions CmsSectionVersion[]
+   mediaAssets        MediaAsset[]
+ }
 
-   async function onSubmit(e: React.FormEvent) {
-     e.preventDefault();
-     setErr(null);
-     setBusy(true);
-     try {
-       await register(email.trim(), password, name.trim() || undefined);
-       nav("/courses");
-     } catch (e: any) {
-       setErr(e?.message || "Register failed");
-     } finally {
-       setBusy(false);
++
++model RegistrationOtp {
++  id        Int      @id @default(autoincrement())
++  email     String   @unique
++  code      String   @db.VarChar(6)
++  expiresAt DateTime
++  usedAt    DateTime?
++  createdAt DateTime @default(now())
++  updatedAt DateTime @updatedAt
++}
++
+ model Course {
+   id          Int      @id @default(autoincrement())
+   title       String
+   slug        String   @unique
+   description String?
+   thumbnail   String?
+   price       Int      @default(0)
+   published   Boolean  @default(false)
+   createdAt   DateTime @default(now())
+   updatedAt   DateTime @updatedAt
+
+   lessons     Lesson[]
+   enrollments Enrollment[]
+
+   // ✅ ADD
+   orderItems OrderItem[] // <— opposite for OrderItem.course
+ }
+
+ model Lesson {
+   id        Int              @id @default(autoincrement())
+   courseId  Int
+   title     String
+   slug      String
+   content   String?          @db.LongText
+   videoUrl  String?
+diff --git a/backend/ayanavitabackend/app/api/src/auth/auth.controller.ts b/backend/ayanavitabackend/app/api/src/auth/auth.controller.ts
+index 2e26983555c08c76f6b4d30dfff066cce48978c9..301a0b1999d7b53750465058eaa9d893f16617b0 100644
+--- a/backend/ayanavitabackend/app/api/src/auth/auth.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/auth/auth.controller.ts
+@@ -1,43 +1,55 @@
+ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
+ import { AuthService } from './auth.service'
+ import { RegisterDto } from '../users/dto/register.dto'
+ import { LoginDto } from '../users/dto/login.dto'
++import { SendOtpDto } from './dto/send-otp.dto'
++import { RegisterNewDto } from './dto/register-new.dto'
+
+ import { AccessTokenGuard } from './guards/access-token.guard'
+ import { RefreshTokenGuard } from './guards/refresh-token.guard'
+ import { CurrentUser } from './decorators/current-user.decorator'
+
+ @Controller('auth')
+ export class AuthController {
+   constructor(private readonly auth: AuthService) {}
+
+
+
+   @Post('register')
+   register(@Body() dto: RegisterDto) {
+     return this.auth.register(dto)
+   }
+
+   @Post('login')
+   login(@Body() dto: LoginDto) {
+     return this.auth.login(dto)
+   }
+
++  @Post('send-otp')
++  sendOtp(@Body() dto: SendOtpDto) {
++    return this.auth.sendOtp(dto)
++  }
++
++  @Post('register-new')
++  registerNew(@Body() dto: RegisterNewDto) {
++    return this.auth.registerNew(dto)
++  }
++
+   @UseGuards(RefreshTokenGuard)
+   @Post('refresh')
+   refresh(@CurrentUser() user: any) {
+     return this.auth.refreshTokens(user.sub, user.refreshToken)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Post('logout')
+   logout(@CurrentUser() user: any) {
+     return this.auth.logout(user.sub)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get('me')
+   me(@CurrentUser() user: any) {
+     return user
+   }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/auth/auth.service.ts b/backend/ayanavitabackend/app/api/src/auth/auth.service.ts
+index 85248102f6f5c6d213f868d4168e57678075455e..dc088d21b758d2963837efe9c53f81675ce11685 100644
+--- a/backend/ayanavitabackend/app/api/src/auth/auth.service.ts
++++ b/backend/ayanavitabackend/app/api/src/auth/auth.service.ts
+@@ -1,100 +1,216 @@
+ import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common'
+ import { JwtService } from '@nestjs/jwt'
+ import * as bcrypt from 'bcrypt'
++import * as tls from 'tls'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { RegisterDto } from '../users/dto/register.dto'
+ import { LoginDto } from '../users/dto/login.dto'
++import { SendOtpDto } from './dto/send-otp.dto'
++import { RegisterNewDto } from './dto/register-new.dto'
+
+ type JwtPayload = { sub: number; email: string; role: string }
+
+ @Injectable()
+ export class AuthService {
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly jwt: JwtService,
+   ) {}
+
+   async register(dto: RegisterDto) {
+     const exists = await this.prisma.user.findUnique({ where: { email: dto.email } })
+     if (exists) throw new ForbiddenException('Email already exists')
+
+     const passwordHash = await bcrypt.hash(dto.password, 10)
+
+     const user = await this.prisma.user.create({
+       data: {
+         email: dto.email,
+         password: passwordHash,
+         name: dto.name,
+         role: 'USER',
+       },
+       select: { id: true, email: true, name: true, role: true },
+     })
+
+     const tokens = await this.issueTokens(user.id, user.email, user.role)
+     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
+
+     return { user, ...tokens }
+   }
+
++  async sendOtp(dto: SendOtpDto) {
++    const email = dto.email.trim().toLowerCase()
++    const exists = await this.prisma.user.findUnique({ where: { email } })
++    if (exists) throw new ForbiddenException('Email already exists')
++
++    const otp = String(Math.floor(100000 + Math.random() * 900000))
++    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
++
++    await this.prisma.registrationOtp.upsert({
++      where: { email },
++      update: { code: otp, expiresAt, usedAt: null },
++      create: { email, code: otp, expiresAt },
++    })
++
++    await this.sendOtpMail(email, otp)
++
++    return { success: true, expiresInSeconds: 300 }
++  }
++
++  async registerNew(dto: RegisterNewDto) {
++    if (!dto.acceptedPolicy) throw new ForbiddenException('Bạn phải chấp nhận chính sách')
++
++    const email = dto.email.trim().toLowerCase()
++    const exists = await this.prisma.user.findUnique({ where: { email } })
++    if (exists) throw new ForbiddenException('Email already exists')
++
++    const otpRow = await this.prisma.registrationOtp.findUnique({ where: { email } })
++    if (!otpRow || otpRow.usedAt || otpRow.code !== dto.otp) {
++      throw new ForbiddenException('OTP không hợp lệ')
++    }
++    if (otpRow.expiresAt.getTime() < Date.now()) {
++      throw new ForbiddenException('OTP đã hết hạn')
++    }
++
++    const passwordHash = await bcrypt.hash(dto.password, 10)
++
++    const user = await this.prisma.user.create({
++      data: {
++        email,
++        password: passwordHash,
++        name: dto.name,
++        phone: dto.phone,
++        role: 'USER',
++      },
++      select: { id: true, email: true, name: true, role: true, phone: true },
++    })
++
++    await this.prisma.registrationOtp.update({
++      where: { email },
++      data: { usedAt: new Date() },
++    })
++
++    const tokens = await this.issueTokens(user.id, user.email, user.role)
++    await this.setRefreshTokenHash(user.id, tokens.refreshToken)
++
++    return { user, ...tokens }
++  }
++
+   async login(dto: LoginDto) {
+     const user = await this.prisma.user.findUnique({ where: { email: dto.email } })
+     if (!user) throw new UnauthorizedException('Invalid credentials')
+
+     const ok = await bcrypt.compare(dto.password, user.password)
+     if (!ok) throw new UnauthorizedException('Invalid credentials')
+
+     const tokens = await this.issueTokens(user.id, user.email, user.role)
+     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
+
+     return {
+-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
++      user: { id: user.id, email: user.email, name: user.name, role: user.role, phone: user.phone },
+       ...tokens,
      }
    }
 
-diff --git a/ayanavita-fontend/src/routes/AppRoutes.tsx b/ayanavita-fontend/src/routes/AppRoutes.tsx
-index 80491865f68c91a74b44d0539f3b2b8b20f55534..1c8dcdadb2501b7fa9c80f3bcfb6acf8913f8a86 100644
---- a/ayanavita-fontend/src/routes/AppRoutes.tsx
-+++ b/ayanavita-fontend/src/routes/AppRoutes.tsx
-@@ -1,29 +1,29 @@
- import React from "react";
- import { Navigate, Route, Routes } from "react-router-dom";
+   async refreshTokens(userId: number, refreshToken: string) {
+     const user = await this.prisma.user.findUnique({ where: { id: userId } })
+     if (!user || !user.hashedRefreshToken) throw new ForbiddenException('Access denied')
 
--import { RequireAuth } from "../auth/RequireAuth";
-+import { RequireAuth } from "../components/RequireAuth";
- import { RequireRole } from "../auth/RequireRole";
+     const ok = await bcrypt.compare(refreshToken, user.hashedRefreshToken)
+     if (!ok) throw new ForbiddenException('Access denied')
 
+     const tokens = await this.issueTokens(user.id, user.email, user.role)
+     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
- import { RegisterPage } from "../pages/RegisterPage";
- import { CoursesPage } from "../pages/CoursesPage";
- import { CourseDetailPage } from "../pages/CourseDetailPage";
- import { LessonPage } from "../pages/LessonPage";
- import { MyCoursesPage } from "../pages/MyCoursesPage";
- import { MyOrdersPage } from "../pages/MyOrdersPage";
- import { LessonDetailPage } from "../pages/LessonDetailPage";
- import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
- import LoginPage from "../pages/LoginPage";
+     return tokens
+   }
 
- export function AppRoutes() {
-   return (
-     <Routes>
-       {/* Public */}
-       <Route path="/login" element={<LoginPage />} />
-       <Route path="/register" element={<RegisterPage />} />
-       <Route path="/lessons/:id" element={<LessonDetailPage />} />
+   async logout(userId: number) {
+     await this.prisma.user.update({
+       where: { id: userId },
+       data: { hashedRefreshToken: null },
+     })
+     return { success: true }
+   }
 
-       {/* Default */}
-       <Route path="/" element={<Navigate to="/courses" replace />} />
+-  private issueTokens(userId: number, email: string, role: string) {
+-  const payload: JwtPayload = { sub: userId, email, role }
++  private async sendOtpMail(email: string, otp: string) {
++    const user = process.env.MAIL_USER ?? 'manage.ayanavita@gmail.com'
++    const pass = process.env.MAIL_PASS ?? 'xetp fhph luse qydj'
++    const to = email
++    const subject = 'Mã OTP xác nhận đăng ký AYANAVITA'
++    const body = `Mã OTP của bạn là: ${otp}. Mã có hiệu lực trong 5 phút.`
 
-       {/* Protected */}
-diff --git a/ayanavita-fontend/src/state/auth.store.tsx b/ayanavita-fontend/src/state/auth.store.tsx
-index f089f3315e2bd3169ed9daf66441877c419801bb..43a11a27ef395a2661810af6e095d444aa5a028c 100644
---- a/ayanavita-fontend/src/state/auth.store.tsx
-+++ b/ayanavita-fontend/src/state/auth.store.tsx
-@@ -1,86 +1,92 @@
- // src/state/auth.store.tsx
- import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
- import { authApi, type MeRes } from "../api/auth.api";
- import { clearAccessToken, getAccessToken, setAccessToken } from "../api/http";
+-  const accessToken = this.jwt.sign(payload, {
+-    secret: process.env.JWT_ACCESS_SECRET,
+-    expiresIn: 15 * 60, // 15 phút
+-  })
++    await this.sendSmtpViaGmail({ user, pass, to, subject, body })
++  }
 
- export type AuthStatus = "loading" | "guest" | "authed";
-
- export type AuthState = {
-   status: AuthStatus;
-   token: string;
-   user: MeRes | null;
- };
-
- type AuthCtx = AuthState & {
-   bootstrap: () => Promise<void>;
-   login: (email: string, password: string) => Promise<void>;
-+  register: (email: string, password: string, name?: string) => Promise<void>;
-   logout: () => void;
- };
-
- const Ctx = createContext<AuthCtx | null>(null);
-
- export function AuthProvider({ children }: { children: React.ReactNode }) {
-   const [status, setStatus] = useState<AuthStatus>("loading");
-   const [token, setToken] = useState<string>(getAccessToken());
-   const [user, setUser] = useState<MeRes | null>(null);
-
-   const bootstrap = async () => {
-     const t = getAccessToken();
-     setToken(t);
-
-     if (!t) {
-       setUser(null);
-       setStatus("guest");
-       return;
-     }
-
-     setStatus("loading");
-     try {
-       const me = await authApi.me();
-       setUser(me);
-       setStatus("authed");
-     } catch {
-       // http.ts đã auto clear token khi 401, nhưng vẫn clear chắc chắn
-       clearAccessToken();
-       setToken("");
-       setUser(null);
-       setStatus("guest");
-     }
-   };
-
-   useEffect(() => {
-     void bootstrap();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, []);
-
-   const login = async (email: string, password: string) => {
-     setStatus("loading");
-     const res = await authApi.login({ email, password });
-     setAccessToken(res.accessToken);
-     setToken(res.accessToken);
-
-     const me = await authApi.me();
-     setUser(me);
-     setStatus("authed");
-   };
-
-+  const register = async (email: string, password: string, name?: string) => {
-+    await authApi.register({ email, password, name });
-+    await login(email, password);
-+  };
+-  const refreshToken = this.jwt.sign(payload, {
+-    secret: process.env.JWT_REFRESH_SECRET,
+-    expiresIn: 7 * 24 * 60 * 60, // 7 ngày
+-  })
++  private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string }) {
++    const { user, pass, to, subject, body } = params
 +
-   const logout = () => {
-     clearAccessToken();
-     setToken("");
-     setUser(null);
-     setStatus("guest");
-   };
++    await new Promise<void>((resolve, reject) => {
++      const socket = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => {
++        const authUser = Buffer.from(user).toString('base64')
++        const authPass = Buffer.from(pass).toString('base64')
++        const lines = [
++          'EHLO ayanavita.local',
++          'AUTH LOGIN',
++          authUser,
++          authPass,
++          `MAIL FROM:<${user}>`,
++          `RCPT TO:<${to}>`,
++          'DATA',
++          `Subject: ${subject}`,
++          `From: AYANAVITA <${user}>`,
++          `To: ${to}`,
++          'Content-Type: text/plain; charset=UTF-8',
++          '',
++          body,
++          '.',
++          'QUIT',
++        ]
++        socket.write(lines.join('\r\n') + '\r\n')
++      })
++
++      let data = ''
++      socket.on('data', (chunk) => {
++        data += chunk.toString('utf8')
++      })
++      socket.on('error', reject)
++      socket.on('end', () => {
++        if (data.includes(' 535 ') || data.includes('\n535-') || data.includes('\n535 ')) {
++          reject(new Error('SMTP auth failed'))
++          return
++        }
++        if (!data.includes('\n250 ') && !data.startsWith('250')) {
++          reject(new Error(`SMTP send failed: ${data}`))
++          return
++        }
++        resolve()
++      })
++    })
++  }
 
-   const value = useMemo<AuthCtx>(
--    () => ({ status, token, user, bootstrap, login, logout }),
-+    () => ({ status, token, user, bootstrap, login, register, logout }),
-     [status, token, user]
-   );
+-  return { accessToken, refreshToken }
+-}
++  private issueTokens(userId: number, email: string, role: string) {
++    const payload: JwtPayload = { sub: userId, email, role }
 
-   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
++    const accessToken = this.jwt.sign(payload, {
++      secret: process.env.JWT_ACCESS_SECRET,
++      expiresIn: 15 * 60,
++    })
++
++    const refreshToken = this.jwt.sign(payload, {
++      secret: process.env.JWT_REFRESH_SECRET,
++      expiresIn: 7 * 24 * 60 * 60,
++    })
++
++    return { accessToken, refreshToken }
++  }
+
+   private async setRefreshTokenHash(userId: number, refreshToken: string) {
+     const hash = await bcrypt.hash(refreshToken, 10)
+     await this.prisma.user.update({
+       where: { id: userId },
+       data: { hashedRefreshToken: hash },
+     })
+   }
  }
+diff --git a/backend/ayanavitabackend/app/api/src/auth/dto/register-new.dto.ts b/backend/ayanavitabackend/app/api/src/auth/dto/register-new.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b6308af832d03d7e04ae13b4d36406fcb64a371
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/auth/dto/register-new.dto.ts
+@@ -0,0 +1,24 @@
++import { IsBoolean, IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator'
++
++export class RegisterNewDto {
++  @IsOptional()
++  @IsString()
++  name?: string
++
++  @IsString()
++  phone!: string
++
++  @IsEmail()
++  email!: string
++
++  @IsString()
++  @MinLength(6)
++  password!: string
++
++  @IsString()
++  @Matches(/^\d{6}$/)
++  otp!: string
++
++  @IsBoolean()
++  acceptedPolicy!: boolean
++}
+diff --git a/backend/ayanavitabackend/app/api/src/auth/dto/send-otp.dto.ts b/backend/ayanavitabackend/app/api/src/auth/dto/send-otp.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e657af7fec9e3a04d5f9d8110c93e661cbfa7857
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/auth/dto/send-otp.dto.ts
+@@ -0,0 +1,6 @@
++import { IsEmail } from 'class-validator'
++
++export class SendOtpDto {
++  @IsEmail()
++  email!: string
++}
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 0ed30bc9db0df4de693ab6a1477e170f04990dfe..2f5cca1250a856d4325e928db0182d0e2b54a5e6 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -5,51 +5,51 @@ services:
+     command: --default-authentication-plugin=mysql_native_password
+     environment:
+       MYSQL_ROOT_PASSWORD: rootpassword
+       MYSQL_DATABASE: ayanavita
+       MYSQL_USER: ayanavita
+       MYSQL_PASSWORD: ayanavita_pw
+       TZ: Asia/Ho_Chi_Minh
+     volumes:
+       - mysql_data:/var/lib/mysql
+     ports:
+       - "3306:3306"
+     restart: unless-stopped
+     networks:
+       - aya_net
 
- export function useAuth() {
-   const v = useContext(Ctx);
-   if (!v) throw new Error("useAuth must be used within <AuthProvider>");
-   return v;
- }
+   # =====================
+   # BACKEND (DEV MODE)
+   # =====================
+   backend:
+     image: node:20-alpine
+     container_name: ayanavita-backend
+     working_dir: /app
+     volumes:
+       - ./backend/ayanavitabackend/app/api:/app
+       - /app/node_modules
+-    command: sh -c "npm install && npx prisma generate && npm run start:dev"
++    command: sh -c "npm install && npx prisma migrate deploy && npx prisma generate && npm run start:dev"
+     env_file:
+       - ./backend/ayanavitabackend/app/api/.env
+     environment:
+       NODE_ENV: development
+       PORT: 8090
+     depends_on:
+       - mysql
+     ports:
+       - "8090:8090"
+     networks:
+       - aya_net
+
+   # =====================
+   # FRONTEND (VITE DEV)
+   # =====================
+   frontend:
+     image: node:20-alpine
+     container_name: ayanavita-frontend
+     working_dir: /app
+     volumes:
+       - ./frontend:/app
+       - ./frontend/landingpageayanavita:/app
+       - /app/node_modules
+     command: sh -c "npm install && npm run dev"
+     environment:
