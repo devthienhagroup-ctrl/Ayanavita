@@ -4,27 +4,27 @@ export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormC
   return (
     <div className='admin-grid'>
       <section className='admin-card admin-card-glow'>
-        <h3 className='admin-card-title'>🏢 {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
         <div className='admin-form-grid'>
           <label className='admin-field'>
-            <span className='admin-label'>🆔 Mã chi nhánh</span>
+            <span className='admin-label'><i className='fa-solid fa-id-card' /> Mã chi nhánh</span>
             <input className='admin-input' placeholder='VD: DE_BERLIN' value={branchForm.code || ''} onChange={(e) => onBranchFormChange({ ...branchForm, code: e.target.value })} />
           </label>
           <label className='admin-field'>
-            <span className='admin-label'>🏷️ Tên chi nhánh</span>
+            <span className='admin-label'><i className='fa-solid fa-tag' /> Tên chi nhánh</span>
             <input className='admin-input' placeholder='Nhập tên chi nhánh' value={branchForm.name || ''} onChange={(e) => onBranchFormChange({ ...branchForm, name: e.target.value })} />
           </label>
           <label className='admin-field'>
-            <span className='admin-label'>📍 Địa chỉ</span>
+            <span className='admin-label'><i className='fa-solid fa-location-dot' /> Địa chỉ</span>
             <input className='admin-input' placeholder='Nhập địa chỉ đầy đủ' value={branchForm.address || ''} onChange={(e) => onBranchFormChange({ ...branchForm, address: e.target.value })} />
           </label>
           <label className='admin-field'>
-            <span className='admin-label'>📞 Số điện thoại</span>
+            <span className='admin-label'><i className='fa-solid fa-phone' /> Số điện thoại</span>
             <input className='admin-input' placeholder='+49 ...' value={branchForm.phone || ''} onChange={(e) => onBranchFormChange({ ...branchForm, phone: e.target.value })} />
           </label>
           <label className='admin-checkbox'>
             <input type='checkbox' checked={Boolean(branchForm.isActive ?? true)} onChange={(e) => onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
-            ✅ Hoạt động (Active)
+            <i className='fa-solid fa-circle-check' /> Hoạt động (Active)
           </label>
         </div>
         <div className='admin-row'>
@@ -34,7 +34,7 @@ export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormC
       </section>
 
       <section className='admin-card'>
-        <h3 className='admin-card-title'>📋 Danh sách chi nhánh</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chi nhánh</h3>
         <div className='admin-table-wrap'>
           <table className='admin-table'>
             <thead>

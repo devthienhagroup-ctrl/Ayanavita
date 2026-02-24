@@ -4,17 +4,17 @@ export function ReviewsTab({ services, appointments, selectedServiceReviews, rev
   return (
     <div className='admin-grid'>
       <section className='admin-card admin-card-glow'>
-        <h3 className='admin-card-title'>⭐ Thêm review</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-star' /> Thêm review</h3>
         <div className='admin-form-grid'>
-          <label className='admin-field'><span className='admin-label'>🧴 Dịch vụ</span><select className='admin-input' value={reviewForm.serviceId} onChange={(e) => onReviewFormChange({ ...reviewForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
-          <label className='admin-field'><span className='admin-label'>🌟 Số sao</span><select className='admin-input' value={reviewForm.stars} onChange={(e) => onReviewFormChange({ ...reviewForm, stars: Number(e.target.value) })}>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}</select></label>
-          <label className='admin-field'><span className='admin-label'>👤 Tên khách hàng</span><input className='admin-input' placeholder='Nhập tên khách hàng' value={reviewForm.customerName} onChange={(e) => onReviewFormChange({ ...reviewForm, customerName: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'>💬 Nội dung review</span><input className='admin-input' placeholder='Nội dung tiếng Việt thân thiện' value={reviewForm.comment} onChange={(e) => onReviewFormChange({ ...reviewForm, comment: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-spa' /> Dịch vụ</span><select className='admin-input' value={reviewForm.serviceId} onChange={(e) => onReviewFormChange({ ...reviewForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-star-half-stroke' /> Số sao</span><select className='admin-input' value={reviewForm.stars} onChange={(e) => onReviewFormChange({ ...reviewForm, stars: Number(e.target.value) })}>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}</select></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> Tên khách hàng</span><input className='admin-input' placeholder='Nhập tên khách hàng' value={reviewForm.customerName} onChange={(e) => onReviewFormChange({ ...reviewForm, customerName: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-comment-dots' /> Nội dung review</span><input className='admin-input' placeholder='Nội dung tiếng Việt thân thiện' value={reviewForm.comment} onChange={(e) => onReviewFormChange({ ...reviewForm, comment: e.target.value })} /></label>
         </div>
         <button className='admin-btn admin-btn-primary' onClick={onCreateReview}>Thêm review</button>
 
         <hr className='admin-divider' />
-        <h3 className='admin-card-title'>📅 Lịch hẹn ({appointments.length})</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> Lịch hẹn ({appointments.length})</h3>
         <div className='admin-table-wrap'>
           <table className='admin-table'>
             <thead>
@@ -52,7 +52,7 @@ export function ReviewsTab({ services, appointments, selectedServiceReviews, rev
       </section>
 
       <section className='admin-card'>
-        <h3 className='admin-card-title'>🗂️ Danh sách review ({selectedServiceReviews.length})</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-folder-open' /> Danh sách review ({selectedServiceReviews.length})</h3>
         <div className='admin-table-wrap'>
           <table className='admin-table'>
             <thead>

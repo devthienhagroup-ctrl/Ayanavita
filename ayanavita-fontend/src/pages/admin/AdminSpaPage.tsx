@@ -116,23 +116,23 @@ export default function AdminSpaPage() {
           <p>Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.</p>
         </div>
         <div className='admin-row'>
-          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'>Quản lý đơn hàng</Link>
-          <button className='admin-btn admin-btn-primary' onClick={loadAll}>Làm mới</button>
+          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
+          <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
         </div>
       </header>
 
       <section className='admin-overview'>
-        <article className='overview-card'><span>Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
-        <article className='overview-card'><span>Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
-        <article className='overview-card'><span>Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
-        <article className='overview-card'><span>Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
+        <article className='overview-card'><span><i className='fa-solid fa-building' />Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
+        <article className='overview-card'><span><i className='fa-solid fa-spa' />Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
+        <article className='overview-card'><span><i className='fa-solid fa-user-nurse' />Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
+        <article className='overview-card'><span><i className='fa-solid fa-calendar-check' />Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
       </section>
 
       <nav className='admin-tabs'>
-        <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}>Chi nhánh ({branches.length})</button>
-        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}>Dịch vụ ({services.length})</button>
-        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}>Chuyên viên + Quan hệ</button>
-        <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}>Review + Lịch hẹn</button>
+        <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
+        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({services.length})</button>
+        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
+        <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
       </nav>
 
       {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}

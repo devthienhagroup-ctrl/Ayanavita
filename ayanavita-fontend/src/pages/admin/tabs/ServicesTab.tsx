@@ -4,21 +4,21 @@ export function ServicesTab({ services, serviceForm, editingService, selectedIma
   return (
     <div className='admin-grid'>
       <section className='admin-card admin-card-glow'>
-        <h3 className='admin-card-title'>🧴 {editingService ? 'Cập nhật dịch vụ' : 'Tạo dịch vụ mới'}</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Cập nhật dịch vụ' : 'Tạo dịch vụ mới'}</h3>
         <div className='admin-form-grid'>
-          <label className='admin-field'><span className='admin-label'>🆔 Mã dịch vụ</span><input className='admin-input' placeholder='SERVICE_CODE' value={serviceForm.code} onChange={(e) => onServiceFormChange({ ...serviceForm, code: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'>✨ Tên dịch vụ</span><input className='admin-input' placeholder='Tên dịch vụ nổi bật' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'>🎯 Mục tiêu</span><input className='admin-input' placeholder='Relax, Detox,...' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'>⏱️ Thời lượng (phút)</span><input className='admin-input' type='number' placeholder='60' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
-          <label className='admin-field'><span className='admin-label'>💶 Giá</span><input className='admin-input' type='number' placeholder='1000000' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
-          <label className='admin-field'><span className='admin-label'>📝 Mô tả</span><textarea className='admin-input' placeholder='Mô tả dịch vụ chi tiết' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'>🖼️ Image URL</span><input className='admin-input' placeholder='https://...' value={serviceForm.imageUrl} onChange={(e) => onServiceFormChange({ ...serviceForm, imageUrl: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'>📁 Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ</span><input className='admin-input' placeholder='SERVICE_CODE' value={serviceForm.code} onChange={(e) => onServiceFormChange({ ...serviceForm, code: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' placeholder='Tên dịch vụ nổi bật' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu</span><input className='admin-input' placeholder='Relax, Detox,...' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' placeholder='60' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' placeholder='1000000' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' placeholder='Mô tả dịch vụ chi tiết' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-image' /> Image URL</span><input className='admin-input' placeholder='https://...' value={serviceForm.imageUrl} onChange={(e) => onServiceFormChange({ ...serviceForm, imageUrl: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
           {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
         </div>
         <div className='admin-row'>
-          <button className='admin-btn admin-btn-ghost' onClick={onUploadImage}>Upload cloud</button>
-          <button className='admin-btn admin-btn-ghost' onClick={onDeleteCloudImage}>Xóa ảnh cloud</button>
+          <button className='admin-btn admin-btn-ghost' onClick={onUploadImage}><i className='fa-solid fa-cloud-arrow-up' />Upload cloud</button>
+          <button className='admin-btn admin-btn-ghost' onClick={onDeleteCloudImage}><i className='fa-solid fa-trash-can' />Xóa ảnh cloud</button>
         </div>
         <div className='admin-row'>
           <button className='admin-btn admin-btn-primary' onClick={onSaveService}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
@@ -27,7 +27,7 @@ export function ServicesTab({ services, serviceForm, editingService, selectedIma
       </section>
 
       <section className='admin-card'>
-        <h3 className='admin-card-title'>📋 Danh sách dịch vụ</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách dịch vụ</h3>
         <div className='admin-table-wrap'>
           <table className='admin-table'>
             <thead>
