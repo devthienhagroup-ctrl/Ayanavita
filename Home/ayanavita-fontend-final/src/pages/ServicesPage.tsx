@@ -29,13 +29,6 @@ type ApiService = {
   tag: string;
 };
 
-const CAT_LABELS: Record<string, string> = {
-  skin: "Chăm sóc da",
-  body: "Body / Thư giãn",
-  health: "Sức khoẻ trị liệu",
-  package: "Gói liệu trình",
-};
-
 const GOAL_LABELS: Record<string, string> = {
   relax: "Thư giãn",
   acne: "Giảm mụn",
@@ -71,7 +64,7 @@ function ServiceCard({ s }: { s: ApiService }) {
 
       <div className="mt-3">
         <div
-          className="font-extrabold"
+          className="font-extrabold min-h-[3rem] leading-6"
           style={{
             display: "-webkit-box",
             WebkitLineClamp: 2,
@@ -253,7 +246,7 @@ export default function ServicesPage() {
                     <label className="text-sm font-extrabold text-slate-700">Danh mục</label>
                     <select className="field mt-2" value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}>
                       <option value="all">Tất cả</option>
-                      {availableCats.map((c) => <option key={c} value={c}>{CAT_LABELS[c] || c}</option>)}
+                      {availableCats.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
 

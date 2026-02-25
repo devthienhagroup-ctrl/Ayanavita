@@ -118,6 +118,11 @@ export class BookingController {
     })
   }
 
+  @Get('services/:id')
+  serviceDetail(@Param('id', ParseIntPipe) id: number) {
+    return this.booking.getServiceDetail(id)
+  }
+
   @Post('services')
   @UseInterceptors(
     FileInterceptor('file', {

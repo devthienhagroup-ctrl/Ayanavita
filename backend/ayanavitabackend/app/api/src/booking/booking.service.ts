@@ -10,6 +10,7 @@ import {
   ServiceCatalogItemDto,
   ServiceCategoryResponseDto,
   ServiceListResponseDto,
+  ServiceDetailResponseDto,
   ServiceResponseDto,
   ServiceReviewResponseDto,
   SpecialistResponseDto,
@@ -290,6 +291,65 @@ export class BookingService {
       page,
       pageSize,
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    }
+  }
+
+
+  async getServiceDetail(id: number): Promise<ServiceDetailResponseDto> {
+    const row = await this.prisma.service.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        categoryId: true,
+        category: { select: { name: true } },
+        goals: true,
+        suitableFor: true,
+        process: true,
+        durationMin: true,
+        price: true,
+        ratingAvg: true,
+        bookedCount: true,
+        tag: true,
+        imageUrl: true,
+        isActive: true,
+        branches: { select: { branchId: true } },
+        reviews: {
+          select: {
+            id: true,
+            serviceId: true,
+            userId: true,
+            stars: true,
+            comment: true,
+            customerName: true,
+            createdAt: true,
+          },
+          orderBy: { id: 'desc' },
+        },
+      },
+    })
+
+    if (!row) throw new NotFoundException('Service not found')
+
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      categoryId: row.categoryId,
+      category: row.category?.name,
+      goals: this.toStringArray(row.goals),
+      suitableFor: this.toStringArray(row.suitableFor),
+      process: this.toStringArray(row.process),
+      durationMin: row.durationMin,
+      price: row.price,
+      ratingAvg: row.ratingAvg,
+      bookedCount: row.bookedCount,
+      tag: row.tag,
+      imageUrl: row.imageUrl,
+      branchIds: row.branches.map((b) => b.branchId),
+      isActive: row.isActive,
+      reviews: row.reviews,
     }
   }
 

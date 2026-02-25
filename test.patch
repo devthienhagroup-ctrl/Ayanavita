@@ -1,833 +1,692 @@
-diff --git a/ayanavita-fontend/src/api/spaAdmin.api.ts b/ayanavita-fontend/src/api/spaAdmin.api.ts
-index 9f87a15beff89bc033ed5397ea76fa5fba4ff287..b112c0554ff0b7e52ce760893b7dd42fb8db9a53 100644
---- a/ayanavita-fontend/src/api/spaAdmin.api.ts
-+++ b/ayanavita-fontend/src/api/spaAdmin.api.ts
-@@ -1,44 +1,45 @@
- import { del, get, patch, post, request } from './http'
+diff --git a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
+index a0e630921259d3b5c909dab6c1ff20a87849dd73..cc794bed3cd482be34cf945517cffd80ec851ad2 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
+@@ -1,364 +1,311 @@
+-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
++import React, { useCallback, useEffect, useMemo, useState } from "react";
+ import { Link, useParams } from "react-router-dom";
 
- export type Branch = { id: number; code: string; name: string; address: string; phone?: string; isActive: boolean }
- export type SpaService = {
-   id: number
-   name: string
-   description?: string
-   categoryId?: number
-   category?: string
-   goals: string[]
-   suitableFor: string[]
-   process: string[]
-   durationMin: number
-   price: number
-   ratingAvg: number
-   bookedCount: number
-   imageUrl?: string
-   tag?: string
-   branchIds: number[]
-+  isActive: boolean
- }
- export type PaginatedServiceResponse = {
-   items: SpaService[]
-   total: number
-   page: number
-   pageSize: number
-   totalPages: number
- }
+ import { ParticlesBackground } from "../components/layout/ParticlesBackground";
+ import { Header } from "../components/layout/Header";
+ import { Footer } from "../components/layout/Footer";
 
- export type ServiceCategory = {
-   id: number
-   name: string
-   serviceCount: number
- }
- export type Specialist = {
-   id: number
-   code: string
-   name: string
-   level: string
-   bio?: string
-   branchId: number
-   serviceIds: number[]
- }
- export type ServiceReview = {
-   id: number
-@@ -50,56 +51,57 @@ export type ServiceReview = {
-   createdAt: string
- }
- export type Appointment = {
-   id: number
-   customerName: string
-   customerPhone: string
-   customerEmail?: string
-   appointmentAt: string
-   status: string
-   note?: string
-   branch?: { id: number; name: string }
-   service?: { id: number; name: string }
-   specialist?: { id: number; name: string }
- }
+ import { AuthModal } from "../components/home/AuthModal";
+ import { SuccessModal } from "../components/home/SuccessModal";
 
- export const spaAdminApi = {
-   branches: (params?: boolean | { includeInactive?: boolean; serviceId?: number }) => {
-     const includeInactive = typeof params === 'boolean' ? params : (params?.includeInactive ?? false)
-     const serviceId = typeof params === 'object' ? params.serviceId : undefined
-     const query = new URLSearchParams()
-     if (includeInactive) query.set('includeInactive', 'true')
-     if (serviceId) query.set('serviceId', String(serviceId))
-     const queryString = query.toString()
-     return get<Branch[]>(`/booking/branches${queryString ? `?${queryString}` : ''}`, { auth: false })
-   },
--  services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number }) => {
-+  services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number; includeInactive?: boolean }) => {
-     const query = new URLSearchParams()
-     if (params?.q?.trim()) query.set('q', params.q.trim())
-     if (params?.page) query.set('page', String(params.page))
-     if (params?.pageSize) query.set('pageSize', String(params.pageSize))
-     if (params?.branchId) query.set('branchId', String(params.branchId))
-+    if (params?.includeInactive) query.set('includeInactive', 'true')
-     const queryString = query.toString()
-     return get<PaginatedServiceResponse>(`/booking/services${queryString ? `?${queryString}` : ''}`, { auth: false })
-   },
-   serviceCategories: () => get<ServiceCategory[]>('/booking/service-categories', { auth: false }),
-   specialists: (params?: { branchId?: number; serviceId?: number }) => {
-     const query = new URLSearchParams()
-     if (params?.branchId) query.set('branchId', String(params.branchId))
-     if (params?.serviceId) query.set('serviceId', String(params.serviceId))
-     const queryString = query.toString()
-     return get<Specialist[]>(`/booking/specialists${queryString ? `?${queryString}` : ''}`, { auth: false })
-   },
-   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
-   appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
+-import { BRANCHES, REVIEWS, SLOTS, getServiceById } from "../data/services.data";
++import { http } from "../api/http";
+ import { isValidPhone, money, toISODate } from "../services/booking.utils";
 
-   createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
-   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
-   deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
+ type AuthTab = "login" | "register";
 
-   createService: (data: Record<string, any>, file?: File | null) => {
-     const form = new FormData()
-     Object.entries(data).forEach(([key, value]) => {
-       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
-     })
-     if (file) form.append('file', file)
-     return request('/booking/services', { method: 'POST', body: form, auth: false })
-diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index 2e95b91d146dc972448756ae61338fdfb7b06fc0..2201c4cb3d83a249992600de396bdeb380c87780 100644
---- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-+++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -403,50 +403,103 @@
-   max-width: 180px;
-   overflow: hidden;
-   text-overflow: ellipsis;
- }
+ type ToastState =
+   | { type: "success"; message: string }
+   | { type: "error"; message: string }
+   | null;
 
- .services-rating {
-   font-weight: 800;
-   background: linear-gradient(135deg, #f59e0b, #fde047);
-   -webkit-background-clip: text;
-   background-clip: text;
-   color: transparent;
-   display: inline-flex;
-   align-items: center;
-   gap: 4px;
- }
-
- .services-rating-icon {
-   font-size: 12px;
- }
-
- .services-booked {
-   font-weight: 800;
-   color: #16a34a;
- }
-
-+.services-edit-grid {
-+  grid-template-columns: repeat(2, minmax(0, 1fr));
-+  column-gap: 14px;
-+  row-gap: 10px;
-+}
++type BranchOption = {
++  id: number;
++  name: string;
++};
 +
-+.admin-required { color: #e11d48; }
++type ServiceReview = {
++  id: number;
++  stars: number;
++  comment?: string | null;
++  customerName?: string | null;
++};
 +
-+.services-branch-checklist {
-+  display: grid;
-+  grid-template-columns: repeat(2, minmax(0, 1fr));
-+  gap: 8px;
-+  margin-top: 4px;
-+}
++type ServiceDetail = {
++  id: number;
++  name: string;
++  description?: string | null;
++  goals: string[];
++  suitableFor: string[];
++  process: string[];
++  durationMin: number;
++  price: number;
++  ratingAvg: number;
++  bookedCount: number;
++  imageUrl?: string | null;
++  branchIds: number[];
++  reviews: ServiceReview[];
++};
 +
-+.services-branch-option {
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 8px;
-+  padding: 8px 10px;
-+  border: 1px solid #dbe2ef;
-+  border-radius: 10px;
-+  background: #f8fafc;
-+  font-weight: 600;
-+}
++const SLOTS = ["09:00", "10:30", "13:30", "15:00", "19:00"];
 +
-+.services-branch-option.is-disabled {
-+  opacity: 0.5;
-+}
+ export default function ServiceDetailPage() {
+-  const { serviceId } = useParams(); // /services/:serviceId
+-  const service = useMemo(() => getServiceById(serviceId), [serviceId]);
++  const { serviceId } = useParams();
+
+-  // shared auth/success (đồng bộ Home)
+   const [authOpen, setAuthOpen] = useState(false);
+   const [authTab, setAuthTab] = useState<AuthTab>("login");
+   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
+     open: false,
+     message: "",
+   });
+
++  const [service, setService] = useState<ServiceDetail | null>(null);
++  const [branches, setBranches] = useState<BranchOption[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState("");
 +
-+.services-status-icon {
-+  display: inline-flex;
-+  align-items: center;
-+  justify-content: center;
-+  font-size: 18px;
-+}
-+
-+.services-status-icon.is-active {
-+  color: #16a34a;
-+}
-+
-+.services-status-icon.is-inactive {
-+  color: #dc2626;
-+}
-+
-+@media (max-width: 900px) {
-+  .services-edit-grid,
-+  .services-branch-checklist {
-+    grid-template-columns: 1fr;
-+  }
-+}
-+
-+
- .service-action-menu {
-   position: relative;
-   display: inline-flex;
-   align-items: center;
- }
+   const openAuth = useCallback((tab: AuthTab) => {
+     setAuthTab(tab);
+     setAuthOpen(true);
+   }, []);
 
- .service-action-trigger {
-   width: 34px;
-   height: 34px;
-   border-radius: 10px;
-   justify-content: center;
-   padding: 0;
- }
+   const openSuccess = useCallback((message: string) => {
+     setSuccess({ open: true, message });
+   }, []);
 
- .service-action-list {
-   position: absolute;
-   right: 0;
-   top: calc(100% - 1px);
-   display: none;
-   flex-direction: column;
-   align-items: flex-start;
-   gap: 6px;
-   padding: 8px;
-   border-radius: 12px;
-   background: #fff;
-diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-index ec148a0a9a7a1b24df2db5ef98bfa0a1a7d07d96..9145ba9c0079342ad893b8fe4c98c793ace4dccd 100644
---- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-+++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-@@ -1,40 +1,40 @@
- import { useEffect, useMemo, useState } from 'react'
- import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
- import { AlertJs } from '../../utils/alertJs'
- import './AdminSpaPage.css'
- import { BranchesTab } from './tabs/BranchesTab'
- import { CategoriesTab } from './tabs/CategoriesTab'
- import { ReviewsTab } from './tabs/ReviewsTab'
- import { ServicesTab } from './tabs/ServicesTab'
- import { SpecialistsTab } from './tabs/SpecialistsTab'
- import type { BranchForm, CategoryForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
- import { useAuth } from '../../state/auth.store'
+-  // Right sidebar form
+   const [name, setName] = useState("Khách hàng Demo");
+   const [phone, setPhone] = useState("0900000000");
+   const [date, setDate] = useState(() => toISODate(new Date()));
+   const [note, setNote] = useState("");
+-
+-  // branch + slot (shared)
+-  const [branch, setBranch] = useState(BRANCHES[0]);
++  const [branch, setBranch] = useState("");
+   const [slot, setSlot] = useState(SLOTS[0]);
 
- type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
-
--const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
-+const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true }
- const defaultCategoryForm: CategoryForm = { name: '' }
- const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '', branchId: 0 }
- const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
- const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
-
-
- const normalizeBranchCode = (name: string) => {
-   const base = name
-     .normalize('NFD')
-     .replace(/[̀-ͯ]/g, '')
-     .replace(/đ/gi, 'd')
-     .toUpperCase()
-     .replace(/[^A-Z0-9]+/g, '_')
-     .replace(/^_+|_+$/g, '')
-
-   return base || 'BRANCH'
- }
-
-
- const isValidPhoneNumber = (phone: string) => {
-   const cleaned = phone.trim()
-   if (!cleaned) return true
-   if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
-   const digitsCount = cleaned.replace(/\D/g, '').length
-   return digitsCount >= 6 && digitsCount <= 20
-@@ -74,66 +74,67 @@ export default function AdminSpaPage() {
-   const [categoryForm, setCategoryForm] = useState<CategoryForm>(defaultCategoryForm)
-   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
-   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
-   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
-   const [reviewForm, setReviewForm] = useState<ReviewForm>(defaultReviewForm)
-   const [relationForm, setRelationForm] = useState<RelationForm>({ branchId: 0, serviceId: 0, specialistId: 0 })
-
-   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
-   const selectedServiceReviews = useMemo(() => {
-     if (!reviewForm.serviceId) return reviews
-     return reviews.filter((item) => item.serviceId === Number(reviewForm.serviceId))
-   }, [reviewForm.serviceId, reviews])
-   const displayName = useMemo(() => {
-     if (!user?.email) return 'Admin User'
-     const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
-     return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
-   }, [user?.email])
-   const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
-   const avatarLetter = (displayName[0] || 'A').toUpperCase()
-
-   const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
-     const response = await spaAdminApi.services({
-       q: params?.q ?? serviceSearchKeyword,
-       page: params?.page ?? servicePage,
-       pageSize: params?.pageSize ?? servicePageSize,
-+      includeInactive: true,
-     })
-     setServicePageItems(response.items)
-     setServiceTotal(response.total)
-     setServiceTotalPages(response.totalPages)
-     setServicePage(response.page)
-     setServicePageSize(response.pageSize)
-   }
-
-   const loadAll = async () => {
-     setLoading(true)
-     try {
-       const [b, c, sAll, s, sp, r, a] = await Promise.all([
-         spaAdminApi.branches(true),
-         spaAdminApi.serviceCategories(),
--        spaAdminApi.services({ page: 1, pageSize: 100 }),
--        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize }),
-+        spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true }),
-+        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true }),
-         spaAdminApi.specialists(),
-         spaAdminApi.reviews(),
-         spaAdminApi.appointments(),
-       ])
-       setBranches(b)
-       setCategories(c)
-       setServices(sAll.items)
-       setServicePageItems(s.items)
-       setServiceTotal(s.total)
-       setServicePage(s.page)
-       setServicePageSize(s.pageSize)
-       setServiceTotalPages(s.totalPages)
-       setSpecialists(sp)
-       setReviews(r)
-       setAppointments(a)
-     } catch (error) {
-       await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
-     } finally {
-       setLoading(false)
-     }
-   }
+-  // hold timer
+-  const [holdLeft, setHoldLeft] = useState<number>(0);
+-  const holdTimerRef = useRef<number | null>(null);
+-
+   const [toast, setToast] = useState<ToastState>(null);
+-
+   const todayISO = useMemo(() => toISODate(new Date()), []);
 
    useEffect(() => {
-     loadAll()
-   }, [])
-@@ -278,91 +279,98 @@ export default function AdminSpaPage() {
-           else await spaAdminApi.createServiceCategory(categoryForm)
-           setEditingCategory(null)
-           setCategoryForm(defaultCategoryForm)
-           await loadAll()
-           await AlertJs.success('Đã lưu danh mục dịch vụ')
-         } catch (error) {
-           await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.'))
-         }
-       }} onEditCategory={(category) => {
-         setEditingCategory(category)
-         setCategoryForm({ name: category.name })
-       }} onDeleteCategory={async (category) => {
-         if (category.serviceCount > 0) {
-           await AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
-           return
-         }
-         try {
-           await spaAdminApi.deleteServiceCategory(category.id)
-           await loadAll()
-           await AlertJs.success('Đã xóa danh mục')
-         } catch (error) {
-           await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.'))
-         }
-       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
+-    return () => {
+-      if (holdTimerRef.current) {
+-        window.clearInterval(holdTimerRef.current);
+-        holdTimerRef.current = null;
++    const id = Number(serviceId);
++    if (!Number.isInteger(id) || id < 1) {
++      setError("Mã dịch vụ không hợp lệ.");
++      setLoading(false);
++      return;
++    }
++
++    let mounted = true;
++    setLoading(true);
++    setError("");
++
++    (async () => {
++      try {
++        const [{ data: detail }, { data: branchRows }] = await Promise.all([
++          http.get(`/booking/services/${id}`),
++          http.get("/booking/branches", { params: { serviceId: id } }),
++        ]);
++        if (!mounted) return;
++
++        setService(detail);
++        const normalizedBranches = Array.isArray(branchRows)
++          ? branchRows.map((item: any) => ({ id: item.id, name: item.name }))
++          : [];
++        setBranches(normalizedBranches);
++        setBranch(normalizedBranches[0]?.name || "");
++      } catch {
++        if (!mounted) return;
++        setError("Không thể tải dữ liệu dịch vụ. Vui lòng thử lại.");
++      } finally {
++        if (mounted) setLoading(false);
+       }
++    })();
++
++    return () => {
++      mounted = false;
+     };
+-  }, []);
++  }, [serviceId]);
 
--      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
-+      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
-         if (!serviceForm.categoryId) {
-           await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
-           return
-         }
-+        if (!serviceForm.branchIds.length) {
-+          await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
-+          return
-+        }
-         const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
-         const duplicatedService = services.find((service) => (
-           service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName
-         ))
-
-         if (duplicatedService) {
-           await AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
-           return
-         }
-         const payload = {
-           ...serviceForm,
-           goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
-           suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean),
-           process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean),
-+          branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0),
-         }
-         try {
-           if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage)
-           else await spaAdminApi.createService(payload, selectedImage)
-           setEditingService(null)
-           setServiceForm(defaultServiceForm)
-           setSelectedImage(null)
-           await loadAll()
-           await AlertJs.success('Đã lưu dịch vụ')
-         } catch (error) {
-           await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.'))
-         }
-       }} onEditService={(service) => {
-         setEditingService(service)
-         setSelectedImage(null)
-         setServiceForm({
-           ...defaultServiceForm,
-           ...service,
-           categoryId: service.categoryId || 0,
-           goals: service.goals?.join(', ') || '',
-           suitableFor: service.suitableFor?.join(', ') || '',
-           process: service.process?.join(', ') || '',
-+          branchIds: service.branchIds || [],
-+          isActive: service.isActive ?? true,
-         })
-       }} onDeleteService={async (service) => {
-         try {
-           await spaAdminApi.deleteService(service.id)
-           await loadAll()
-           await AlertJs.success('Đã xóa dịch vụ')
-         } catch (error) {
-           await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.'))
-         }
-       }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
-
-       {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} relationForm={relationForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onRelationFormChange={setRelationForm} onSaveSpecialist={async () => {
-         if (!specialistForm.branchId) {
-           await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
-           return
-         }
-         try {
-           if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm)
-           else await spaAdminApi.createSpecialist(specialistForm)
-           setEditingSpecialist(null)
-           setSpecialistForm(defaultSpecialistForm)
-           await loadAll()
-           await AlertJs.success('Đã lưu chuyên viên')
-         } catch (error) {
-           await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.'))
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-index d0a7d20303d38578b21f275bbbcd8cbc0d9d453a..f3316b70af9addf45d4282c01e45fd2c11f48d56 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-@@ -9,50 +9,51 @@ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass:
-     <div className='admin-row admin-row-nowrap'>
-       <span className={`admin-badge admin-badge-ellipsis ${badgeClass}`} title={first}>{first}</span>
-       {rest.length > 0 && <span className={`admin-badge ${extraBadgeClass}`}>+{rest.length}</span>}
-     </div>
-   )
- }
-
- const pageSizeOptions = [5, 10, 20, 50]
-
- const renderDetailLines = (items: string[]) => {
-   if (!items.length) return <p className='service-detail-empty'>Không có dữ liệu</p>
-   return (
-     <ul className='service-detail-lines'>
-       {items.map((item, index) => (
-         <li key={`${index}-${item}`}>
-           <i className='fa-solid fa-circle-dot service-detail-line-icon' />
-           <span>{index + 1}. {item}</span>
-         </li>
-       ))}
-     </ul>
-   )
- }
-
- export function ServicesTab({
-   services,
-+  branches,
-   categories,
-   serviceForm,
-   editingService,
-   selectedImageName,
-   searchKeyword,
-   pagination,
-   onSearchKeywordChange,
-   onPageChange,
-   onPageSizeChange,
-   onServiceFormChange,
-   onSelectImage,
-   onSaveService,
-   onEditService,
-   onDeleteService,
-   onCancelEdit,
- }: ServicesTabProps) {
-   const [isEditModalOpen, setEditModalOpen] = useState(false)
-   const [detailService, setDetailService] = useState<SpaService | null>(null)
-   const [detailSpecialists, setDetailSpecialists] = useState<Specialist[]>([])
-   const [detailBranches, setDetailBranches] = useState<Branch[]>([])
-   const [detailLoading, setDetailLoading] = useState(false)
-   const [detailError, setDetailError] = useState('')
-
-   const handleOpenCreate = () => {
-     onCancelEdit()
-@@ -129,70 +130,74 @@ export function ServicesTab({
-             onChange={(e) => onSearchKeywordChange(e.target.value)}
-           />
-         </label>
-         <label className='admin-field services-size-field'>
-           <span className='admin-label'><i className='fa-solid fa-list-ol' /> Size trang</span>
-           <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
-             {pageSizeOptions.map((size) => (
-               <option key={size} value={size}>{size} / trang</option>
-             ))}
-           </select>
-         </label>
-       </div>
-
-       <div className='admin-table-wrap'>
-         <table className='admin-table services-table'>
-           <thead>
-             <tr>
-               <th>Tên dịch vụ</th>
-               <th>Danh mục</th>
-               <th>Thời lượng</th>
-               <th>Giá</th>
-               <th>Rating</th>
-               <th>Lượt đặt</th>
-               <th>Mục tiêu </th>
-               <th>Phù hợp </th>
--              <th>Quy trình </th>
-+              <th>Trạng thái</th>
-               <th>Thao tác</th>
-             </tr>
-           </thead>
-           <tbody>
-             {services.map((service) => (
-               <tr key={service.id}>
-                 <td className='td-strong services-name-cell' title={service.name}>{service.name}</td>
-                 <td className='services-category-cell' title={service.category || '-'}>{service.category || '-'}</td>
-                 <td>{service.durationMin} phút</td>
-                 <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
-                 <td>
-                   <span className='services-rating'>
-                     <i className='fa-solid fa-star services-rating-icon' /> {service.ratingAvg.toFixed(1)}
-                   </span>
-                 </td>
-                 <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
-                 <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
-                 <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
--                <td>{renderJsonPreview(service.process || [], 'admin-badge-amber', 'admin-badge-yellow')}</td>
-+                <td>
-+                  <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? 'Đang hoạt động' : 'Đang tắt'}>
-+                    <i className={`fa-solid ${service.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
-+                  </span>
-+                </td>
-                 <td>
-                   <div className='service-action-menu'>
-                     <button className='admin-btn admin-btn-ghost service-action-trigger' aria-label='Mở thao tác'>
-                       <i className='fa-solid fa-ellipsis' />
-                     </button>
-                     <div className='service-action-list'>
-                       <button className='service-action-item' onClick={() => setDetailService(service)} title='Chi tiết'>
-                         <span className='admin-btn-icon admin-btn-icon-info'>
-                           <i className='fa-solid fa-circle-info' />
-                         </span>
-                         <span className='service-action-text'>Chi tiết</span>
-                       </button>
-                       <button className='service-action-item' onClick={() => handleOpenEdit(service)} title='Sửa'>
-                         <span className='admin-btn-icon admin-btn-icon-edit'>
-                           <i className='fa-solid fa-pen-to-square' />
-                         </span>
-                         <span className='service-action-text'>Sửa</span>
-                       </button>
-                       <button className='service-action-item' onClick={() => onDeleteService(service)} title='Xóa'>
-                         <span className='admin-btn-icon admin-btn-icon-delete'>
-                           <i className='fa-solid fa-trash' />
-                         </span>
-                         <span className='service-action-text'>Xóa</span>
-                       </button>
-                     </div>
-@@ -211,114 +216,172 @@ export function ServicesTab({
-
-       <div className='admin-row admin-row-space services-pagination'>
-         <span className='admin-helper'>Hiển thị: {pageInfoLabel}</span>
-         <div className='admin-row services-pagination-controls'>
-           <button className='admin-btn admin-btn-ghost' disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
-             <i className='fa-solid fa-chevron-left' /> Trước
-           </button>
-           <span className='admin-helper'>Trang {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
-           <button
-             className='admin-btn admin-btn-ghost'
-             disabled={pagination.page >= pagination.totalPages}
-             onClick={() => onPageChange(pagination.page + 1)}
-           >
-             Sau <i className='fa-solid fa-chevron-right' />
-           </button>
-         </div>
-       </div>
-
-       {isEditModalOpen && (
-         <div className='admin-modal-overlay' onClick={handleCloseEdit}>
-           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
-             <div className='admin-row admin-row-space'>
-               <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Chỉnh sửa dịch vụ' : 'Tạo dịch vụ mới'}</h3>
-               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> Đóng</button>
-             </div>
--            <div className='admin-form-grid'>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
-+            <p className='admin-helper'><b className='admin-required'>*</b> là thông tin bắt buộc.</p>
-+            <div className='admin-form-grid services-edit-grid'>
-+              <label className='admin-field'>
-+                <span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ <b className='admin-required'>*</b></span>
-+                <input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} />
-+              </label>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục</span>
-+                <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục <b className='admin-required'>*</b></span>
-                 <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
-                   <option value={0}>Chọn danh mục</option>
-                   {categories.map((item) => (
-                     <option key={item.id} value={item.id}>{item.name}</option>
-                   ))}
-                 </select>
-               </label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu </span><input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp </span><input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình </span><input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} /></label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-tag' /> Tag</span><input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} /></label>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-star' /> Rating trung bình</span><input className='admin-input' value={editingService?.ratingAvg?.toFixed(1) || '5.0'} disabled /></label>
-+              <label className='admin-field'>
-+                <span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút) <b className='admin-required'>*</b></span>
-+                <input className='admin-input' type='number' min={1} value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} />
-+              </label>
-+              <label className='admin-field'>
-+                <span className='admin-label'><i className='fa-solid fa-coins' /> Giá (VNĐ) <b className='admin-required'>*</b></span>
-+                <input className='admin-input' type='number' min={0} value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} />
-+              </label>
-+              <label className='admin-field'>
-+                <span className='admin-label'><i className='fa-solid fa-tag' /> Tag hiển thị</span>
-+                <input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} />
-+              </label>
-+              <label className='admin-field'>
-+                <span className='admin-label'><i className='fa-solid fa-power-off' /> Trạng thái hoạt động</span>
-+                <span className='admin-checkbox'>
-+                  <input type='checkbox' checked={Boolean(serviceForm.isActive)} onChange={(e) => onServiceFormChange({ ...serviceForm, isActive: e.target.checked })} />
-+                  <span className='admin-checkbox-slider' />
-+                  <span className='admin-checkbox-label'>{serviceForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
-+                </span>
-+              </label>
-+              <label className='admin-field admin-field-full'>
-+                <span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh áp dụng <b className='admin-required'>*</b></span>
-+                <div className='services-branch-checklist'>
-+                  {branches.map((branch) => {
-+                    const checked = serviceForm.branchIds.includes(branch.id)
-+                    return (
-+                      <label key={branch.id} className={`services-branch-option ${branch.isActive ? '' : 'is-disabled'}`}>
-+                        <input
-+                          type='checkbox'
-+                          checked={checked}
-+                          disabled={!branch.isActive}
-+                          onChange={(e) => {
-+                            const nextBranchIds = e.target.checked
-+                              ? [...serviceForm.branchIds, branch.id]
-+                              : serviceForm.branchIds.filter((id) => id !== branch.id)
-+                            onServiceFormChange({ ...serviceForm, branchIds: nextBranchIds })
-+                          }}
-+                        />
-+                        <span>{branch.name}</span>
-+                      </label>
-+                    )
-+                  })}
-+                </div>
-+                <span className='admin-helper'>Chi nhánh đang tắt sẽ không thể chọn.</span>
-+              </label>
-+              <label className='admin-field admin-field-full'>
-+                <span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu (phân tách bằng dấu phẩy ",")</span>
-+                <input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} />
-+              </label>
-+              <label className='admin-field admin-field-full'>
-+                <span className='admin-label'><i className='fa-solid fa-users' /> Phù hợp với (phân tách bằng dấu phẩy ",")</span>
-+                <input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} />
-+              </label>
-+              <label className='admin-field admin-field-full'>
-+                <span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (phân tách bằng dấu phẩy ",")</span>
-+                <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} />
-+              </label>
-               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
-               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
-               {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
-             </div>
-             <div className='admin-row'>
-               <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
-               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>Hủy</button>
-             </div>
-           </div>
-         </div>
-       )}
-
-       {detailService && (
-         <div className='admin-modal-overlay' onClick={() => setDetailService(null)}>
-           <div className='admin-modal service-detail-modal' onClick={(e) => e.stopPropagation()}>
-             <div className='service-detail-header'>
-               <div>
-                 <p className='service-detail-eyebrow'>SERVICE PROFILE</p>
-                 <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> {detailService.name}</h3>
-               </div>
-               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(null)}><i className='fa-solid fa-xmark' /> Đóng</button>
-             </div>
-
-             {detailLoading && <p className='admin-helper'>Đang tải chuyên viên và chi nhánh liên quan...</p>}
-             {detailError && <p className='service-detail-error'>{detailError}</p>}
-
-             <div className='service-detail-layout'>
-               <section className='service-detail-image-panel'>
-                 {detailService.imageUrl
-                   ? <img className='service-detail-image' src={detailService.imageUrl} alt={`Dịch vụ ${detailService.name}`} />
-                   : <div className='service-detail-image-empty'>Chưa có hình ảnh dịch vụ</div>}
-                 <div className='service-detail-metrics'>
-                   <span className='admin-badge admin-badge-blue'>Giá: {detailService.price.toLocaleString('vi-VN')}đ</span>
-                   <span className='admin-badge admin-badge-yellow'>Thời lượng: {detailService.durationMin} phút</span>
-                   <span className='admin-badge admin-badge-pink'>Rating: {detailService.ratingAvg.toFixed(1)}</span>
-+                  <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
-+                    Trạng thái: {detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}
-+                  </span>
-                   <span className='admin-badge admin-badge-green'>Lượt đặt: {detailService.bookedCount ?? 0}</span>
-                 </div>
-               </section>
-
-               <section className='service-detail-content'>
-                 <div className='service-detail-grid'>
-                   <article className='service-detail-card'>
-                     <h4><i className='fa-solid fa-clipboard-list' /> Thông tin nhanh</h4>
-                     <p><b>ID:</b> {detailService.id}</p>
-                     <p><b>Danh mục:</b> {detailService.category || '-'}</p>
-                     <p><b>Tag:</b> {detailService.tag || '-'}</p>
-+                    <p><b>Trạng thái:</b> <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>{detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span></p>
-                     <p><b>Mô tả:</b> {detailService.description || '-'}</p>
-                   </article>
-
-                   <article className='service-detail-card'>
-                     <h4><i className='fa-solid fa-file-lines' /> Nội dung dịch vụ</h4>
-                     <p><b>Mục tiêu:</b></p>
-                     {renderDetailLines(detailService.goals || [])}
-                     <p><b>Phù hợp:</b></p>
-                     {renderDetailLines(detailService.suitableFor || [])}
-                     <p><b>Quy trình:</b></p>
-                     {renderDetailLines(detailService.process || [])}
-                   </article>
-
-                   <article className='service-detail-card service-branch-specialists-card'>
-                     <h4><i className='fa-solid fa-building-circle-check' /> Chi nhánh & chuyên viên theo dịch vụ</h4>
-                     {detailBranches.length > 0
-                       ? (
-                         <ul className='service-branch-list'>
-                           {detailBranches.map((branch) => {
-                             const specialistsByBranch = detailSpecialists.filter((specialist) => specialist.branchId === branch.id)
-                             return (
-                               <li key={branch.id} className='service-branch-item'>
-                                 <div className='service-branch-line'>
-                                   <i className='fa-solid fa-building service-branch-icon' />
-                                   <span><b>{branch.name}</b> • {branch.address}</span>
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/types.ts b/ayanavita-fontend/src/pages/admin/tabs/types.ts
-index fec91248190b54bb8b58c6479d2d608d3aba2067..c5ca374804f87adf94808da44eab77e156a79dc0 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/types.ts
-+++ b/ayanavita-fontend/src/pages/admin/tabs/types.ts
-@@ -1,64 +1,67 @@
- import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
-
- export type BranchForm = Partial<Branch>
- export type ServiceForm = {
-   name: string
-   description: string
-   categoryId: number
-   goals: string
-   suitableFor: string
-   process: string
-   durationMin: number
-   price: number
-   tag: string
-+  branchIds: number[]
-+  isActive: boolean
- }
- export type CategoryForm = {
-   name: string
- }
-
- export type SpecialistForm = { code: string; name: string; level: string; bio: string; branchId: number }
- export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
- export type RelationForm = { branchId: number; serviceId: number; specialistId: number }
-
- export type CommonTabProps = {
-   loading: boolean
- }
-
- export type BranchesTabProps = CommonTabProps & {
-   branches: Branch[]
-   branchForm: BranchForm
-   editingBranch: Branch | null
-   onBranchFormChange: (next: BranchForm) => void
-   onSaveBranch: () => Promise<void>
-   onEditBranch: (branch: Branch) => void
-   onDeleteBranch: (branch: Branch) => Promise<void>
-   onCancelEdit: () => void
- }
-
- export type ServicesTabProps = CommonTabProps & {
-   services: SpaService[]
-+  branches: Branch[]
-   categories: ServiceCategory[]
-   serviceForm: ServiceForm
-   editingService: SpaService | null
-   selectedImageName: string
-   searchKeyword: string
-   pagination: { page: number; pageSize: number; total: number; totalPages: number }
-   onSearchKeywordChange: (value: string) => void
-   onPageChange: (page: number) => void
-   onPageSizeChange: (size: number) => void
-   onServiceFormChange: (next: ServiceForm) => void
-   onSelectImage: (file: File | null) => void
-   onSaveService: () => Promise<void>
-   onEditService: (service: SpaService) => void
-   onDeleteService: (service: SpaService) => Promise<void>
-   onCancelEdit: () => void
- }
-
- export type CategoriesTabProps = CommonTabProps & {
-   categories: ServiceCategory[]
-   categoryForm: CategoryForm
-   editingCategory: ServiceCategory | null
-   onCategoryFormChange: (next: CategoryForm) => void
-   onSaveCategory: () => Promise<void>
-   onEditCategory: (category: ServiceCategory) => void
-   onDeleteCategory: (category: ServiceCategory) => Promise<void>
-diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-index 6db2d60b9a4daa80d395a3d928212e8f96da5794..d45000187bfdc4c01b335c7c6bfdee8c76feda86 100644
---- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-@@ -92,50 +92,51 @@ export class BookingController {
-     return this.booking.listBranches(includeInactive === 'true', parsedServiceId)
+   function showToast(t: ToastState) {
+     setToast(t);
+     if (!t) return;
+     window.setTimeout(() => setToast(null), 4500);
    }
 
-   @Post('branches')
+-  function startHold() {
+-    if (holdTimerRef.current) {
+-      window.clearInterval(holdTimerRef.current);
+-      holdTimerRef.current = null;
+-    }
+-
+-    setHoldLeft(10 * 60);
+-    holdTimerRef.current = window.setInterval(() => {
+-      setHoldLeft((prev) => {
+-        if (prev <= 1) {
+-          if (holdTimerRef.current) {
+-            window.clearInterval(holdTimerRef.current);
+-            holdTimerRef.current = null;
+-          }
+-          return 0;
+-        }
+-        return prev - 1;
+-      });
+-    }, 1000);
+-
+-    showToast({ type: "success", message: `Đã giữ chỗ tại ${branch} lúc ${slot} (demo).` });
+-  }
+-
+-  function mmss(sec: number) {
+-    const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+-    const ss = String(sec % 60).padStart(2, "0");
+-    return `${mm}:${ss}`;
+-  }
+-
+   function submitBooking() {
++    if (!service) return;
++
+     const n = name.trim();
+     const p = phone.trim();
+     const d = date.trim();
+
+     if (!n) return showToast({ type: "error", message: "Vui lòng nhập Họ và tên." });
+-    if (!isValidPhone(p))
++    if (!isValidPhone(p)) {
+       return showToast({ type: "error", message: "SĐT chưa đúng (bắt đầu 0, đủ 10–11 số)." });
++    }
+     if (!d) return showToast({ type: "error", message: "Vui lòng chọn Ngày." });
+     if (d < todayISO) return showToast({ type: "error", message: "Ngày đặt phải >= hôm nay." });
+
+     const msg =
+       `Đặt lịch thành công (demo).\n` +
+-      `- Dịch vụ: ${service.name} (${service.id})\n` +
+-      `- Chi nhánh: ${branch}\n` +
++      `- Dịch vụ: ${service.name} (#${service.id})\n` +
++      `- Chi nhánh: ${branch || "Chưa chọn"}\n` +
+       `- Ngày: ${d} • Giờ: ${slot}\n` +
+-      `- Ghi chú: ${note.trim() || "(không)"}\n\n` +
+-      `Bước sau: nối API Booking + thanh toán đặt cọc nếu cần.`;
++      `- Ghi chú: ${note.trim() || "(không)"}`;
+
+     showToast({ type: "success", message: msg });
+     window.scrollTo({ top: 0, behavior: "smooth" });
+   }
+
+   return (
+     <div className="bg-slate-50 text-slate-900">
+       <ParticlesBackground />
+
+       <div className="page-content">
+         <Header onLogin={() => openAuth("login")} onRegister={() => openAuth("register")} />
+
+         <main className="px-4 pb-10">
+-          <div className="max-w-6xl mx-auto grid gap-4 lg:grid-cols-3">
+-            {/* Main */}
+-            <section className="card overflow-hidden lg:col-span-2">
+-              {/* Hero */}
+-              <div className="relative">
+-                <img className="h-64 w-full object-cover" alt="detail" src={service.heroImage} />
+-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 to-indigo-700/10" />
+-                <div className="absolute inset-0 p-6 flex flex-col justify-end">
+-                  <div className="text-xs font-extrabold text-white/80">Chi tiết dịch vụ</div>
+-                  <h1 className="text-2xl md:text-3xl font-extrabold text-white">
+-                    {service.name} ({service.id})
+-                  </h1>
+-                  <div className="mt-2 flex gap-2 flex-wrap">
+-                    <span className="chip">
+-                      <i className="fa-solid fa-clock text-indigo-600" />
+-                      {service.duration} phút
+-                    </span>
+-                    <span className="chip">
+-                      <i className="fa-solid fa-star star" />
+-                      {service.rating.toFixed(1)} (
+-                      {new Intl.NumberFormat("vi-VN").format(service.booked)} lượt)
+-                    </span>
+-                    <span className="chip">
+-                      <i className="fa-solid fa-shield-halved text-emerald-600" />
+-                      Quy trình chuẩn
+-                    </span>
++          {loading ? <div className="max-w-6xl mx-auto text-sm text-slate-500">Đang tải chi tiết dịch vụ...</div> : null}
++          {error ? <div className="max-w-6xl mx-auto text-sm text-rose-600">{error}</div> : null}
++
++          {service ? (
++            <div className="max-w-6xl mx-auto grid gap-4 lg:grid-cols-3">
++              <section className="card overflow-hidden lg:col-span-2">
++                <div className="relative">
++                  <img
++                    className="h-64 w-full object-cover"
++                    alt="detail"
++                    src={service.imageUrl || "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1600&q=70"}
++                  />
++                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 to-indigo-700/10" />
++                  <div className="absolute inset-0 p-6 flex flex-col justify-end">
++                    <div className="text-xs font-extrabold text-white/80">Chi tiết dịch vụ</div>
++                    <h1 className="text-2xl md:text-3xl font-extrabold text-white">
++                      {service.name} (#{service.id})
++                    </h1>
++                    <div className="mt-2 flex gap-2 flex-wrap">
++                      <span className="chip"><i className="fa-solid fa-clock text-indigo-600" />{service.durationMin} phút</span>
++                      <span className="chip">
++                        <i className="fa-solid fa-star star" />
++                        {service.ratingAvg.toFixed(1)} ({new Intl.NumberFormat("vi-VN").format(service.bookedCount)} lượt)
++                      </span>
++                    </div>
+                   </div>
+                 </div>
+-              </div>
+
+-              <div className="p-6">
+-                {/* Price + Benefits */}
+-                <div className="grid gap-4 md:grid-cols-3">
++                <div className="p-5 grid gap-4 md:grid-cols-3">
+                   <div className="card p-4">
+                     <div className="text-xs font-extrabold text-slate-500">Giá niêm yết</div>
+                     <div className="text-2xl font-extrabold mt-1">{money(service.price)}</div>
+-                    <div className="text-sm muted mt-1">Đã bao gồm tư vấn da cơ bản.</div>
+-
+-                    <Link to="/booking" className="btn btn-primary w-full mt-3">
+-                      <i className="fa-solid fa-calendar-check" />
+-                      Đặt lịch
+-                    </Link>
+-
+-                    <Link to="/services" className="btn w-full mt-2">
+-                      <i className="fa-solid fa-arrow-left" />
+-                      Danh sách
+-                    </Link>
++                    <Link to="/booking" className="btn btn-primary w-full mt-3"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
++                    <Link to="/services" className="btn w-full mt-2"><i className="fa-solid fa-arrow-left" />Danh sách</Link>
+                   </div>
+
+                   <div className="card p-4 md:col-span-2">
+                     <div className="font-extrabold">Mục tiêu &amp; Lợi ích</div>
+                     <ul className="mt-2 text-sm text-slate-700 space-y-2">
+-                      {service.benefits.map((b, idx) => (
+-                        <li key={idx} className="flex gap-2">
+-                          <span className="text-emerald-600 font-extrabold">•</span>
+-                          {b}
+-                        </li>
+-                      ))}
++                      {service.goals.length ? service.goals.map((goal, idx) => (
++                        <li key={idx} className="flex gap-2"><span className="text-emerald-600 font-extrabold">•</span>{goal}</li>
++                      )) : <li>Đang cập nhật.</li>}
+                     </ul>
++                    {service.description ? <div className="mt-3 text-sm muted">{service.description}</div> : null}
+                   </div>
+                 </div>
+
+-                {/* Process + Audience + Hold */}
+-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
++                <div className="px-5 pb-5 grid gap-4 lg:grid-cols-2">
+                   <div className="card p-5">
+-                    <div className="font-extrabold">Quy trình (chuẩn hoá)</div>
++                    <div className="font-extrabold">Quy trình</div>
+                     <ol className="mt-3 text-sm text-slate-700 space-y-2">
+-                      {service.process.map((p, idx) => (
+-                        <li key={idx}>
+-                          <b>{idx + 1})</b> {p}
+-                        </li>
+-                      ))}
++                      {service.process.length ? service.process.map((p, idx) => (
++                        <li key={idx}><b>{idx + 1})</b> {p}</li>
++                      )) : <li>Đang cập nhật.</li>}
+                     </ol>
+                   </div>
+
+                   <div className="card p-5">
+                     <div className="font-extrabold">Dành cho ai?</div>
+-                    <div className="mt-2 text-sm text-slate-700">Phù hợp cho:</div>
+-
+                     <div className="mt-2 flex gap-2 flex-wrap">
+-                      {service.audienceChips.map((c, idx) => (
+-                        <span key={idx} className="chip">
+-                          <i className={`${c.iconClass} ${c.iconColorClass || "text-amber-600"}`} />
+-                          {c.label}
+-                        </span>
+-                      ))}
++                      {service.suitableFor.length ? service.suitableFor.map((label, idx) => (
++                        <span key={idx} className="chip"><i className="fa-solid fa-user-check text-amber-600" />{label}</span>
++                      )) : <span className="text-sm muted">Đang cập nhật.</span>}
+                     </div>
+
+-                    {service.note ? <div className="mt-3 text-sm muted">{service.note}</div> : null}
+-
+                     <div className="mt-4 border-t border-slate-200 pt-4">
+                       <div className="font-extrabold">Chọn chi nhánh &amp; khung giờ</div>
+-
+                       <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                         <select className="field" value={branch} onChange={(e) => setBranch(e.target.value)}>
+-                          {BRANCHES.map((b) => (
+-                            <option key={b} value={b}>
+-                              {b}
+-                            </option>
+-                          ))}
++                          {branches.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                         </select>
+-
+                         <select className="field" value={slot} onChange={(e) => setSlot(e.target.value)}>
+-                          {SLOTS.map((t) => (
+-                            <option key={t} value={t}>
+-                              {t}
+-                            </option>
+-                          ))}
++                          {SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                         </select>
+                       </div>
+-
+-                      <button onClick={startHold} className="btn btn-accent w-full mt-2" type="button">
+-                        <i className="fa-solid fa-lock" />
+-                        Giữ chỗ 10 phút (demo)
+-                      </button>
+-
+-                      <div className="mt-2 text-sm muted">
+-                        {holdLeft > 0 ? (
+-                          <>
+-                            Đã giữ chỗ tại <b>{branch}</b> lúc <b>{slot}</b>. Thời gian còn lại:{" "}
+-                            <b>{mmss(holdLeft)}</b> (demo).
+-                          </>
+-                        ) : (
+-                          <>Giữ chỗ chưa kích hoạt / đã hết hạn (demo).</>
+-                        )}
+-                      </div>
+                     </div>
+                   </div>
+                 </div>
+
+-                {/* Reviews */}
+-                <div className="mt-5 card p-5">
+-                  <div className="flex items-center justify-between">
+-                    <div className="font-extrabold">Đánh giá khách hàng</div>
+-                    <Link to="/reviews" className="btn">
+-                      <i className="fa-solid fa-star" />
+-                      Xem tất cả
+-                    </Link>
+-                  </div>
+-
++                <div className="mx-5 mb-5 card p-5">
++                  <div className="font-extrabold">Đánh giá khách hàng</div>
+                   <div className="mt-3 grid gap-3 md:grid-cols-2">
+-                    {REVIEWS.map((r) => (
+-                      <div key={r.name} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
++                    {service.reviews.length ? service.reviews.map((r) => (
++                      <div key={r.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                         <div className="flex items-center justify-between">
+-                          <div className="font-extrabold">{r.name}</div>
+-                          <div className="text-sm">
+-                            <i className="fa-solid fa-star star" /> {r.rating.toFixed(1)}
+-                          </div>
++                          <div className="font-extrabold">{r.customerName || "Khách hàng"}</div>
++                          <div className="text-sm"><i className="fa-solid fa-star star" /> {r.stars.toFixed(1)}</div>
+                         </div>
+-                        <div className="text-sm text-slate-700 mt-2">{r.text}</div>
++                        <div className="text-sm text-slate-700 mt-2">{r.comment || "Khách hàng chưa để lại nhận xét."}</div>
+                       </div>
+-                    ))}
++                    )) : <div className="text-sm muted">Chưa có đánh giá cho dịch vụ này.</div>}
+                   </div>
+                 </div>
+-              </div>
+-            </section>
+-
+-            {/* Sidebar */}
+-            <aside className="card p-6">
+-              <div className="font-extrabold">Đặt lịch nhanh</div>
+-              <div className="text-sm muted mt-1">Nhập thông tin để giữ chỗ (demo).</div>
+-
+-              <div className="mt-3 grid gap-2">
+-                <input className="field" placeholder="Họ và tên" value={name} onChange={(e) => setName(e.target.value)} />
+-                <input className="field" placeholder="Số điện thoại" value={phone} onChange={(e) => setPhone(e.target.value)} />
+-                <input className="field" type="date" value={date} min={todayISO} onChange={(e) => setDate(e.target.value)} />
+-                <textarea className="field" rows={4} placeholder="Ghi chú (tình trạng da, dị ứng...)" value={note} onChange={(e) => setNote(e.target.value)} />
+-                <button onClick={submitBooking} className="btn btn-primary" type="button">
+-                  <i className="fa-solid fa-calendar-check" />
+-                  Xác nhận đặt
+-                </button>
+-              </div>
+-
+-              {toast ? (
+-                <div
+-                  className={[
+-                    "mt-4 rounded-2xl p-4 ring-1 text-sm whitespace-pre-line",
+-                    toast.type === "success"
+-                      ? "bg-emerald-50 ring-emerald-200 text-emerald-800"
+-                      : "bg-rose-50 ring-rose-200 text-rose-800",
+-                  ].join(" ")}
+-                >
+-                  {toast.message}
++              </section>
++
++              <aside className="card p-6">
++                <div className="font-extrabold">Đặt lịch nhanh</div>
++                <div className="text-sm muted mt-1">Nhập thông tin để đặt lịch (demo).</div>
++
++                <div className="mt-3 grid gap-2">
++                  <input className="field" placeholder="Họ và tên" value={name} onChange={(e) => setName(e.target.value)} />
++                  <input className="field" placeholder="Số điện thoại" value={phone} onChange={(e) => setPhone(e.target.value)} />
++                  <input className="field" type="date" value={date} min={todayISO} onChange={(e) => setDate(e.target.value)} />
++                  <textarea className="field" rows={4} placeholder="Ghi chú (tình trạng da, dị ứng...)" value={note} onChange={(e) => setNote(e.target.value)} />
++                  <button onClick={submitBooking} className="btn btn-primary" type="button">
++                    <i className="fa-solid fa-calendar-check" />
++                    Xác nhận đặt
++                  </button>
+                 </div>
+-              ) : null}
+-
+-              <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
+-                <div className="font-extrabold">Cam kết</div>
+-                <ul className="mt-2 space-y-2">
+-                  <li className="flex gap-2">
+-                    <span className="text-emerald-600 font-extrabold">•</span>Quy trình chuẩn hoá
+-                  </li>
+-                  <li className="flex gap-2">
+-                    <span className="text-emerald-600 font-extrabold">•</span>Sản phẩm rõ nguồn gốc
+-                  </li>
+-                  <li className="flex gap-2">
+-                    <span className="text-emerald-600 font-extrabold">•</span>Tư vấn trước và sau dịch vụ
+-                  </li>
+-                </ul>
+-              </div>
+-            </aside>
+-          </div>
++
++                {toast ? (
++                  <div
++                    className={[
++                      "mt-4 rounded-2xl p-4 ring-1 text-sm whitespace-pre-line",
++                      toast.type === "success"
++                        ? "bg-emerald-50 ring-emerald-200 text-emerald-800"
++                        : "bg-rose-50 ring-rose-200 text-rose-800",
++                    ].join(" ")}
++                  >
++                    {toast.message}
++                  </div>
++                ) : null}
++              </aside>
++            </div>
++          ) : null}
+         </main>
+
+         <Footer />
+       </div>
+
+-      <SuccessModal
+-        open={success.open}
+-        message={success.message}
+-        onClose={() => setSuccess({ open: false, message: "" })}
+-      />
++      <SuccessModal open={success.open} message={success.message} onClose={() => setSuccess({ open: false, message: "" })} />
+
+       <AuthModal
+         open={authOpen}
+         tab={authTab}
+         onClose={() => setAuthOpen(false)}
+         onSwitchTab={setAuthTab}
+         onLoginSuccess={() => {
+           setAuthOpen(false);
+           openSuccess("Đăng nhập thành công.");
+         }}
+         onRegisterSuccess={() => {
+           setAuthOpen(false);
+           openSuccess("Đăng ký thành công.");
+         }}
+       />
+     </div>
+   );
+ }
+diff --git a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
+index 269f017fe3d5830cb55346d04a0ab191f5594a6d..45a6ffbe04e06089d4907e37c6f4af9bef7f9756 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
+@@ -7,93 +7,86 @@ import { Footer } from "../components/layout/Footer";
+
+ import { AuthModal } from "../components/home/AuthModal";
+ import { SuccessModal } from "../components/home/SuccessModal";
+
+ import { money } from "../services/booking.utils";
+ import { http } from "../api/http";
+
+ type AuthTab = "login" | "register";
+ type DurRule = "all" | "lt60" | "60-90" | "gt90";
+ type SortRule = "popular" | "priceAsc" | "priceDesc" | "rating";
+
+ type ApiService = {
+   id: string;
+   dbId: number;
+   name: string;
+   cat: string;
+   goal: string[];
+   duration: number;
+   price: number;
+   rating: number;
+   booked: number;
+   img?: string | null;
+   tag: string;
+ };
+
+-const CAT_LABELS: Record<string, string> = {
+-  skin: "Chăm sóc da",
+-  body: "Body / Thư giãn",
+-  health: "Sức khoẻ trị liệu",
+-  package: "Gói liệu trình",
+-};
+-
+ const GOAL_LABELS: Record<string, string> = {
+   relax: "Thư giãn",
+   acne: "Giảm mụn",
+   bright: "Sáng da",
+   restore: "Phục hồi",
+   pain: "Giảm đau nhức",
+ };
+
+ function matchDur(dur: number, rule: DurRule) {
+   if (rule === "all") return true;
+   if (rule === "lt60") return dur < 60;
+   if (rule === "60-90") return dur >= 60 && dur <= 90;
+   if (rule === "gt90") return dur > 90;
+   return true;
+ }
+
+ function Stars({ rating }: { rating: number }) {
+   const full = Math.max(1, Math.floor(rating));
+   const icons = Array.from({ length: full }, (_, i) => (
+     <i key={i} className="fa-solid fa-star star" />
+   ));
+   return <span className="flex items-center gap-1">{icons}</span>;
+ }
+
+ function ServiceCard({ s }: { s: ApiService }) {
+   return (
+     <article className="card p-4">
+       <img
+         className="h-36 w-full rounded-2xl object-cover ring-1 ring-slate-200"
+         src={s.img || "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=70"}
+         alt={s.name}
+       />
+
+       <div className="mt-3">
+         <div
+-          className="font-extrabold"
++          className="font-extrabold min-h-[3rem] leading-6"
+           style={{
+             display: "-webkit-box",
+             WebkitLineClamp: 2,
+             WebkitBoxOrient: "vertical",
+             overflow: "hidden",
+           }}
+         >
+           {s.name}
+         </div>
+
+         <div className="mt-2">
+           <span className="chip">
+             <i className="fa-solid fa-tag text-emerald-600" />
+             {money(s.price)}
+           </span>
+         </div>
+
+         <div className="mt-2 text-xs text-slate-500">
+           {s.id} • {s.duration} phút
+         </div>
+       </div>
+
+       <div className="mt-2 flex items-center justify-between text-sm text-slate-700">
+         <div className="flex items-center gap-2">
+           <Stars rating={s.rating} /> <b>{s.rating.toFixed(1)}</b>
+@@ -231,51 +224,51 @@ export default function ServicesPage() {
+                 <h1 className="text-2xl md:text-3xl font-extrabold text-white">
+                   Trải nghiệm Spa chuyên sâu, chuẩn hoá theo hệ thống
+                 </h1>
+               </div>
+             </div>
+
+             <div className="p-6 grid gap-4 lg:grid-cols-4">
+               <aside className="lg:col-span-1">
+                 <div className="card p-5">
+                   <div className="flex items-center justify-between">
+                     <div className="font-extrabold">Bộ lọc dịch vụ</div>
+                     <button onClick={reset} className="btn px-3 py-2" type="button" aria-label="reset">
+                       <i className="fa-solid fa-rotate-left" />
+                     </button>
+                   </div>
+
+                   <div className="mt-3">
+                     <label className="text-sm font-extrabold text-slate-700">Tìm theo tên</label>
+                     <input className="field mt-2" placeholder="VD: chăm sóc da, trị liệu..." value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+                   </div>
+
+                   <div className="mt-4">
+                     <label className="text-sm font-extrabold text-slate-700">Danh mục</label>
+                     <select className="field mt-2" value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}>
+                       <option value="all">Tất cả</option>
+-                      {availableCats.map((c) => <option key={c} value={c}>{CAT_LABELS[c] || c}</option>)}
++                      {availableCats.map((c) => <option key={c} value={c}>{c}</option>)}
+                     </select>
+                   </div>
+
+                   <div className="mt-4">
+                     <label className="text-sm font-extrabold text-slate-700">Mục tiêu</label>
+                     <select className="field mt-2" value={goal} onChange={(e) => { setGoal(e.target.value); setPage(1); }}>
+                       <option value="all">Tất cả</option>
+                       {availableGoals.map((g) => <option key={g} value={g}>{GOAL_LABELS[g] || g}</option>)}
+                     </select>
+                   </div>
+                 </div>
+               </aside>
+
+               <section className="lg:col-span-3">
+                 <div className="flex items-center justify-between gap-3 flex-wrap">
+                   <div>
+                     <div className="text-xs font-extrabold text-slate-500">Danh sách</div>
+                     <h2 className="text-xl font-extrabold">Dịch vụ nổi bật</h2>
+                     <div className="text-sm text-slate-600">Hiển thị <b>{filtered.length}</b> dịch vụ</div>
+                   </div>
+                   <Link to="/booking" className="btn btn-primary"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
+                 </div>
+
+                 {loading ? <div className="mt-4 text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div> : null}
+                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+index d45000187bfdc4c01b335c7c6bfdee8c76feda86..e7e5cf917eba13cb7b5b02e7afea5dab8f07af0d 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+@@ -96,50 +96,55 @@ export class BookingController {
    createBranch(@Body() data: any) {
      return this.booking.createBranch(data)
    }
@@ -849,10 +708,15 @@ index 6db2d60b9a4daa80d395a3d928212e8f96da5794..d45000187bfdc4c01b335c7c6bfdee8c
        q: query.q,
        page: query.page,
        pageSize: query.pageSize,
-+      includeInactive: query.includeInactive,
+       includeInactive: query.includeInactive,
      })
    }
 
++  @Get('services/:id')
++  serviceDetail(@Param('id', ParseIntPipe) id: number) {
++    return this.booking.getServiceDetail(id)
++  }
++
    @Post('services')
    @UseInterceptors(
      FileInterceptor('file', {
@@ -875,11 +739,14 @@ index 6db2d60b9a4daa80d395a3d928212e8f96da5794..d45000187bfdc4c01b335c7c6bfdee8c
      return this.booking.updateService(id, parseMultipartData(data), file)
    }
 
+   @Delete('services/:id')
+   deleteService(@Param('id', ParseIntPipe) id: number) {
+     return this.booking.deleteService(id)
 diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f00816043860a13f 100644
+index f3311dc525ea38c443de86b4f00816043860a13f..26f89487ec2fcbb286a39e1b9318d64aa61b94c3 100644
 --- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-@@ -1,47 +1,52 @@
+@@ -1,37 +1,38 @@
  import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
  import { Prisma } from '@prisma/client'
  import { promises as fs } from 'fs'
@@ -892,6 +759,7 @@ index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f0081604
    ServiceCatalogItemDto,
    ServiceCategoryResponseDto,
    ServiceListResponseDto,
++  ServiceDetailResponseDto,
    ServiceResponseDto,
    ServiceReviewResponseDto,
    SpecialistResponseDto,
@@ -902,11 +770,11 @@ index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f0081604
  export class BookingService {
    constructor(private readonly prisma: PrismaService) {}
 
-+  private toPositiveIntArray(value: unknown): number[] {
-+    if (!Array.isArray(value)) return []
-+    return [...new Set(value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0))]
-+  }
-+
+   private toPositiveIntArray(value: unknown): number[] {
+     if (!Array.isArray(value)) return []
+     return [...new Set(value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0))]
+   }
+
    private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
    private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
    private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
@@ -917,92 +785,7 @@ index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f0081604
    private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
      return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
    }
-
-   private readonly tempImageDir = join(process.cwd(), 'temp-images')
-
-   async saveTempImage(file: any): Promise<TempImageResponseDto> {
-     await fs.mkdir(this.tempImageDir, { recursive: true })
-     const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
-     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
-     const filePath = join(this.tempImageDir, fileName)
-     await fs.writeFile(filePath, file.buffer)
-
-     return {
-       fileName,
-       url: `/booking-temp-images/${fileName}`,
-       size: file.size,
-     }
-@@ -198,105 +203,107 @@ export class BookingService {
-       img: s.imageUrl,
-       tag: s.tag ?? 'Spa',
-     }))
-   }
-
-   async listBranches(includeInactive = false, serviceId?: number): Promise<BranchResponseDto[]> {
-     const rows = await this.prisma.branch.findMany({
-       where: {
-         ...(includeInactive ? {} : { isActive: true }),
-         ...(serviceId ? { services: { some: { serviceId } } } : {}),
-       },
-       select: { id: true, code: true, name: true, address: true, phone: true, isActive: true },
-       orderBy: { id: 'asc' },
-     })
-
-     return rows.map((b) => ({
-       id: b.id,
-       code: b.code,
-       name: b.name,
-       address: b.address,
-       phone: b.phone,
-       isActive: b.isActive,
-     }))
-   }
-
--  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number }): Promise<ServiceListResponseDto> {
-+  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number; includeInactive?: boolean }): Promise<ServiceListResponseDto> {
-     const page = params.page && params.page > 0 ? params.page : 1
-     const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(params.pageSize, 100) : 10
-     const skip = (page - 1) * pageSize
-     const query = params.q?.trim()
-
-     const where = {
--      isActive: true,
-+      ...(params.includeInactive ? {} : { isActive: true }),
-       ...(params.branchId ? { branches: { some: { branchId: params.branchId } } } : {}),
-       ...(query ? { name: { contains: query } } : {}),
-     }
-
-     const [rows, total] = await Promise.all([
-       this.prisma.service.findMany({
-         where,
-         select: {
-           id: true,
-           name: true,
-           description: true,
-           categoryId: true,
-           category: { select: { name: true } },
-           goals: true,
-           suitableFor: true,
-           process: true,
-           durationMin: true,
-           price: true,
-           ratingAvg: true,
-           bookedCount: true,
-           tag: true,
-           imageUrl: true,
-+          isActive: true,
-           branches: { select: { branchId: true } },
-         },
-         orderBy: { id: 'asc' },
-         skip,
-         take: pageSize,
-       }),
-       this.prisma.service.count({ where }),
-     ])
-
-     const items: ServiceResponseDto[] = rows.map((s) => ({
-       id: s.id,
-       name: s.name,
+@@ -271,50 +272,109 @@ export class BookingService {
        description: s.description,
        categoryId: s.categoryId,
        category: s.category?.name,
@@ -1016,7 +799,7 @@ index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f0081604
        tag: s.tag,
        imageUrl: s.imageUrl,
        branchIds: s.branches.map((b) => b.branchId),
-+      isActive: s.isActive,
+       isActive: s.isActive,
      }))
 
      return {
@@ -1028,6 +811,65 @@ index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f0081604
      }
    }
 
++
++  async getServiceDetail(id: number): Promise<ServiceDetailResponseDto> {
++    const row = await this.prisma.service.findUnique({
++      where: { id },
++      select: {
++        id: true,
++        name: true,
++        description: true,
++        categoryId: true,
++        category: { select: { name: true } },
++        goals: true,
++        suitableFor: true,
++        process: true,
++        durationMin: true,
++        price: true,
++        ratingAvg: true,
++        bookedCount: true,
++        tag: true,
++        imageUrl: true,
++        isActive: true,
++        branches: { select: { branchId: true } },
++        reviews: {
++          select: {
++            id: true,
++            serviceId: true,
++            userId: true,
++            stars: true,
++            comment: true,
++            customerName: true,
++            createdAt: true,
++          },
++          orderBy: { id: 'desc' },
++        },
++      },
++    })
++
++    if (!row) throw new NotFoundException('Service not found')
++
++    return {
++      id: row.id,
++      name: row.name,
++      description: row.description,
++      categoryId: row.categoryId,
++      category: row.category?.name,
++      goals: this.toStringArray(row.goals),
++      suitableFor: this.toStringArray(row.suitableFor),
++      process: this.toStringArray(row.process),
++      durationMin: row.durationMin,
++      price: row.price,
++      ratingAvg: row.ratingAvg,
++      bookedCount: row.bookedCount,
++      tag: row.tag,
++      imageUrl: row.imageUrl,
++      branchIds: row.branches.map((b) => b.branchId),
++      isActive: row.isActive,
++      reviews: row.reviews,
++    }
++  }
++
    async listSpecialists(branchId?: number, serviceId?: number): Promise<SpecialistResponseDto[]> {
      const rows = await this.prisma.specialist.findMany({
        where: {
@@ -1042,239 +884,22 @@ index 3556a7a3b6ebdba9582ebf9fe33f00a34dbc9f39..f3311dc525ea38c443de86b4f0081604
          level: true,
          bio: true,
          branchId: true,
-@@ -396,100 +403,161 @@ export class BookingService {
-         branchId: dto.branchId,
-         serviceId: dto.serviceId,
-         specialistId: dto.specialistId,
-         userId: dto.userId,
-       },
-       include: {
-         branch: { select: { id: true, name: true } },
-         service: { select: { id: true, name: true, durationMin: true, price: true } },
-         specialist: { select: { id: true, name: true, level: true } },
-       },
-     })
-
-     return created
-   }
-
-   async updateAppointment(id: number, data: any) {
-     return this.prisma.appointment.update({ where: { id }, data })
-   }
-
-   async deleteAppointment(id: number) {
-     await this.prisma.appointment.delete({ where: { id } })
-     return { ok: true }
-   }
-
-
--  private sanitizeServiceData(data: any) {
-+  private sanitizeServiceData(data: any): { serviceData: Prisma.ServiceUncheckedCreateInput; branchIds: number[] } {
-     const goalsInput = Array.isArray(data.goals) ? data.goals : []
-     const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
-     const processInput = Array.isArray(data.process) ? data.process : []
--    return {
--      name: data.name,
-+    const branchIds = this.toPositiveIntArray(data.branchIds)
-+    const serviceData: Prisma.ServiceUncheckedCreateInput = {
-+      name: String(data.name ?? '').trim(),
-       description: data.description,
-       categoryId: data.categoryId ? Number(data.categoryId) : null,
-       goals: goalsInput,
-       suitableFor: suitableForInput,
-       process: processInput,
-       durationMin: Number(data.durationMin ?? 60),
-       price: Number(data.price ?? 0),
-       tag: data.tag,
-+      isActive: data.isActive !== undefined ? data.isActive === true || data.isActive === 'true' : true,
-+    }
-+
-+    return {
-+      serviceData,
-+      branchIds,
-     }
-   }
-
-   async createService(data: any, file?: any) {
-     if (!data.categoryId) {
-       throw new BadRequestException('categoryId is required')
-     }
-+
-+    const { serviceData, branchIds } = this.sanitizeServiceData(data)
-+    if (!branchIds.length) {
-+      throw new BadRequestException('branchIds is required')
-+    }
-+
-+    const availableBranches = await this.prisma.branch.count({ where: { id: { in: branchIds }, isActive: true } })
-+    if (availableBranches !== branchIds.length) {
-+      throw new BadRequestException('Some branchIds are invalid or inactive')
-+    }
-+
-     let imageUrl: string | undefined
-     if (file) {
-       const uploaded = await this.uploadImageToCloud(file)
-       imageUrl = uploaded.url
-     }
--    return this.prisma.service.create({ data: { ...this.sanitizeServiceData(data), imageUrl } })
-+
-+    return this.prisma.$transaction(async (tx) => {
-+      const created = await tx.service.create({ data: { ...serviceData, imageUrl } })
-+      await tx.branchService.createMany({
-+        data: branchIds.map((branchId) => ({ branchId, serviceId: created.id })),
-+        skipDuplicates: true,
-+      })
-+      return created
-+    })
-   }
-
-   async updateService(id: number, data: any, file?: any) {
-     const existing = await this.prisma.service.findUnique({ where: { id }, select: { imageUrl: true } })
-     if (!existing) throw new NotFoundException('Service not found')
-
-+    const { serviceData, branchIds } = this.sanitizeServiceData(data)
-+    if (!branchIds.length) {
-+      throw new BadRequestException('branchIds is required')
-+    }
-+
-+    const availableBranches = await this.prisma.branch.count({ where: { id: { in: branchIds }, isActive: true } })
-+    if (availableBranches !== branchIds.length) {
-+      throw new BadRequestException('Some branchIds are invalid or inactive')
-+    }
-+
-     let imageUrl = existing.imageUrl
-     if (file) {
-       const uploaded = await this.uploadImageToCloud(file)
-       imageUrl = uploaded.url
-       if (existing.imageUrl) {
-         try {
-           await this.deleteCloudImage({ url: existing.imageUrl })
-         } catch {}
-       }
-     }
-
--    return this.prisma.service.update({ where: { id }, data: { ...this.sanitizeServiceData(data), imageUrl } })
-+    return this.prisma.$transaction(async (tx) => {
-+      const updated = await tx.service.update({ where: { id }, data: { ...serviceData, imageUrl } })
-+      await tx.specialistBranchService.deleteMany({
-+        where: {
-+          serviceId: id,
-+          branchId: { notIn: branchIds },
-+        },
-+      })
-+      await tx.branchService.deleteMany({ where: { serviceId: id, branchId: { notIn: branchIds } } })
-+      await tx.branchService.createMany({
-+        data: branchIds.map((branchId) => ({ branchId, serviceId: id })),
-+        skipDuplicates: true,
-+      })
-+      return updated
-+    })
-   }
-
-   async deleteService(id: number) {
-+    const appointmentCount = await this.prisma.appointment.count({ where: { serviceId: id } })
-+
-+    if (appointmentCount > 0) {
-+      await this.prisma.service.update({ where: { id }, data: { isActive: false } })
-+      return {
-+        ok: true,
-+        softDeleted: true,
-+        message: 'Dịch vụ đã có lịch hẹn. Hệ thống chỉ tắt hoạt động để đảm bảo dữ liệu lịch hẹn.',
-+      }
-+    }
-+
-     await this.prisma.service.delete({ where: { id } })
--    return { ok: true }
-+    return { ok: true, softDeleted: false }
-   }
-
-   async listServiceCategories(): Promise<ServiceCategoryResponseDto[]> {
-     const rows = await this.prisma.serviceCategory.findMany({
-       select: {
-         id: true,
-         name: true,
-         _count: { select: { services: true } },
+         serviceLinks: { select: { serviceId: true } },
        },
        orderBy: { id: 'asc' },
      })
 
-     return rows.map((item) => ({
-       id: item.id,
-       name: item.name,
-       serviceCount: item._count.services,
-     }))
-   }
-
-   async createServiceCategory(data: any) {
-     return this.prisma.serviceCategory.create({
-       data: {
-         name: String(data.name || '').trim(),
-       },
-     })
-diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-index 16017c818b4c29245b65e63ed11a5b564b53e971..ade76a93e8a3ca961b6903852ab1f3d67fd875a0 100644
---- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-@@ -1,39 +1,43 @@
--import { Type } from 'class-transformer'
-+import { Transform, Type } from 'class-transformer'
- import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
-
- export class BookingFilterQueryDto {
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   branchId?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   serviceId?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   userId?: number
-
-   @IsOptional()
-   @IsString()
-   q?: string
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   page?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   @Max(100)
-   pageSize?: number
-+
-+  @IsOptional()
-+  @Transform(({ value }) => value === 'true' || value === true)
-+  includeInactive?: boolean
- }
+     return rows.map((s) => ({
+       id: s.id,
+       code: s.code,
+       name: s.name,
+       level: s.level,
+       bio: s.bio,
 diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-index aaf229c1d6803ddc6b11e9fc64b5829833323b4e..4c4fc7272a1d9bf2c5a6bed9d67a923aa62034fd 100644
+index 4c4fc7272a1d9bf2c5a6bed9d67a923aa62034fd..edbe108ac31a48b74d1532d566f88903f044aa19 100644
 --- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
 +++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-@@ -15,50 +15,51 @@ export class ServiceCatalogItemDto {
-   goal!: string[]
-   duration!: number
-   price!: number
-   rating!: number
-   booked!: number
-   img?: string | null
-   tag!: string
- }
-
- export class ServiceResponseDto {
-   id!: number
+@@ -26,50 +26,70 @@ export class ServiceResponseDto {
    name!: string
    description?: string | null
    categoryId?: number | null
@@ -1289,7 +914,7 @@ index aaf229c1d6803ddc6b11e9fc64b5829833323b4e..4c4fc7272a1d9bf2c5a6bed9d67a923a
    tag?: string | null
    imageUrl?: string | null
    branchIds!: number[]
-+  isActive!: boolean
+   isActive!: boolean
  }
 
  export class ServiceListResponseDto {
@@ -1300,6 +925,26 @@ index aaf229c1d6803ddc6b11e9fc64b5829833323b4e..4c4fc7272a1d9bf2c5a6bed9d67a923a
    totalPages!: number
  }
 
++export class ServiceDetailResponseDto {
++  id!: number
++  name!: string
++  description?: string | null
++  categoryId?: number | null
++  category?: string | null
++  goals!: string[]
++  suitableFor!: string[]
++  process!: string[]
++  durationMin!: number
++  price!: number
++  ratingAvg!: number
++  bookedCount!: number
++  tag?: string | null
++  imageUrl?: string | null
++  branchIds!: number[]
++  isActive!: boolean
++  reviews!: ServiceReviewResponseDto[]
++}
++
  export class ServiceCategoryResponseDto {
    id!: number
    name!: string
@@ -1314,4 +959,14 @@ index aaf229c1d6803ddc6b11e9fc64b5829833323b4e..4c4fc7272a1d9bf2c5a6bed9d67a923a
    bio?: string | null
    branchId!: number
    serviceIds!: number[]
+ }
+
+ export class ServiceReviewResponseDto {
+   id!: number
+   serviceId!: number
+   userId?: number | null
+   stars!: number
+   comment?: string | null
+   customerName?: string | null
+   createdAt!: Date
  }

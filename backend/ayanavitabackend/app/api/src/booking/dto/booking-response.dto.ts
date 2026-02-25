@@ -48,6 +48,26 @@ export class ServiceListResponseDto {
   totalPages!: number
 }
 
+export class ServiceDetailResponseDto {
+  id!: number
+  name!: string
+  description?: string | null
+  categoryId?: number | null
+  category?: string | null
+  goals!: string[]
+  suitableFor!: string[]
+  process!: string[]
+  durationMin!: number
+  price!: number
+  ratingAvg!: number
+  bookedCount!: number
+  tag?: string | null
+  imageUrl?: string | null
+  branchIds!: number[]
+  isActive!: boolean
+  reviews!: ServiceReviewResponseDto[]
+}
+
 export class ServiceCategoryResponseDto {
   id!: number
   name!: string
