@@ -612,15 +612,16 @@ export function CmsEditPage() {
         .aya-editor {
           padding: 14px;
           min-height: 100vh;
-          color: #e2e8f0;
+          color: #1e293b;
           font-family: system-ui, -apple-system, sans-serif;
+          background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
+          border-radius: 20px;
         }
         .glass {
           border-radius: 18px;
-          border: 1px solid rgba(148,163,184,0.18);
-          background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
-          backdrop-filter: blur(8px);
-          box-shadow: 0 22px 60px rgba(0,0,0,0.35);
+          border: 1px solid #dbe7ff;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          box-shadow: 0 14px 38px rgba(37, 99, 235, 0.08);
         }
         .toolbar {
           margin-bottom: 20px;
@@ -632,7 +633,7 @@ export function CmsEditPage() {
           align-items: flex-start;
           flex-wrap: wrap;
           gap: 12px;
-          border-bottom: 1px solid rgba(148,163,184,0.12);
+          border-bottom: 1px solid #e2e8f0;
         }
         .h1 {
           font-size: 22px;
@@ -651,7 +652,7 @@ export function CmsEditPage() {
           opacity: 0.92;
         }
         .g-text {
-          color: #818cf8;
+          color: #4f46e5;
         }
         .dirty, .saved {
           font-size: 12px;
@@ -660,15 +661,18 @@ export function CmsEditPage() {
           border-radius: 999px;
         }
         .dirty {
-          border: 1px solid rgba(245,158,11,0.25);
-          background: rgba(245,158,11,0.10);
+          border: 1px solid #facc15;
+          background: #fef9c3;
+          color: #854d0e;
         }
         .saved {
-          border: 1px solid rgba(34,197,94,0.25);
-          background: rgba(34,197,94,0.10);
+          border: 1px solid #86efac;
+          background: #dcfce7;
+          color: #166534;
         }
         .muted {
-          opacity: 0.7;
+          opacity: 1;
+          color: #64748b;
           font-size: 14px;
         }
         .sub {
@@ -687,8 +691,8 @@ export function CmsEditPage() {
           border-radius: 12px;
           font-weight: 600;
           font-size: 14px;
-          border: 1px solid rgba(148,163,184,0.2);
-          background: rgba(255,255,255,0.05);
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
           color: inherit;
           cursor: pointer;
           transition: all 0.1s ease;
@@ -696,8 +700,8 @@ export function CmsEditPage() {
           line-height: 1;
         }
         .btn:hover:not(:disabled) {
-          background: rgba(255,255,255,0.1);
-          border-color: rgba(99,102,241,0.5);
+          background: #eef2ff;
+          border-color: #818cf8;
           transform: translateY(-1px);
         }
         .btn:disabled {
@@ -705,20 +709,20 @@ export function CmsEditPage() {
           cursor: not-allowed;
         }
         .btn-primary {
-          background: rgba(99,102,241,0.2);
-          border-color: rgba(99,102,241,0.5);
-          color: #c7d2fe;
+          background: #4f46e5;
+          border-color: #4338ca;
+          color: #ffffff;
         }
         .btn-primary:hover:not(:disabled) {
-          background: rgba(99,102,241,0.3);
+          background: #4338ca;
         }
         .btn-success {
-          background: rgba(16,185,129,0.2);
-          border-color: rgba(16,185,129,0.5);
-          color: #a7f3d0;
+          background: #059669;
+          border-color: #047857;
+          color: #ffffff;
         }
         .btn-success:hover:not(:disabled) {
-          background: rgba(16,185,129,0.3);
+          background: #047857;
         }
         .badge {
           display: inline-flex;
@@ -728,20 +732,23 @@ export function CmsEditPage() {
           font-size: 12px;
           font-weight: 950;
           letter-spacing: 0.06em;
-          border: 1px solid rgba(148,163,184,0.14);
-          background: rgba(255,255,255,0.04);
+          border: 1px solid #dbeafe;
+          background: #eff6ff;
         }
         .badge.ok {
-          border-color: rgba(34,197,94,0.25);
-          background: rgba(34,197,94,0.10);
+          border-color: #86efac;
+          background: #dcfce7;
+          color: #166534;
         }
         .badge.off {
-          border-color: rgba(239,68,68,0.25);
-          background: rgba(239,68,68,0.10);
+          border-color: #fca5a5;
+          background: #fee2e2;
+          color: #991b1b;
         }
         .badge.warn {
-          border-color: rgba(245,158,11,0.25);
-          background: rgba(245,158,11,0.10);
+          border-color: #fcd34d;
+          background: #fef3c7;
+          color: #92400e;
         }
 
         /* Toolbar controls */
@@ -751,7 +758,7 @@ export function CmsEditPage() {
           flex-wrap: wrap;
           align-items: center;
           gap: 24px;
-          border-bottom: 1px solid rgba(148,163,184,0.12);
+          border-bottom: 1px solid #e2e8f0;
         }
         .control-group {
           display: flex;
@@ -763,7 +770,7 @@ export function CmsEditPage() {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #94a3b8;
+          color: #64748b;
         }
         .btn-group {
           display: flex;
@@ -791,7 +798,7 @@ export function CmsEditPage() {
           height: 4px;
         }
         .tabs-scroll::-webkit-scrollbar-thumb {
-          background: rgba(148,163,184,0.3);
+          background: rgba(100,116,139,0.3);
           border-radius: 4px;
         }
         .tab {
@@ -804,20 +811,20 @@ export function CmsEditPage() {
           font-size: 14px;
           font-weight: 600;
           border: 1px solid transparent;
-          background: rgba(255,255,255,0.03);
-          color: #cbd5e1;
+          background: #f8fafc;
+          color: #334155;
           cursor: pointer;
           transition: all 0.1s ease;
           white-space: nowrap;
         }
         .tab:hover {
-          background: rgba(255,255,255,0.08);
-          border-color: rgba(99,102,241,0.3);
+          background: #eef2ff;
+          border-color: #c7d2fe;
         }
         .tab.active {
-          background: rgba(99,102,241,0.15);
-          border-color: rgba(99,102,241,0.5);
-          color: #c7d2fe;
+          background: #e0e7ff;
+          border-color: #818cf8;
+          color: #3730a3;
         }
         .tab-order {
           font-size: 11px;
@@ -841,8 +848,8 @@ export function CmsEditPage() {
           flex-wrap: wrap;
           gap: 20px;
           font-size: 13px;
-          border-top: 1px solid rgba(148,163,184,0.08);
-          background: rgba(0,0,0,0.1);
+          border-top: 1px solid #e2e8f0;
+          background: #f8fafc;
         }
         .toolbar-status div {
           display: flex;
@@ -861,7 +868,7 @@ export function CmsEditPage() {
           align-items: center;
           flex-wrap: wrap;
           gap: 12px;
-          border-bottom: 1px solid rgba(148,163,184,0.12);
+          border-bottom: 1px solid #e2e8f0;
         }
         .editor-badges {
           display: flex;
@@ -877,7 +884,7 @@ export function CmsEditPage() {
           flex-direction: column;
           gap: 16px;
           margin-left: 8px;
-          border-left: 1px dashed rgba(148,163,184,0.2);
+          border-left: 1px dashed #cbd5e1;
           padding-left: 12px;
         }
         .object-field {
@@ -894,10 +901,10 @@ export function CmsEditPage() {
           margin-bottom: 4px;
         }
         .dynamic-array {
-          border: 1px solid rgba(148,163,184,0.15);
+          border: 1px solid #dbeafe;
           border-radius: 16px;
           padding: 12px;
-          background: rgba(0,0,0,0.1);
+          background: #f8fbff;
         }
         .array-header {
           display: flex;
@@ -920,10 +927,10 @@ export function CmsEditPage() {
           gap: 16px;
         }
         .array-item {
-          border: 1px solid rgba(148,163,184,0.2);
+          border: 1px solid #dbeafe;
           border-radius: 14px;
           padding: 12px;
-          background: rgba(0,0,0,0.05);
+          background: #ffffff;
         }
         .array-item-header {
           display: flex;
@@ -938,8 +945,9 @@ export function CmsEditPage() {
         .array-remove {
           font-size: 12px;
           padding: 2px 8px;
-          background: rgba(239,68,68,0.1);
-          border-color: rgba(239,68,68,0.2);
+          background: #fee2e2;
+          border-color: #fca5a5;
+          color: #991b1b;
         }
         .array-empty {
           padding: 8px;
@@ -951,15 +959,15 @@ export function CmsEditPage() {
         .input2, .textarea2 {
           width: 100%;
           border-radius: 14px;
-          border: 1px solid rgba(148,163,184,0.18);
-          background: rgba(2,6,23,0.2);
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
           color: inherit;
           outline: none;
           padding: 12px;
         }
         .input2:focus, .textarea2:focus {
-          border-color: rgba(99,102,241,0.55);
-          box-shadow: 0 0 0 4px rgba(99,102,241,0.18);
+          border-color: #818cf8;
+          box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
         }
         .image-field {
           display: flex;
@@ -970,8 +978,8 @@ export function CmsEditPage() {
           max-width: 100%;
           max-height: 150px;
           border-radius: 12px;
-          border: 1px solid rgba(148,163,184,0.2);
-          background: rgba(0,0,0,0.1);
+          border: 1px solid #dbeafe;
+          background: #f8fafc;
           object-fit: cover;
         }
         .image-actions {

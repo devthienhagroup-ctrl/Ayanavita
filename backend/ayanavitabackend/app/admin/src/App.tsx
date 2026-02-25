@@ -10,6 +10,8 @@ import { CmsPagesPage } from "./pages/CmsPagesPage";
 import { CmsEditPage } from "./pages/CmsEditPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { NotFound } from "./pages/NotFound";
+import { ProductAdminListPage } from "./pages/ProductAdminListPage";
+import { ProductAdminDetailPage } from "./pages/ProductAdminDetailPage";
 import { CatalogCrudPage } from "./pages/CatalogCrudPage";
 
 export default function App() {
@@ -30,7 +32,9 @@ export default function App() {
           <Route path="cms/pages" element={<CmsPagesPage />} />
           <Route path="cms/pages/:slug" element={<CmsEditPage />} />
           <Route path="leads" element={<LeadsPage />} />
-          <Route path="catalog" element={<CatalogCrudPage />} />
+          <Route path="catalog/products" element={<ProductAdminListPage />} />
+          <Route path="catalog/products/:productId" element={<ProductAdminDetailPage />} />
+          <Route path="catalog/crud" element={<CatalogCrudPage />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

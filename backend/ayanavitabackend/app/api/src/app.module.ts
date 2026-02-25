@@ -8,6 +8,7 @@ import { EnrollmentsModule } from './enrollments/enrollments.module'
 import { OrdersModule } from './orders/orders.module'
 import { ProgressModule } from './progress/progress.module'
 import { CmsModule } from './cms/cms.module'
+import {CatalogModule} from "./catalog/catalog.module";
 
 
 
@@ -23,7 +24,7 @@ import { CmsModule } from './cms/cms.module'
     ProgressModule,
     OrdersModule,
     CmsModule,
-    
+    CatalogModule
 
   ],
 })

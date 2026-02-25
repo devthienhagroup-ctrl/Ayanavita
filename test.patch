@@ -1,907 +1,470 @@
-diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
-index 4852c6a67f04e330e8cf31e511f59fce528b76e8..e12816f9ee6a2da2faac44c39e1c666faf096c27 100644
---- a/Home/ayanavita-fontend-final/src/App.tsx
-+++ b/Home/ayanavita-fontend-final/src/App.tsx
-@@ -1,75 +1,62 @@
--// src/App.tsx
--import React from "react";
--import {Routes, Route, BrowserRouter} from "react-router-dom";
-+import { Route, Routes } from "react-router-dom";
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/CmsEditPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/CmsEditPage.tsx
+index 611cbf6a49485e37906975a39713571fe03297d9..34a9e5c3501d0db56934c0907695f32d72c92276 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/CmsEditPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/CmsEditPage.tsx
+@@ -590,397 +590,405 @@ export function CmsEditPage() {
+                   </div>
+                   <div className="editor-badges">
+                     {saving && <span className="badge warn">SAVING…</span>}
+                     <span className={`badge ${dirty ? "warn" : "ok"}`}>
+                   {dirty ? "UNSAVED" : "SAVED"}
+                 </span>
+                   </div>
+                 </div>
+                 <div className="pad dynamic-editor">
+                   <DynamicField
+                       data={effectiveData}
+                       form={form}
+                       path={[]}
+                       onFormChange={handleFormChange}
+                   />
+                 </div>
+               </>
+           )}
+         </div>
 
--
--import HomePage from "./pages/HomePage";
--import ServicesPage from "./pages/ServicesPage";
-+import Layout from "./components/layout/Layout";
- import BookingPage from "./pages/BookingPage";
--import ServiceDetailPage from "./pages/ServiceDetailPage";
--
--import Layout from "./components/layout/Layout"
--
--import CoursesPage from "./pages/CoursesPage";
-+import BlogPage from "./pages/BlogPage";
- import CartPage from "./pages/CartPage";
--import ProductCheckoutPage from "./pages/ProductCheckoutPage";
- import CheckoutPage from "./pages/CheckoutPage";
--import ProductsPage from "./pages/ProductsPage";
- import ComparePage from "./pages/ComparePage";
--import TrackOrderPage from "./pages/TrackOrderPage";
--import ProductCategoryPage from "./pages/ProductCategoryPage";
--import ProductDetailPage from "./pages/ProductDetailPage";
-+import ContactPage from "./pages/ContactPage";
- import CourseDetailPage from "./pages/CourseDetailPage";
- import CoursePlayerPage from "./pages/CoursePlayerPage";
--import BlogPage from "./pages/BlogPage";
-+import CoursesPage from "./pages/CoursesPage";
-+import HomePage from "./pages/HomePage";
- import LessonDetailPage from "./pages/LessonDetailPage";
-+import ProductCategoryPage from "./pages/ProductCategoryPage";
-+import ProductCheckoutPage from "./pages/ProductCheckoutPage";
-+import ProductDetailPage from "./pages/ProductDetailPage";
-+import ProductAdminDetailPage from "./pages/ProductAdminDetailPage";
-+import ProductAdminListPage from "./pages/ProductAdminListPage";
-+import ProductsPage from "./pages/ProductsPage";
- import ReviewsCenterPage from "./pages/ReviewsCenterPage";
--import ContactPage from "./pages/ContactPage";
--// ví dụ
--
-+import ServiceDetailPage from "./pages/ServiceDetailPage";
-+import ServicesPage from "./pages/ServicesPage";
-+import TrackOrderPage from "./pages/TrackOrderPage";
+         {/* CSS (phỏng theo file gốc, điều chỉnh cho layout mới) */}
+         <style>{`
+         .aya-editor {
+           padding: 14px;
+           min-height: 100vh;
+-          color: #e2e8f0;
++          color: #1e293b;
+           font-family: system-ui, -apple-system, sans-serif;
++          background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
++          border-radius: 20px;
+         }
+         .glass {
+           border-radius: 18px;
+-          border: 1px solid rgba(148,163,184,0.18);
+-          background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+-          backdrop-filter: blur(8px);
+-          box-shadow: 0 22px 60px rgba(0,0,0,0.35);
++          border: 1px solid #dbe7ff;
++          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
++          box-shadow: 0 14px 38px rgba(37, 99, 235, 0.08);
+         }
+         .toolbar {
+           margin-bottom: 20px;
+         }
+         .toolbar-header {
+           padding: 16px 20px;
+           display: flex;
+           justify-content: space-between;
+           align-items: flex-start;
+           flex-wrap: wrap;
+           gap: 12px;
+-          border-bottom: 1px solid rgba(148,163,184,0.12);
++          border-bottom: 1px solid #e2e8f0;
+         }
+         .h1 {
+           font-size: 22px;
+           font-weight: 950;
+           letter-spacing: 0.2px;
+           display: flex;
+           gap: 10px;
+           align-items: center;
+           flex-wrap: wrap;
+         }
+         .h2 {
+           font-size: 14px;
+           font-weight: 950;
+           letter-spacing: 0.08em;
+           text-transform: uppercase;
+           opacity: 0.92;
+         }
+         .g-text {
+-          color: #818cf8;
++          color: #4f46e5;
+         }
+         .dirty, .saved {
+           font-size: 12px;
+           font-weight: 950;
+           padding: 6px 10px;
+           border-radius: 999px;
+         }
+         .dirty {
+-          border: 1px solid rgba(245,158,11,0.25);
+-          background: rgba(245,158,11,0.10);
++          border: 1px solid #facc15;
++          background: #fef9c3;
++          color: #854d0e;
+         }
+         .saved {
+-          border: 1px solid rgba(34,197,94,0.25);
+-          background: rgba(34,197,94,0.10);
++          border: 1px solid #86efac;
++          background: #dcfce7;
++          color: #166534;
+         }
+         .muted {
+-          opacity: 0.7;
++          opacity: 1;
++          color: #64748b;
+           font-size: 14px;
+         }
+         .sub {
+           margin-top: 6px;
+         }
+         .hdrRight {
+           display: flex;
+           align-items: center;
+           gap: 10px;
+         }
+         .btn {
+           display: inline-flex;
+           align-items: center;
+           justify-content: center;
+           padding: 8px 16px;
+           border-radius: 12px;
+           font-weight: 600;
+           font-size: 14px;
+-          border: 1px solid rgba(148,163,184,0.2);
+-          background: rgba(255,255,255,0.05);
++          border: 1px solid #cbd5e1;
++          background: #ffffff;
+           color: inherit;
+           cursor: pointer;
+           transition: all 0.1s ease;
+           text-decoration: none;
+           line-height: 1;
+         }
+         .btn:hover:not(:disabled) {
+-          background: rgba(255,255,255,0.1);
+-          border-color: rgba(99,102,241,0.5);
++          background: #eef2ff;
++          border-color: #818cf8;
+           transform: translateY(-1px);
+         }
+         .btn:disabled {
+           opacity: 0.4;
+           cursor: not-allowed;
+         }
+         .btn-primary {
+-          background: rgba(99,102,241,0.2);
+-          border-color: rgba(99,102,241,0.5);
+-          color: #c7d2fe;
++          background: #4f46e5;
++          border-color: #4338ca;
++          color: #ffffff;
+         }
+         .btn-primary:hover:not(:disabled) {
+-          background: rgba(99,102,241,0.3);
++          background: #4338ca;
+         }
+         .btn-success {
+-          background: rgba(16,185,129,0.2);
+-          border-color: rgba(16,185,129,0.5);
+-          color: #a7f3d0;
++          background: #059669;
++          border-color: #047857;
++          color: #ffffff;
+         }
+         .btn-success:hover:not(:disabled) {
+-          background: rgba(16,185,129,0.3);
++          background: #047857;
+         }
+         .badge {
+           display: inline-flex;
+           align-items: center;
+           padding: 6px 10px;
+           border-radius: 999px;
+           font-size: 12px;
+           font-weight: 950;
+           letter-spacing: 0.06em;
+-          border: 1px solid rgba(148,163,184,0.14);
+-          background: rgba(255,255,255,0.04);
++          border: 1px solid #dbeafe;
++          background: #eff6ff;
+         }
+         .badge.ok {
+-          border-color: rgba(34,197,94,0.25);
+-          background: rgba(34,197,94,0.10);
++          border-color: #86efac;
++          background: #dcfce7;
++          color: #166534;
+         }
+         .badge.off {
+-          border-color: rgba(239,68,68,0.25);
+-          background: rgba(239,68,68,0.10);
++          border-color: #fca5a5;
++          background: #fee2e2;
++          color: #991b1b;
+         }
+         .badge.warn {
+-          border-color: rgba(245,158,11,0.25);
+-          background: rgba(245,158,11,0.10);
++          border-color: #fcd34d;
++          background: #fef3c7;
++          color: #92400e;
+         }
 
- export default function App() {
--    return (
--            <Routes>
--                <Route element={<Layout/>}>
--                    <Route path="/" element={<HomePage/>}/>
--
--                    {/* Spa services */}
--                    <Route path="/services" element={<ServicesPage/>}/>
--                    <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
--                    <Route path="/booking" element={<BookingPage/>}/>
--
--                    {/* Courses (prototype) */}
--                    <Route path="/courses" element={<CoursesPage/>}/>
--
--                    {/* Product cart (prototype) */}
--                    <Route path="/cart" element={<CartPage/>}/>
--                    <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
--                    <Route path="/checkout" element={<CheckoutPage/>}/>
--                    <Route path="/products" element={<ProductsPage/>}/>
--                    <Route path="/compare" element={<ComparePage/>}/>
--                    <Route path="/track-order" element={<TrackOrderPage/>}/>
--                    <Route path="/product-cate" element={<ProductCategoryPage/>}/>
--                    <Route path="/products/:sku" element={<ProductDetailPage/>}/>
--                    <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
--                    <Route path="/courses/player" element={<CoursePlayerPage/>}/>
--                    // truy cập: /courses/detail?courseId=CR-1001
--                    <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
--                    <Route path="/reviews" element={<ReviewsCenterPage/>}/>
--
--                    <Route path="/blog" element={<BlogPage/>}/>
--                    <Route path="/contact" element={<ContactPage/>}/>
--
--                    {/* placeholder các page khác để không vỡ Link */}
--                    <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
--                    <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
--                    <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
--                    <Route path="/account" element={<div className="p-6">Account (todo)</div>}/>
--                    <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
--                    <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
--
--                    <Route path="*" element={<div className="p-6">Not found</div>}/>
--                </Route>
--            </Routes>
--    );
-+  return (
-+    <Routes>
-+      <Route element={<Layout />}>
-+        <Route path="/" element={<HomePage />} />
-+        <Route path="/services" element={<ServicesPage />} />
-+        <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
-+        <Route path="/booking" element={<BookingPage />} />
-+
-+        <Route path="/courses" element={<CoursesPage />} />
-+        <Route path="/courses/:courseId" element={<CourseDetailPage />} />
-+        <Route path="/courses/:courseId/lesson" element={<LessonDetailPage />} />
-+        <Route path="/courses/player" element={<CoursePlayerPage />} />
-+
-+        <Route path="/products" element={<ProductsPage />} />
-+        <Route path="/products/:sku" element={<ProductDetailPage />} />
-+        <Route path="/product-cate" element={<ProductCategoryPage />} />
-+        <Route path="/cart" element={<CartPage />} />
-+        <Route path="/product-checkout" element={<ProductCheckoutPage />} />
-+        <Route path="/checkout" element={<CheckoutPage />} />
-+        <Route path="/compare" element={<ComparePage />} />
-+        <Route path="/track-order" element={<TrackOrderPage />} />
-+
-+        <Route path="/reviews" element={<ReviewsCenterPage />} />
-+        <Route path="/blog" element={<BlogPage />} />
-+        <Route path="/contact" element={<ContactPage />} />
-+
-+        <Route path="/admin/products" element={<ProductAdminListPage />} />
-+        <Route path="/admin/products/:productId" element={<ProductAdminDetailPage />} />
-+
-+        <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>} />
-+        <Route path="/account" element={<div className="p-6">Account (todo)</div>} />
-+        <Route path="*" element={<div className="p-6">Not found</div>} />
-+      </Route>
-+    </Routes>
-+  );
- }
-diff --git a/Home/ayanavita-fontend-final/src/api/productAdmin.api.ts b/Home/ayanavita-fontend-final/src/api/productAdmin.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..0f18abc134006f96216b456ea957eb2a075a8f58
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/api/productAdmin.api.ts
-@@ -0,0 +1,210 @@
-+import { http } from "./http";
-+import {
-+  LANGUAGES,
-+  type LanguageCode,
-+  type ProductAdminItem,
-+  type ProductAttribute,
-+  type ProductCategory,
-+  type ProductIngredient,
-+  type ProductTranslation
-+} from "../types/productAdmin";
-+
-+const STORAGE_KEY = "aya_admin_products_v1";
-+const CATEGORY_STORAGE_KEY = "aya_admin_categories_v1";
-+
-+const uid = () => Math.random().toString(36).slice(2, 10);
-+
-+const defaultTranslations = (): ProductTranslation[] =>
-+  LANGUAGES.map((item) => ({
-+    lang: item.code,
-+    name: "",
-+    shortDescription: "",
-+    description: ""
-+  }));
-+
-+const defaultCategories: ProductCategory[] = [
-+  { id: "cat-cleanser", name: "Sữa rửa mặt", description: "Làm sạch dịu nhẹ" },
-+  { id: "cat-serum", name: "Serum", description: "Đặc trị và phục hồi" }
-+];
-+
-+const defaultProducts: ProductAdminItem[] = [
-+  {
-+    id: "prd-001",
-+    sku: "AYA-CLEAN-001",
-+    categoryId: "cat-cleanser",
-+    price: 289000,
-+    stock: 50,
-+    status: "active",
-+    translations: [
-+      {
-+        lang: "vi",
-+        name: "Sữa rửa mặt dịu nhẹ",
-+        shortDescription: "Làm sạch - giữ ẩm",
-+        description: "Làm sạch da và cân bằng độ pH."
-+      },
-+      {
-+        lang: "en",
-+        name: "Gentle Cleanser",
-+        shortDescription: "Clean & hydrate",
-+        description: "Removes dirt while keeping skin hydrated."
-+      },
-+      {
-+        lang: "ja",
-+        name: "ジェントルクレンザー",
-+        shortDescription: "洗浄と保湿",
-+        description: "肌をやさしく洗い、うるおいを守ります。"
-+      }
-+    ],
-+    ingredients: [
-+      { id: uid(), name: "Niacinamide", note: "2%" },
-+      { id: uid(), name: "Aloe Vera", note: "Làm dịu" }
-+    ],
-+    attributes: [
-+      { id: uid(), key: "Dung tích", value: "150ml" },
-+      { id: uid(), key: "Loại da", value: "Mọi loại da" }
-+    ],
-+    updatedAt: new Date().toISOString()
-+  }
-+];
-+
-+const readLocalProducts = (): ProductAdminItem[] => {
-+  const raw = localStorage.getItem(STORAGE_KEY);
-+  if (!raw) {
-+    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultProducts));
-+    return defaultProducts;
-+  }
-+  return JSON.parse(raw) as ProductAdminItem[];
-+};
-+
-+const writeLocalProducts = (products: ProductAdminItem[]) => {
-+  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-+};
-+
-+const readLocalCategories = (): ProductCategory[] => {
-+  const raw = localStorage.getItem(CATEGORY_STORAGE_KEY);
-+  if (!raw) {
-+    localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(defaultCategories));
-+    return defaultCategories;
-+  }
-+  return JSON.parse(raw) as ProductCategory[];
-+};
-+
-+const writeLocalCategories = (categories: ProductCategory[]) => {
-+  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
-+};
-+
-+export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
-+  try {
-+    const res = await http.get("/admin/products");
-+    return (res.data?.data ?? res.data ?? []) as ProductAdminItem[];
-+  } catch {
-+    return readLocalProducts();
-+  }
+         /* Toolbar controls */
+         .toolbar-controls {
+           padding: 16px 20px;
+           display: flex;
+           flex-wrap: wrap;
+           align-items: center;
+           gap: 24px;
+-          border-bottom: 1px solid rgba(148,163,184,0.12);
++          border-bottom: 1px solid #e2e8f0;
+         }
+         .control-group {
+           display: flex;
+           align-items: center;
+           gap: 8px;
+         }
+         .control-label {
+           font-size: 12px;
+           font-weight: 600;
+           text-transform: uppercase;
+           letter-spacing: 0.05em;
+-          color: #94a3b8;
++          color: #64748b;
+         }
+         .btn-group {
+           display: flex;
+           gap: 4px;
+         }
+         .btn-group .btn {
+           padding: 6px 12px;
+           font-size: 13px;
+         }
+
+         /* Sections tabs */
+         .sections-tabs {
+           flex: 1;
+           min-width: 200px;
+         }
+         .tabs-scroll {
+           display: flex;
+           gap: 4px;
+           overflow-x: auto;
+           padding-bottom: 2px;
+           scrollbar-width: thin;
+           scrollbar-color: rgba(148,163,184,0.3) transparent;
+         }
+         .tabs-scroll::-webkit-scrollbar {
+           height: 4px;
+         }
+         .tabs-scroll::-webkit-scrollbar-thumb {
+-          background: rgba(148,163,184,0.3);
++          background: rgba(100,116,139,0.3);
+           border-radius: 4px;
+         }
+         .tab {
+           flex-shrink: 0;
+           display: flex;
+           align-items: center;
+           gap: 6px;
+           padding: 8px 14px;
+           border-radius: 12px;
+           font-size: 14px;
+           font-weight: 600;
+           border: 1px solid transparent;
+-          background: rgba(255,255,255,0.03);
+-          color: #cbd5e1;
++          background: #f8fafc;
++          color: #334155;
+           cursor: pointer;
+           transition: all 0.1s ease;
+           white-space: nowrap;
+         }
+         .tab:hover {
+-          background: rgba(255,255,255,0.08);
+-          border-color: rgba(99,102,241,0.3);
++          background: #eef2ff;
++          border-color: #c7d2fe;
+         }
+         .tab.active {
+-          background: rgba(99,102,241,0.15);
+-          border-color: rgba(99,102,241,0.5);
+-          color: #c7d2fe;
++          background: #e0e7ff;
++          border-color: #818cf8;
++          color: #3730a3;
+         }
+         .tab-order {
+           font-size: 11px;
+           opacity: 0.6;
+           font-weight: 500;
+         }
+
+         .actions-group {
+           display: flex;
+           gap: 4px;
+         }
+         .primary-actions {
+           display: flex;
+           gap: 8px;
+         }
+
+         /* Toolbar status row */
+         .toolbar-status {
+           padding: 12px 20px;
+           display: flex;
+           flex-wrap: wrap;
+           gap: 20px;
+           font-size: 13px;
+-          border-top: 1px solid rgba(148,163,184,0.08);
+-          background: rgba(0,0,0,0.1);
++          border-top: 1px solid #e2e8f0;
++          background: #f8fafc;
+         }
+         .toolbar-status div {
+           display: flex;
+           align-items: center;
+           gap: 6px;
+         }
+
+         /* Editor panel */
+         .editor-panel {
+           margin-top: 20px;
+         }
+         .editor-header {
+           padding: 16px 20px;
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           flex-wrap: wrap;
+           gap: 12px;
+-          border-bottom: 1px solid rgba(148,163,184,0.12);
++          border-bottom: 1px solid #e2e8f0;
+         }
+         .editor-badges {
+           display: flex;
+           gap: 8px;
+         }
+         .pad {
+           padding: 20px;
+         }
+
+         /* Dynamic field styles (giữ nguyên từ file cũ) */
+         .dynamic-object {
+           display: flex;
+           flex-direction: column;
+           gap: 16px;
+           margin-left: 8px;
+-          border-left: 1px dashed rgba(148,163,184,0.2);
++          border-left: 1px dashed #cbd5e1;
+           padding-left: 12px;
+         }
+         .object-field {
+           display: flex;
+           flex-direction: column;
+           gap: 4px;
+         }
+         .field-label {
+           font-size: 12px;
+           font-weight: 950;
+           text-transform: uppercase;
+           letter-spacing: 0.05em;
+           opacity: 0.7;
+           margin-bottom: 4px;
+         }
+         .dynamic-array {
+-          border: 1px solid rgba(148,163,184,0.15);
++          border: 1px solid #dbeafe;
+           border-radius: 16px;
+           padding: 12px;
+-          background: rgba(0,0,0,0.1);
++          background: #f8fbff;
+         }
+         .array-header {
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           margin-bottom: 8px;
+         }
+         .array-label {
+           font-weight: 950;
+           font-size: 13px;
+           text-transform: uppercase;
+         }
+         .array-add {
+           font-size: 12px;
+           padding: 4px 10px;
+         }
+         .array-items {
+           display: flex;
+           flex-direction: column;
+           gap: 16px;
+         }
+         .array-item {
+-          border: 1px solid rgba(148,163,184,0.2);
++          border: 1px solid #dbeafe;
+           border-radius: 14px;
+           padding: 12px;
+-          background: rgba(0,0,0,0.05);
++          background: #ffffff;
+         }
+         .array-item-header {
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           margin-bottom: 8px;
+         }
+         .array-item-index {
+           font-weight: 950;
+           font-size: 12px;
+         }
+         .array-remove {
+           font-size: 12px;
+           padding: 2px 8px;
+-          background: rgba(239,68,68,0.1);
+-          border-color: rgba(239,68,68,0.2);
++          background: #fee2e2;
++          border-color: #fca5a5;
++          color: #991b1b;
+         }
+         .array-empty {
+           padding: 8px;
+           text-align: center;
+         }
+         .dynamic-primitive {
+           width: 100%;
+         }
+         .input2, .textarea2 {
+           width: 100%;
+           border-radius: 14px;
+-          border: 1px solid rgba(148,163,184,0.18);
+-          background: rgba(2,6,23,0.2);
++          border: 1px solid #cbd5e1;
++          background: #ffffff;
+           color: inherit;
+           outline: none;
+           padding: 12px;
+         }
+         .input2:focus, .textarea2:focus {
+-          border-color: rgba(99,102,241,0.55);
+-          box-shadow: 0 0 0 4px rgba(99,102,241,0.18);
++          border-color: #818cf8;
++          box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+         }
+         .image-field {
+           display: flex;
+           flex-direction: column;
+           gap: 12px;
+         }
+         .image-preview img {
+           max-width: 100%;
+           max-height: 150px;
+           border-radius: 12px;
+-          border: 1px solid rgba(148,163,184,0.2);
+-          background: rgba(0,0,0,0.1);
++          border: 1px solid #dbeafe;
++          background: #f8fafc;
+           object-fit: cover;
+         }
+         .image-actions {
+           display: flex;
+           align-items: center;
+           gap: 12px;
+           flex-wrap: wrap;
+         }
+       `}</style>
+       </div>
+   );
+-}
+\ No newline at end of file
 +}
-+
-+export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
-+  try {
-+    const res = await http.get(`/admin/products/${id}`);
-+    return (res.data?.data ?? res.data ?? null) as ProductAdminItem | null;
-+  } catch {
-+    return readLocalProducts().find((item) => item.id === id) ?? null;
-+  }
-+}
-+
-+export async function createAdminProduct(): Promise<ProductAdminItem> {
-+  const payload: ProductAdminItem = {
-+    id: `prd-${uid()}`,
-+    sku: `AYA-${uid().toUpperCase()}`,
-+    categoryId: "",
-+    price: 0,
-+    stock: 0,
-+    status: "draft",
-+    translations: defaultTranslations(),
-+    ingredients: [],
-+    attributes: [],
-+    updatedAt: new Date().toISOString()
-+  };
-+
-+  try {
-+    const res = await http.post("/admin/products", payload);
-+    return (res.data?.data ?? payload) as ProductAdminItem;
-+  } catch {
-+    const products = readLocalProducts();
-+    const next = [payload, ...products];
-+    writeLocalProducts(next);
-+    return payload;
-+  }
-+}
-+
-+export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
-+  const payload = { ...item, updatedAt: new Date().toISOString() };
-+
-+  try {
-+    const res = await http.put(`/admin/products/${item.id}`, payload);
-+    return (res.data?.data ?? payload) as ProductAdminItem;
-+  } catch {
-+    const products = readLocalProducts();
-+    const next = products.map((product) => (product.id === item.id ? payload : product));
-+    writeLocalProducts(next);
-+    return payload;
-+  }
-+}
-+
-+export async function fetchAdminCategories(): Promise<ProductCategory[]> {
-+  try {
-+    const res = await http.get("/admin/product-categories");
-+    return (res.data?.data ?? res.data ?? []) as ProductCategory[];
-+  } catch {
-+    return readLocalCategories();
-+  }
-+}
-+
-+export async function createAdminCategory(name: string, description: string): Promise<ProductCategory> {
-+  const payload: ProductCategory = { id: `cat-${uid()}`, name, description };
-+  try {
-+    const res = await http.post("/admin/product-categories", payload);
-+    return (res.data?.data ?? payload) as ProductCategory;
-+  } catch {
-+    const categories = readLocalCategories();
-+    const next = [payload, ...categories];
-+    writeLocalCategories(next);
-+    return payload;
-+  }
-+}
-+
-+export async function updateAdminCategory(category: ProductCategory): Promise<ProductCategory> {
-+  try {
-+    const res = await http.put(`/admin/product-categories/${category.id}`, category);
-+    return (res.data?.data ?? category) as ProductCategory;
-+  } catch {
-+    const categories = readLocalCategories();
-+    const next = categories.map((item) => (item.id === category.id ? category : item));
-+    writeLocalCategories(next);
-+    return category;
-+  }
-+}
-+
-+export async function deleteAdminCategory(categoryId: string): Promise<void> {
-+  try {
-+    await http.delete(`/admin/product-categories/${categoryId}`);
-+  } catch {
-+    const categories = readLocalCategories();
-+    const next = categories.filter((item) => item.id !== categoryId);
-+    writeLocalCategories(next);
-+  }
-+}
-+
-+export function upsertTranslation(
-+  translations: ProductTranslation[],
-+  lang: LanguageCode,
-+  patch: Partial<ProductTranslation>
-+): ProductTranslation[] {
-+  const existing = translations.find((item) => item.lang === lang);
-+  if (!existing) {
-+    return [...translations, { lang, name: "", shortDescription: "", description: "", ...patch }];
-+  }
-+  return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
-+}
-+
-+export const createIngredient = (): ProductIngredient => ({ id: uid(), name: "", note: "" });
-+export const createAttribute = (): ProductAttribute => ({ id: uid(), key: "", value: "" });
-diff --git a/Home/ayanavita-fontend-final/src/pages/ProductAdminDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductAdminDetailPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..6011a78e158c388efb37f46c64d5b90fcc077563
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/pages/ProductAdminDetailPage.tsx
-@@ -0,0 +1,298 @@
-+import { useEffect, useMemo, useState } from "react";
-+import { Link, useNavigate, useParams } from "react-router-dom";
-+import {
-+  createAttribute,
-+  createIngredient,
-+  fetchAdminCategories,
-+  fetchAdminProductById,
-+  updateAdminProduct,
-+  upsertTranslation
-+} from "../api/productAdmin.api";
-+import { LANGUAGES, type LanguageCode, type ProductAdminItem, type ProductCategory } from "../types/productAdmin";
-+
-+export default function ProductAdminDetailPage() {
-+  const { productId } = useParams();
-+  const navigate = useNavigate();
-+  const [product, setProduct] = useState<ProductAdminItem | null>(null);
-+  const [categories, setCategories] = useState<ProductCategory[]>([]);
-+  const [activeLang, setActiveLang] = useState<LanguageCode>("vi");
-+  const [saving, setSaving] = useState(false);
-+
-+  useEffect(() => {
-+    const load = async () => {
-+      if (!productId) return;
-+      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
-+      setProduct(detail);
-+      setCategories(categoryList);
-+    };
-+    load();
-+  }, [productId]);
-+
-+  const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
-+
-+  const onSave = async () => {
-+    if (!product) return;
-+    setSaving(true);
-+    await updateAdminProduct(product);
-+    setSaving(false);
-+  };
-+
-+  if (!product) {
-+    return (
-+      <div className="min-h-screen bg-slate-50 p-6">
-+        <div className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Không tìm thấy sản phẩm.</div>
-+      </div>
-+    );
-+  }
-+
-+  return (
-+    <div className="min-h-screen bg-slate-50 p-6 text-slate-800">
-+      <div className="mx-auto max-w-5xl space-y-6">
-+        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-+          <div className="flex flex-wrap items-center justify-between gap-3">
-+            <div>
-+              <p className="text-xs font-semibold text-indigo-600">Chi tiết sản phẩm</p>
-+              <h1 className="text-2xl font-bold">{translation?.name || "Sản phẩm mới"}</h1>
-+              <p className="text-sm text-slate-500">{product.sku}</p>
-+            </div>
-+            <div className="flex gap-2">
-+              <button onClick={() => navigate("/admin/products")} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">
-+                Quay lại danh sách
-+              </button>
-+              <button onClick={onSave} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70" disabled={saving}>
-+                {saving ? "Đang lưu..." : "Lưu thay đổi"}
-+              </button>
-+            </div>
-+          </div>
-+        </header>
-+
-+        <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
-+          <label className="space-y-1 text-sm">
-+            <span className="font-semibold">SKU</span>
-+            <input
-+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+              value={product.sku}
-+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, sku: e.target.value } : prev))}
-+            />
-+          </label>
-+          <label className="space-y-1 text-sm">
-+            <span className="font-semibold">Category</span>
-+            <select
-+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+              value={product.categoryId}
-+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
-+            >
-+              <option value="">-- Chọn category --</option>
-+              {categories.map((item) => (
-+                <option key={item.id} value={item.id}>{item.name}</option>
-+              ))}
-+            </select>
-+          </label>
-+          <label className="space-y-1 text-sm">
-+            <span className="font-semibold">Giá</span>
-+            <input
-+              type="number"
-+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+              value={product.price}
-+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
-+            />
-+          </label>
-+          <label className="space-y-1 text-sm">
-+            <span className="font-semibold">Tồn kho</span>
-+            <input
-+              type="number"
-+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+              value={product.stock}
-+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, stock: Number(e.target.value) } : prev))}
-+            />
-+          </label>
-+        </section>
-+
-+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-+          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-+            {LANGUAGES.map((lang) => (
-+              <button
-+                key={lang.code}
-+                onClick={() => setActiveLang(lang.code)}
-+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${activeLang === lang.code ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"}`}
-+              >
-+                {lang.label}
-+              </button>
-+            ))}
-+            <span className="ml-auto text-xs text-slate-500">Tab chỉnh sửa đa ngôn ngữ</span>
-+          </div>
-+
-+          <div className="grid gap-3">
-+            <label className="space-y-1 text-sm">
-+              <span className="font-semibold">Tên sản phẩm</span>
-+              <input
-+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+                value={translation?.name || ""}
-+                onChange={(e) =>
-+                  setProduct((prev) =>
-+                    prev
-+                      ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) }
-+                      : prev
-+                  )
-+                }
-+              />
-+            </label>
-+            <label className="space-y-1 text-sm">
-+              <span className="font-semibold">Mô tả ngắn</span>
-+              <input
-+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+                value={translation?.shortDescription || ""}
-+                onChange={(e) =>
-+                  setProduct((prev) =>
-+                    prev
-+                      ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { shortDescription: e.target.value }) }
-+                      : prev
-+                  )
-+                }
-+              />
-+            </label>
-+            <label className="space-y-1 text-sm">
-+              <span className="font-semibold">Mô tả chi tiết</span>
-+              <textarea
-+                rows={4}
-+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-+                value={translation?.description || ""}
-+                onChange={(e) =>
-+                  setProduct((prev) =>
-+                    prev
-+                      ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { description: e.target.value }) }
-+                      : prev
-+                  )
-+                }
-+              />
-+            </label>
-+          </div>
-+        </section>
-+
-+        <section className="grid gap-6 md:grid-cols-2">
-+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-+            <div className="mb-3 flex items-center justify-between">
-+              <h3 className="text-lg font-bold">CRUD thành phần</h3>
-+              <button
-+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
-+                onClick={() => setProduct((prev) => (prev ? { ...prev, ingredients: [...prev.ingredients, createIngredient()] } : prev))}
-+              >
-+                + Thêm
-+              </button>
-+            </div>
-+            <div className="space-y-2">
-+              {product.ingredients.map((item) => (
-+                <div key={item.id} className="grid gap-2 rounded-lg border border-slate-200 p-3">
-+                  <input
-+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-+                    placeholder="Tên thành phần"
-+                    value={item.name}
-+                    onChange={(e) =>
-+                      setProduct((prev) =>
-+                        prev
-+                          ? {
-+                              ...prev,
-+                              ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, name: e.target.value } : row))
-+                            }
-+                          : prev
-+                      )
-+                    }
-+                  />
-+                  <input
-+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-+                    placeholder="Ghi chú"
-+                    value={item.note}
-+                    onChange={(e) =>
-+                      setProduct((prev) =>
-+                        prev
-+                          ? {
-+                              ...prev,
-+                              ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, note: e.target.value } : row))
-+                            }
-+                          : prev
-+                      )
-+                    }
-+                  />
-+                  <button
-+                    className="justify-self-end text-sm font-semibold text-rose-600"
-+                    onClick={() =>
-+                      setProduct((prev) =>
-+                        prev ? { ...prev, ingredients: prev.ingredients.filter((row) => row.id !== item.id) } : prev
-+                      )
-+                    }
-+                  >
-+                    Xóa
-+                  </button>
-+                </div>
-+              ))}
-+            </div>
-+          </div>
-+
-+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-+            <div className="mb-3 flex items-center justify-between">
-+              <h3 className="text-lg font-bold">CRUD thuộc tính</h3>
-+              <button
-+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
-+                onClick={() => setProduct((prev) => (prev ? { ...prev, attributes: [...prev.attributes, createAttribute()] } : prev))}
-+              >
-+                + Thêm
-+              </button>
-+            </div>
-+            <div className="space-y-2">
-+              {product.attributes.map((item) => (
-+                <div key={item.id} className="grid gap-2 rounded-lg border border-slate-200 p-3">
-+                  <input
-+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-+                    placeholder="Tên thuộc tính"
-+                    value={item.key}
-+                    onChange={(e) =>
-+                      setProduct((prev) =>
-+                        prev
-+                          ? {
-+                              ...prev,
-+                              attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, key: e.target.value } : row))
-+                            }
-+                          : prev
-+                      )
-+                    }
-+                  />
-+                  <input
-+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-+                    placeholder="Giá trị"
-+                    value={item.value}
-+                    onChange={(e) =>
-+                      setProduct((prev) =>
-+                        prev
-+                          ? {
-+                              ...prev,
-+                              attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, value: e.target.value } : row))
-+                            }
-+                          : prev
-+                      )
-+                    }
-+                  />
-+                  <button
-+                    className="justify-self-end text-sm font-semibold text-rose-600"
-+                    onClick={() =>
-+                      setProduct((prev) =>
-+                        prev ? { ...prev, attributes: prev.attributes.filter((row) => row.id !== item.id) } : prev
-+                      )
-+                    }
-+                  >
-+                    Xóa
-+                  </button>
-+                </div>
-+              ))}
-+            </div>
-+          </div>
-+        </section>
-+
-+        <div className="pb-6 text-right text-sm">
-+          <Link to="/admin/products" className="font-semibold text-indigo-600 hover:underline">
-+            ← Về trang danh sách
-+          </Link>
-+        </div>
-+      </div>
-+    </div>
-+  );
-+}
-diff --git a/Home/ayanavita-fontend-final/src/pages/ProductAdminListPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductAdminListPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..0a7888defec974c242311ab06104493c58f3d6c8
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/pages/ProductAdminListPage.tsx
-@@ -0,0 +1,200 @@
-+import { useEffect, useMemo, useState } from "react";
-+import { Link, useNavigate } from "react-router-dom";
-+import {
-+  createAdminCategory,
-+  createAdminProduct,
-+  deleteAdminCategory,
-+  fetchAdminCategories,
-+  fetchAdminProducts,
-+  updateAdminCategory
-+} from "../api/productAdmin.api";
-+import type { ProductAdminItem, ProductCategory } from "../types/productAdmin";
-+
-+
-+type CategoryRowProps = {
-+  category: ProductCategory;
-+  onSave: (category: ProductCategory) => void;
-+  onDelete: (categoryId: string) => void;
-+};
-+
-+function CategoryRow({ category, onSave, onDelete }: CategoryRowProps) {
-+  const [draft, setDraft] = useState(category);
-+
-+  useEffect(() => {
-+    setDraft(category);
-+  }, [category]);
-+
-+  return (
-+    <div className="grid gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[1fr_1fr_auto_auto]">
-+      <input
-+        className="rounded-lg border border-slate-300 px-3 py-2"
-+        value={draft.name}
-+        onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
-+      />
-+      <input
-+        className="rounded-lg border border-slate-300 px-3 py-2"
-+        value={draft.description || ""}
-+        onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-+      />
-+      <button onClick={() => onSave(draft)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
-+        Lưu
-+      </button>
-+      <button onClick={() => onDelete(category.id)} className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600">
-+        Xóa
-+      </button>
-+    </div>
-+  );
-+}
-+
-+export default function ProductAdminListPage() {
-+  const navigate = useNavigate();
-+  const [products, setProducts] = useState<ProductAdminItem[]>([]);
-+  const [categories, setCategories] = useState<ProductCategory[]>([]);
-+  const [loading, setLoading] = useState(true);
-+  const [openCategoryModal, setOpenCategoryModal] = useState(false);
-+  const [newCategory, setNewCategory] = useState({ name: "", description: "" });
-+
-+  const categoryMap = useMemo(() => Object.fromEntries(categories.map((item) => [item.id, item.name])), [categories]);
-+
-+  const loadData = async () => {
-+    setLoading(true);
-+    const [productList, categoryList] = await Promise.all([fetchAdminProducts(), fetchAdminCategories()]);
-+    setProducts(productList);
-+    setCategories(categoryList);
-+    setLoading(false);
-+  };
-+
-+  useEffect(() => {
-+    loadData();
-+  }, []);
-+
-+  const onCreateProduct = async () => {
-+    const created = await createAdminProduct();
-+    navigate(`/admin/products/${created.id}`);
-+  };
-+
-+  const onCreateCategory = async () => {
-+    if (!newCategory.name.trim()) return;
-+    await createAdminCategory(newCategory.name.trim(), newCategory.description.trim());
-+    setNewCategory({ name: "", description: "" });
-+    loadData();
-+  };
-+
-+  const onInlineEditCategory = async (category: ProductCategory) => {
-+    await updateAdminCategory(category);
-+    loadData();
-+  };
-+
-+  const onDeleteCategory = async (categoryId: string) => {
-+    await deleteAdminCategory(categoryId);
-+    loadData();
-+  };
-+
-+  return (
-+    <div className="min-h-screen bg-slate-50 p-6 text-slate-800">
-+      <div className="mx-auto max-w-6xl space-y-6">
-+        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-+          <p className="text-sm font-semibold text-indigo-600">Quản lý sản phẩm</p>
-+          <h1 className="mt-1 text-2xl font-bold">Danh sách sản phẩm</h1>
-+          <p className="mt-2 text-sm text-slate-500">Giao diện sáng, tách trang danh sách và trang chi tiết để chỉnh sửa dễ hơn.</p>
-+          <div className="mt-4 flex flex-wrap gap-3">
-+            <button onClick={onCreateProduct} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-+              + Thêm sản phẩm
-+            </button>
-+            <button onClick={() => setOpenCategoryModal(true)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-100">
-+              Quản lý category
-+            </button>
-+          </div>
-+        </header>
-+
-+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-+          {loading ? (
-+            <div className="p-8 text-center text-sm text-slate-500">Đang tải dữ liệu...</div>
-+          ) : (
-+            <div className="overflow-x-auto">
-+              <table className="min-w-full text-sm">
-+                <thead>
-+                  <tr className="border-b border-slate-200 text-left text-slate-500">
-+                    <th className="px-3 py-3">SKU</th>
-+                    <th className="px-3 py-3">Tên (VI)</th>
-+                    <th className="px-3 py-3">Category</th>
-+                    <th className="px-3 py-3">Giá</th>
-+                    <th className="px-3 py-3">Tồn kho</th>
-+                    <th className="px-3 py-3">Trạng thái</th>
-+                    <th className="px-3 py-3">Hành động</th>
-+                  </tr>
-+                </thead>
-+                <tbody>
-+                  {products.map((product) => {
-+                    const viName = product.translations.find((item) => item.lang === "vi")?.name || "(chưa đặt tên)";
-+                    return (
-+                      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
-+                        <td className="px-3 py-3 font-mono text-xs">{product.sku}</td>
-+                        <td className="px-3 py-3 font-semibold">{viName}</td>
-+                        <td className="px-3 py-3">{categoryMap[product.categoryId] || "-"}</td>
-+                        <td className="px-3 py-3">{product.price.toLocaleString("vi-VN")} đ</td>
-+                        <td className="px-3 py-3">{product.stock}</td>
-+                        <td className="px-3 py-3">
-+                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${product.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-+                            {product.status === "active" ? "Đang bán" : "Nháp"}
-+                          </span>
-+                        </td>
-+                        <td className="px-3 py-3">
-+                          <Link className="rounded-lg border border-indigo-200 px-3 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50" to={`/admin/products/${product.id}`}>
-+                            Sửa chi tiết
-+                          </Link>
-+                        </td>
-+                      </tr>
-+                    );
-+                  })}
-+                </tbody>
-+              </table>
-+            </div>
-+          )}
-+        </section>
-+      </div>
-+
-+      {openCategoryModal && (
-+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
-+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-+            <div className="mb-4 flex items-center justify-between">
-+              <h2 className="text-xl font-bold">Category chung</h2>
-+              <button className="text-slate-500 hover:text-slate-700" onClick={() => setOpenCategoryModal(false)}>
-+                Đóng
-+              </button>
-+            </div>
-+
-+            <div className="grid gap-2 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_1fr_auto]">
-+              <input
-+                className="rounded-lg border border-slate-300 px-3 py-2"
-+                placeholder="Tên category"
-+                value={newCategory.name}
-+                onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
-+              />
-+              <input
-+                className="rounded-lg border border-slate-300 px-3 py-2"
-+                placeholder="Mô tả"
-+                value={newCategory.description}
-+                onChange={(e) => setNewCategory((prev) => ({ ...prev, description: e.target.value }))}
-+              />
-+              <button onClick={onCreateCategory} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">
-+                Thêm
-+              </button>
-+            </div>
-+
-+            <div className="mt-4 space-y-2">
-+              {categories.map((category) => (
-+                <CategoryRow
-+                  key={category.id}
-+                  category={category}
-+                  onSave={onInlineEditCategory}
-+                  onDelete={onDeleteCategory}
-+                />
-+              ))}
-+            </div>
-+          </div>
-+        </div>
-+      )}
-+    </div>
-+  );
-+}
-diff --git a/Home/ayanavita-fontend-final/src/types/productAdmin.ts b/Home/ayanavita-fontend-final/src/types/productAdmin.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..45f93ed2a19985f4b770ed8290789e34d46574f9
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/types/productAdmin.ts
-@@ -0,0 +1,45 @@
-+export type LanguageCode = "vi" | "en" | "ja";
-+
-+export type ProductTranslation = {
-+  lang: LanguageCode;
-+  name: string;
-+  shortDescription: string;
-+  description: string;
-+};
-+
-+export type ProductIngredient = {
-+  id: string;
-+  name: string;
-+  note: string;
-+};
-+
-+export type ProductAttribute = {
-+  id: string;
-+  key: string;
-+  value: string;
-+};
-+
-+export type ProductCategory = {
-+  id: string;
-+  name: string;
-+  description?: string;
-+};
-+
-+export type ProductAdminItem = {
-+  id: string;
-+  sku: string;
-+  categoryId: string;
-+  price: number;
-+  stock: number;
-+  status: "active" | "draft";
-+  translations: ProductTranslation[];
-+  ingredients: ProductIngredient[];
-+  attributes: ProductAttribute[];
-+  updatedAt: string;
-+};
-+
-+export const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
-+  { code: "vi", label: "Tiếng Việt" },
-+  { code: "en", label: "English" },
-+  { code: "ja", label: "日本語" }
-+];

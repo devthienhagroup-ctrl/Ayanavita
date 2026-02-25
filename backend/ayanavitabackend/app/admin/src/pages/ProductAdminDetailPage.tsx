@@ -1,0 +1,268 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  createAttribute,
+  createIngredient,
+  fetchAdminCategories,
+  fetchAdminProductById,
+  updateAdminProduct,
+  upsertTranslation,
+} from "../api/productAdmin.api";
+import { LANGUAGES, type LanguageCode, type ProductAdminItem, type ProductCategory } from "../types/productAdmin";
+
+export function ProductAdminDetailPage() {
+  const { productId } = useParams();
+  const navigate = useNavigate();
+  const [product, setProduct] = useState<ProductAdminItem | null>(null);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [activeLang, setActiveLang] = useState<LanguageCode>("vi");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!productId) return;
+      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
+      setProduct(detail);
+      setCategories(categoryList);
+    };
+    load();
+  }, [productId]);
+
+  const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
+
+  const onSave = async () => {
+    if (!product) return;
+    setSaving(true);
+    const next = await updateAdminProduct(product);
+    setProduct(next);
+    setSaving(false);
+  };
+
+  if (!product) {
+    return <div className="card">Không tìm thấy sản phẩm.</div>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div>
+            <p className="muted" style={{ margin: 0 }}>Chi tiết sản phẩm</p>
+            <h2 className="h1">{translation?.name || "Sản phẩm mới"}</h2>
+            <p className="muted" style={{ margin: 0 }}>{product.sku}</p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => navigate("/catalog/products")} className="btn">Quay lại danh sách</button>
+            <button onClick={onSave} className="btn btn-primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="grid grid-2">
+          <label>
+            <div className="muted">SKU</div>
+            <input className="input" value={product.sku} onChange={(e) => setProduct((prev) => (prev ? { ...prev, sku: e.target.value } : prev))} />
+          </label>
+          <label>
+            <div className="muted">Category</div>
+            <select
+              className="select"
+              value={product.categoryId}
+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
+            >
+              <option value="">-- Chọn category --</option>
+              {categories.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <div className="muted">Giá</div>
+            <input
+              type="number"
+              className="input"
+              value={product.price}
+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
+            />
+          </label>
+          <label>
+            <div className="muted">Trạng thái</div>
+            <select
+              className="select"
+              value={product.status}
+              onChange={(e) => setProduct((prev) => (prev ? { ...prev, status: e.target.value as "active" | "draft" } : prev))}
+            >
+              <option value="draft">draft</option>
+              <option value="active">active</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          {LANGUAGES.map((lang) => (
+            <button key={lang.code} onClick={() => setActiveLang(lang.code)} className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}>
+              {lang.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid" style={{ gap: 8 }}>
+          <label>
+            <div className="muted">Tên sản phẩm</div>
+            <input
+              className="input"
+              value={translation?.name || ""}
+              onChange={(e) =>
+                setProduct((prev) =>
+                  prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) } : prev,
+                )
+              }
+            />
+          </label>
+          <label>
+            <div className="muted">Mô tả ngắn</div>
+            <input
+              className="input"
+              value={translation?.shortDescription || ""}
+              onChange={(e) =>
+                setProduct((prev) =>
+                  prev
+                    ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { shortDescription: e.target.value }) }
+                    : prev,
+                )
+              }
+            />
+          </label>
+          <label>
+            <div className="muted">Mô tả chi tiết</div>
+            <textarea
+              rows={4}
+              className="input"
+              value={translation?.description || ""}
+              onChange={(e) =>
+                setProduct((prev) =>
+                  prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { description: e.target.value }) } : prev,
+                )
+              }
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="grid grid-2">
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="h2">CRUD thành phần</h3>
+            <button className="btn" onClick={() => setProduct((prev) => (prev ? { ...prev, ingredients: [...prev.ingredients, createIngredient()] } : prev))}>+ Thêm</button>
+          </div>
+          <div className="grid" style={{ marginTop: 10 }}>
+            {product.ingredients.map((item) => (
+              <div key={item.id} className="card" style={{ padding: 10 }}>
+                <input
+                  className="input"
+                  placeholder="Tên thành phần"
+                  value={item.name}
+                  onChange={(e) =>
+                    setProduct((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, name: e.target.value } : row)),
+                          }
+                        : prev,
+                    )
+                  }
+                />
+                <input
+                  className="input"
+                  style={{ marginTop: 8 }}
+                  placeholder="Ghi chú"
+                  value={item.note}
+                  onChange={(e) =>
+                    setProduct((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, note: e.target.value } : row)),
+                          }
+                        : prev,
+                    )
+                  }
+                />
+                <button
+                  className="btn btn-danger"
+                  style={{ marginTop: 8 }}
+                  onClick={() =>
+                    setProduct((prev) => (prev ? { ...prev, ingredients: prev.ingredients.filter((row) => row.id !== item.id) } : prev))
+                  }
+                >
+                  Xóa
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="h2">CRUD thuộc tính</h3>
+            <button className="btn" onClick={() => setProduct((prev) => (prev ? { ...prev, attributes: [...prev.attributes, createAttribute()] } : prev))}>+ Thêm</button>
+          </div>
+          <div className="grid" style={{ marginTop: 10 }}>
+            {product.attributes.map((item) => (
+              <div key={item.id} className="card" style={{ padding: 10 }}>
+                <input
+                  className="input"
+                  placeholder="Tên thuộc tính"
+                  value={item.key}
+                  onChange={(e) =>
+                    setProduct((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, key: e.target.value } : row)),
+                          }
+                        : prev,
+                    )
+                  }
+                />
+                <input
+                  className="input"
+                  style={{ marginTop: 8 }}
+                  placeholder="Giá trị"
+                  value={item.value}
+                  onChange={(e) =>
+                    setProduct((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, value: e.target.value } : row)),
+                          }
+                        : prev,
+                    )
+                  }
+                />
+                <button
+                  className="btn btn-danger"
+                  style={{ marginTop: 8 }}
+                  onClick={() =>
+                    setProduct((prev) => (prev ? { ...prev, attributes: prev.attributes.filter((row) => row.id !== item.id) } : prev))
+                  }
+                >
+                  Xóa
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <Link to="/catalog/products" className="btn">← Về trang danh sách</Link>
+      </div>
+    </div>
+  );
+}
