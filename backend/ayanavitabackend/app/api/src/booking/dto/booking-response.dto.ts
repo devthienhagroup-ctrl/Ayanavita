@@ -59,7 +59,7 @@ export class SpecialistResponseDto {
   name!: string
   level!: string
   bio?: string | null
-  branchIds!: number[]
+  branchId!: number
   serviceIds!: number[]
 }
 

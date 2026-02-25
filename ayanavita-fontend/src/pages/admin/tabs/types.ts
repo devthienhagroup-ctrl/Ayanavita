@@ -16,7 +16,7 @@ export type CategoryForm = {
   name: string
 }
 
-export type SpecialistForm = { code: string; name: string; level: string; bio: string }
+export type SpecialistForm = { code: string; name: string; level: string; bio: string; branchId: number }
 export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
 export type RelationForm = { branchId: number; serviceId: number; specialistId: number }
 

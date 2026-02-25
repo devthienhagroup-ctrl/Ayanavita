@@ -14,7 +14,7 @@ type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
 const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
 const defaultCategoryForm: CategoryForm = { name: '' }
-const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
+const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '', branchId: 0 }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
 
@@ -353,6 +353,10 @@ export default function AdminSpaPage() {
       }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
 
       {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} relationForm={relationForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onRelationFormChange={setRelationForm} onSaveSpecialist={async () => {
+        if (!specialistForm.branchId) {
+          await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
+          return
+        }
         try {
           if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm)
           else await spaAdminApi.createSpecialist(specialistForm)
@@ -363,7 +367,7 @@ export default function AdminSpaPage() {
         } catch (error) {
           await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.'))
         }
-      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ code: specialist.code, name: specialist.name, level: specialist.level, bio: specialist.bio || '' }) }} onDeleteSpecialist={async (specialist) => {
+      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ code: specialist.code, name: specialist.name, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId }) }} onDeleteSpecialist={async (specialist) => {
         try {
           await spaAdminApi.deleteSpecialist(specialist.id)
           await loadAll()
@@ -379,8 +383,7 @@ export default function AdminSpaPage() {
         try {
           await spaAdminApi.syncRelations({
             branchService: [{ branchId: relationForm.branchId, serviceId: relationForm.serviceId }],
-            serviceSpecialist: [{ serviceId: relationForm.serviceId, specialistId: relationForm.specialistId }],
-            branchSpecialist: [{ branchId: relationForm.branchId, specialistId: relationForm.specialistId }],
+            specialistBranchService: [{ specialistId: relationForm.specialistId, branchId: relationForm.branchId, serviceId: relationForm.serviceId }],
           })
           await loadAll()
           await AlertJs.success('Đã lưu quan hệ')

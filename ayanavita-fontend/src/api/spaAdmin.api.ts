@@ -37,7 +37,7 @@ export type Specialist = {
   name: string
   level: string
   bio?: string
-  branchIds: number[]
+  branchId: number
   serviceIds: number[]
 }
 export type ServiceReview = {
@@ -128,6 +128,9 @@ export const spaAdminApi = {
   updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data, { auth: false }),
   deleteAppointment: (id: number) => del(`/booking/appointments/${id}`, { auth: false }),
 
-  syncRelations: (payload: any) => post('/booking/relations/sync', payload, { auth: false }),
+  syncRelations: (payload: {
+    branchService?: Array<{ branchId: number; serviceId: number }>
+    specialistBranchService?: Array<{ specialistId: number; branchId: number; serviceId: number }>
+  }) => post('/booking/relations/sync', payload, { auth: false }),
 
 }

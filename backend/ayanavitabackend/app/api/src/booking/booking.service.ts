@@ -290,8 +290,8 @@ export class BookingService {
     const rows = await this.prisma.specialist.findMany({
       where: {
         isActive: true,
-        ...(branchId ? { branches: { some: { branchId } } } : {}),
-        ...(serviceId ? { services: { some: { serviceId } } } : {}),
+        ...(branchId ? { branchId } : {}),
+        ...(serviceId ? { serviceLinks: { some: { serviceId } } } : {}),
       },
       select: {
         id: true,
@@ -299,8 +299,8 @@ export class BookingService {
         name: true,
         level: true,
         bio: true,
-        branches: { select: { branchId: true } },
-        services: { select: { serviceId: true } },
+        branchId: true,
+        serviceLinks: { select: { serviceId: true } },
       },
       orderBy: { id: 'asc' },
     })
@@ -311,8 +311,8 @@ export class BookingService {
       name: s.name,
       level: s.level,
       bio: s.bio,
-      branchIds: s.branches.map((b) => b.branchId),
-      serviceIds: s.services.map((srv) => srv.serviceId),
+      branchId: s.branchId,
+      serviceIds: [...new Set(s.serviceLinks.map((srv) => srv.serviceId))],
     }))
   }
 
@@ -372,17 +372,16 @@ export class BookingService {
       const specialist = await this.prisma.specialist.findUnique({ where: { id: dto.specialistId } })
       if (!specialist) throw new NotFoundException('Specialist not found')
 
-      const [branchLink, serviceLink] = await Promise.all([
-        this.prisma.branchSpecialist.findUnique({
-          where: { branchId_specialistId: { branchId: dto.branchId, specialistId: dto.specialistId } },
-        }),
-        this.prisma.serviceSpecialist.findUnique({
-          where: { serviceId_specialistId: { serviceId: dto.serviceId, specialistId: dto.specialistId } },
-        }),
-      ])
+      if (specialist.branchId !== dto.branchId) {
+        throw new BadRequestException('Specialist does not belong to this branch')
+      }
 
-      if (!branchLink || !serviceLink) {
-        throw new BadRequestException('Specialist is not available for branch/service')
+      const specialistBranchService = await this.prisma.specialistBranchService.findUnique({
+        where: { specialistId_branchId_serviceId: { specialistId: dto.specialistId, branchId: dto.branchId, serviceId: dto.serviceId } },
+      })
+
+      if (!specialistBranchService) {
+        throw new BadRequestException('Specialist is not available for this service in selected branch')
       }
     }
 
@@ -524,13 +523,14 @@ export class BookingService {
   }
 
   async deleteBranch(id: number) {
-    const [branchServiceCount, branchSpecialistCount, appointmentCount] = await Promise.all([
+    const [branchServiceCount, specialistCount, specialistServiceCount, appointmentCount] = await Promise.all([
       this.prisma.branchService.count({ where: { branchId: id } }),
-      this.prisma.branchSpecialist.count({ where: { branchId: id } }),
+      this.prisma.specialist.count({ where: { branchId: id } }),
+      this.prisma.specialistBranchService.count({ where: { branchId: id } }),
       this.prisma.appointment.count({ where: { branchId: id } }),
     ])
 
-    const linkedCount = branchServiceCount + branchSpecialistCount + appointmentCount
+    const linkedCount = branchServiceCount + specialistCount + specialistServiceCount + appointmentCount
     if (linkedCount > 0) {
       await this.prisma.branch.update({ where: { id }, data: { isActive: false } })
       return {
@@ -545,11 +545,25 @@ export class BookingService {
   }
 
   async createSpecialist(data: any) {
-    return this.prisma.specialist.create({ data })
+    const branchId = Number(data.branchId)
+    if (!Number.isInteger(branchId) || branchId < 1) {
+      throw new BadRequestException('branchId is required')
+    }
+
+    return this.prisma.specialist.create({ data: { ...data, branchId } })
   }
 
   async updateSpecialist(id: number, data: any) {
-    return this.prisma.specialist.update({ where: { id }, data })
+    const payload = { ...data }
+    if (payload.branchId !== undefined) {
+      const branchId = Number(payload.branchId)
+      if (!Number.isInteger(branchId) || branchId < 1) {
+        throw new BadRequestException('branchId is invalid')
+      }
+      payload.branchId = branchId
+    }
+
+    return this.prisma.specialist.update({ where: { id }, data: payload })
   }
 
   async deleteSpecialist(id: number) {
@@ -580,10 +594,9 @@ export class BookingService {
 
   async upsertRelations(payload: {
     branchService?: Array<{ branchId: number; serviceId: number }>
-    serviceSpecialist?: Array<{ serviceId: number; specialistId: number }>
-    branchSpecialist?: Array<{ branchId: number; specialistId: number }>
+    specialistBranchService?: Array<{ specialistId: number; branchId: number; serviceId: number }>
   }) {
-    const { branchService = [], serviceSpecialist = [], branchSpecialist = [] } = payload
+    const { branchService = [], specialistBranchService = [] } = payload
 
     for (const item of branchService) {
       await this.prisma.branchService.upsert({
@@ -592,21 +605,29 @@ export class BookingService {
         create: item,
       })
     }
-    for (const item of serviceSpecialist) {
-      await this.prisma.serviceSpecialist.upsert({
-        where: { serviceId_specialistId: item },
+
+    for (const item of specialistBranchService) {
+      const specialist = await this.prisma.specialist.findUnique({ where: { id: item.specialistId }, select: { id: true, branchId: true } })
+      if (!specialist) {
+        throw new NotFoundException(`Specialist ${item.specialistId} not found`)
+      }
+      if (specialist.branchId !== item.branchId) {
+        throw new BadRequestException('Specialist can only be assigned to services in their own branch')
+      }
+
+      await this.prisma.branchService.upsert({
+        where: { branchId_serviceId: { branchId: item.branchId, serviceId: item.serviceId } },
         update: {},
-        create: item,
+        create: { branchId: item.branchId, serviceId: item.serviceId },
       })
-    }
-    for (const item of branchSpecialist) {
-      await this.prisma.branchSpecialist.upsert({
-        where: { branchId_specialistId: item },
+
+      await this.prisma.specialistBranchService.upsert({
+        where: { specialistId_branchId_serviceId: item },
         update: {},
         create: item,
       })
     }
 
-    return { ok: true, branchService: branchService.length, serviceSpecialist: serviceSpecialist.length, branchSpecialist: branchSpecialist.length }
+    return { ok: true, branchService: branchService.length, specialistBranchService: specialistBranchService.length }
   }
 }

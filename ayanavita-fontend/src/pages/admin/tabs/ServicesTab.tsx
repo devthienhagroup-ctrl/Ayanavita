@@ -316,7 +316,7 @@ export function ServicesTab({
                       ? (
                         <ul className='service-branch-list'>
                           {detailBranches.map((branch) => {
-                            const specialistsByBranch = detailSpecialists.filter((specialist) => specialist.branchIds.includes(branch.id))
+                            const specialistsByBranch = detailSpecialists.filter((specialist) => specialist.branchId === branch.id)
                             return (
                               <li key={branch.id} className='service-branch-item'>
                                 <div className='service-branch-line'>

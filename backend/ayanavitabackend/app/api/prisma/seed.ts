@@ -96,11 +96,11 @@ async function main() {
     },
   ]
 
-  const specialistSeeds: Array<{ code: string; name: string; level: SpecialistLevel; bio: string }> = [
-    { code: 'LINH', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.' },
-    { code: 'TRANG', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.' },
-    { code: 'MAI', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.' },
-    { code: 'NAM', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.' },
+  const specialistSeeds: Array<{ code: string; name: string; level: SpecialistLevel; bio: string; branchCode: string }> = [
+    { code: 'LINH', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.', branchCode: 'HCM_Q1' },
+    { code: 'TRANG', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.', branchCode: 'HN_CG' },
+    { code: 'MAI', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.', branchCode: 'DN_HC' },
+    { code: 'NAM', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.', branchCode: 'HCM_Q1' },
   ]
 
   for (const b of branchSeeds) {
@@ -136,11 +136,20 @@ async function main() {
     }
   }
 
+  const branches = await prisma.branch.findMany()
+  const branchByCode = new Map(branches.map((item) => [item.code, item.id]))
+
   for (const st of specialistSeeds) {
-    await prisma.specialist.upsert({ where: { code: st.code }, update: st, create: st })
+    const branchId = branchByCode.get(st.branchCode)
+    if (!branchId) continue
+    const { branchCode, ...specialistData } = st
+    await prisma.specialist.upsert({
+      where: { code: st.code },
+      update: { ...specialistData, branchId },
+      create: { ...specialistData, branchId },
+    })
   }
 
-  const branches = await prisma.branch.findMany()
   const services = await prisma.service.findMany()
   const specialists = await prisma.specialist.findMany()
 
@@ -152,22 +161,27 @@ async function main() {
         create: { branchId: branch.id, serviceId: service.id },
       })
     }
-
-    for (const specialist of specialists) {
-      await prisma.branchSpecialist.upsert({
-        where: { branchId_specialistId: { branchId: branch.id, specialistId: specialist.id } },
-        update: {},
-        create: { branchId: branch.id, specialistId: specialist.id },
-      })
-    }
   }
 
   for (const specialist of specialists) {
-    for (const service of services) {
-      await prisma.serviceSpecialist.upsert({
-        where: { serviceId_specialistId: { serviceId: service.id, specialistId: specialist.id } },
+    const branchServices = services.filter((_, index) => index % 2 === specialist.id % 2)
+    const allowedServices = branchServices.length > 0 ? branchServices : services.slice(0, 1)
+
+    for (const service of allowedServices) {
+      await prisma.specialistBranchService.upsert({
+        where: {
+          specialistId_branchId_serviceId: {
+            specialistId: specialist.id,
+            branchId: specialist.branchId,
+            serviceId: service.id,
+          },
+        },
         update: {},
-        create: { serviceId: service.id, specialistId: specialist.id },
+        create: {
+          specialistId: specialist.id,
+          branchId: specialist.branchId,
+          serviceId: service.id,
+        },
       })
     }
   }
