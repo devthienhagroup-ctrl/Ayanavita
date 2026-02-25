@@ -14,7 +14,6 @@ import { PRODUCT_DETAIL_SEEDS, catLabel, goalLabel } from "../data/productDetail
 import { addReview, calcReviewStats, listReviewsBySku } from "../services/productReviews.utils";
 
 import {http} from "../api/http";
-import { getProductDetailBySlug, type ApiProduct } from "../api/products.api";
 
 // ==================== CMS DATA (MẶC ĐỊNH) ====================
 // Tất cả nội dung giao diện tĩnh (có thể chỉnh sửa qua CMS) được đặt ở đây
@@ -227,7 +226,6 @@ export default function ProductDetailPage() {
 
   const [detailData, setDetailData] = useState<any>(null);
   const [cmsData, setCmsData] = useState(defaultCmsData);
-  const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null);
 
   // Lắng nghe sự kiện thay đổi ngôn ngữ
   useEffect(() => {
@@ -263,20 +261,13 @@ export default function ProductDetailPage() {
     fetchData();
   }, [currentLanguage]);
 
-  useEffect(() => {
-    if (!skuParam) return;
-    getProductDetailBySlug(skuParam)
-      .then((res) => setApiProduct(res))
-      .catch(() => setApiProduct(null));
-  }, [skuParam]);
-
   const skus = useMemo(() => Object.keys(PRODUCTS) as ProductSku[], []);
   const sku = useMemo(() => {
     const s = (skuParam || "") as ProductSku;
     return (s && PRODUCTS[s]) ? s : skus[0];
   }, [skuParam, skus]);
 
-  const base = apiProduct ? { sku: apiProduct.slug as ProductSku, id: apiProduct.sku, name: apiProduct.name, price: apiProduct.price, img: apiProduct.imageUrl || "" } : (sku ? PRODUCTS[sku] : null);
+  const base = sku ? PRODUCTS[sku] : null;
 
   const metas = useMemo(() => buildCatalogMetas(), []);
   const meta = useMemo(() => metas.find((m) => m.sku === sku) || null, [metas, sku]);
@@ -345,7 +336,7 @@ export default function ProductDetailPage() {
           <main className="px-4 pb-10">
             <div className="max-w-4xl mx-auto card p-6">
               <div className="text-2xl font-extrabold">Không tìm thấy sản phẩm</div>
-              <div className="mt-2 text-slate-600">Không tìm thấy sản phẩm từ API.</div>
+              <div className="mt-2 text-slate-600">SKU không hợp lệ hoặc PRODUCTS đang rỗng.</div>
               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
             </div>
           </main>

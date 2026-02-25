@@ -27,7 +27,7 @@ export function Layout() {
             <div>
               <span className="g-text">AYANAVITA Admin</span>
               <div className="muted" style={{ fontSize: 12, fontWeight: 900, marginTop: 2 }}>
-CMS • Leads • Products
+                CMS • Leads • Publish
               </div>
             </div>
           </Link>
@@ -35,7 +35,6 @@ CMS • Leads • Products
           <div className="nav">
             <NavItem to="/cms/pages" label="CMS Pages" />
             <NavItem to="/leads" label="Leads" />
-            <NavItem to="/products" label="Products" />
 
             <span className="pill" title="JWT token (short)">
               {token ? `${token.slice(0, 10)}…` : "no-token"}

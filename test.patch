@@ -1,1405 +1,269 @@
-diff --git a/Home/ayanavita-fontend-final/src/api/products.api.ts b/Home/ayanavita-fontend-final/src/api/products.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..3631adc8ce37c14d4829e9473b87a811ba032dc3
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/api/products.api.ts
-@@ -0,0 +1,41 @@
-+import { http } from "./http";
+diff --git a/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx b/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
+index 057f09af8cb6a8d2fb37db7b5359bb69bf09959f..234558970b4b592f17289468fa64737df0554ef3 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
+@@ -1,115 +1,223 @@
+-import React from "react";
++import React, { useEffect, useMemo, useState } from "react";
++import { http } from "../api/http";
 +
-+export type ApiProduct = {
-+  id: number;
-+  sku: string;
-+  slug: string;
-+  name: string;
-+  description?: string;
-+  shortDescription?: string;
-+  imageUrl?: string;
-+  type: string;
-+  concerns: string[];
-+  rating: number;
-+  sold: number;
-+  price: number;
-+  published: boolean;
-+  updatedAt: string;
++type CmsData = {
++    hero: {
++        eyebrow: string;
++        title: string;
++        description: string;
++    };
++    form: {
++        fullNameLabel: string;
++        fullNamePlaceholder: string;
++        phoneLabel: string;
++        phonePlaceholder: string;
++        emailLabel: string;
++        emailPlaceholder: string;
++        messageLabel: string;
++        messagePlaceholder: string;
++        submitLabel: string;
++    };
++    info: {
++        title: string;
++        hotlineLabel: string;
++        hotlineValue: string;
++        emailLabel: string;
++        emailValue: string;
++        addressLabel: string;
++        addressValue: string;
++        note: string;
++        mapLinkLabel: string;
++        mapLinkHref: string;
++    };
 +};
 +
-+export type ProductQuery = {
-+  q?: string;
-+  type?: string;
-+  concern?: string;
-+  minPrice?: number;
-+  maxPrice?: number;
-+  sort?: "best" | "new" | "priceAsc" | "priceDesc" | "rating";
-+  page?: number;
-+  pageSize?: number;
++const cmsDataDefault: CmsData = {
++    hero: {
++        eyebrow: "Liên hệ AYANAVITA",
++        title: "Kết nối với đội ngũ tư vấn trong 24 giờ",
++        description:
++            "Nếu bạn cần tư vấn dịch vụ spa, khoá học hoặc hợp tác nhượng quyền, hãy để lại thông tin. Đội ngũ AYANAVITA sẽ liên hệ để hỗ trợ lộ trình phù hợp nhất cho bạn.",
++    },
++    form: {
++        fullNameLabel: "Họ và tên",
++        fullNamePlaceholder: "Nhập họ và tên của bạn",
++        phoneLabel: "Số điện thoại",
++        phonePlaceholder: "Nhập số điện thoại",
++        emailLabel: "Email",
++        emailPlaceholder: "Nhập email (không bắt buộc)",
++        messageLabel: "Nội dung cần tư vấn",
++        messagePlaceholder: "Mô tả nhu cầu của bạn...",
++        submitLabel: "Gửi thông tin",
++    },
++    info: {
++        title: "Thông tin liên hệ",
++        hotlineLabel: "Hotline",
++        hotlineValue: "0900 000 000",
++        emailLabel: "Email",
++        emailValue: "contact@ayanavita.vn",
++        addressLabel: "Địa chỉ",
++        addressValue: "123 Nguyễn Huệ, Quận 1, TP.HCM",
++        note: "Đội ngũ tư vấn sẽ phản hồi trong vòng 24 giờ làm việc. Vui lòng đảm bảo thông tin chính xác để được hỗ trợ nhanh nhất.",
++        mapLinkLabel: "Xem bản đồ",
++        mapLinkHref: "https://maps.google.com",
++    },
 +};
+
+ export default function ContactPage() {
++    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
++        return localStorage.getItem("preferred-language") || "vi";
++    });
++    const [cmsDataFromApi, setCmsDataFromApi] = useState<Partial<CmsData> | null>(null);
 +
-+export async function getProducts(params: ProductQuery) {
-+  const res = await http.get<{ items: ApiProduct[]; paging: { page: number; totalPages: number; total: number } }>("/products", {
-+    params,
-+  });
-+  return res.data;
-+}
++    useEffect(() => {
++        const handleLanguageChange = (event: CustomEvent) => {
++            setCurrentLanguage(event.detail.language);
++        };
 +
-+export async function getProductDetailBySlug(slug: string) {
-+  const res = await http.get<ApiProduct>(`/products/slug/${slug}`);
-+  return res.data;
-+}
-diff --git a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
-index 7484abfe472a85243be3b239858b5481a70cde78..d83157c4662b563c0efed7980510dfee2f039856 100644
---- a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
-@@ -1,41 +1,42 @@
- import React, { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate, useParams } from "react-router-dom";
-
- import { PRODUCTS, type ProductSku } from "../data/products.data";
- import { money } from "../services/booking.utils";
- import { addProductToCart, readProductCart } from "../services/productCart.utils";
-
- import { MiniCartModal } from "../components/shop/MiniCartModal";
- import { ReviewModal } from "../components/shop/ReviewModal";
- import { Stars } from "../components/shop/Stars";
-
- import { buildCatalogMetas } from "../data/shopCatalog.data";
- import { PRODUCT_DETAIL_SEEDS, catLabel, goalLabel } from "../data/productDetail.data";
- import { addReview, calcReviewStats, listReviewsBySku } from "../services/productReviews.utils";
-
- import {http} from "../api/http";
-+import { getProductDetailBySlug, type ApiProduct } from "../api/products.api";
-
- // ==================== CMS DATA (MẶC ĐỊNH) ====================
- // Tất cả nội dung giao diện tĩnh (có thể chỉnh sửa qua CMS) được đặt ở đây
- const defaultCmsData = {
-   topBar: {
-     chips: [
-       { text: "Giá niêm yết", icon: "fa-solid fa-tags", iconColor: "text-amber-600" },
-       { text: "Đánh giá minh bạch (demo)", icon: "fa-solid fa-star", iconColor: "text-amber-500" },
-       { text: "Chuẩn Spa AYANAVITA", icon: "fa-solid fa-shield-halved", iconColor: "text-indigo-600" }
-     ],
-     hotline: {
-       label: "Hotline:",
-       phone: "0900 000 000",
-       zaloLabel: "Zalo:",
-       zaloText: "AYANAVITA Official"
-     }
-   },
-   header: {
-     anchors: [
-       { text: "Tổng quan", href: "#overview" },
-       { text: "Thành phần", href: "#ingredients" },
-       { text: "Cách dùng", href: "#usage" },
-       { text: "Đánh giá", href: "#reviews" },
-       { text: "FAQ", href: "#faq" }
-     ],
-@@ -204,92 +205,100 @@ const defaultCmsData = {
- // ==================== UTILS ====================
- function copyToClipboard(text: string) {
-   if (!text) return;
-   const nav: any = navigator;
-   if (nav.clipboard?.writeText) return nav.clipboard.writeText(text);
-   const ta = document.createElement("textarea");
-   ta.value = text;
-   document.body.appendChild(ta);
-   ta.select();
-   document.execCommand("copy");
-   document.body.removeChild(ta);
- }
-
- // ==================== COMPONENT ====================
- export default function ProductDetailPage() {
-   const { sku: skuParam } = useParams<{ sku: string }>();
-   const navigate = useNavigate();
-
-   // ===== NGÔN NGỮ & CMS DYNAMIC =====
-   const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
-     return localStorage.getItem("preferred-language") || "vi";
-   });
-
-   const [detailData, setDetailData] = useState<any>(null);
-   const [cmsData, setCmsData] = useState(defaultCmsData);
-+  const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null);
-
-   // Lắng nghe sự kiện thay đổi ngôn ngữ
-   useEffect(() => {
-     const handleLanguageChange = (event: CustomEvent) => {
-       setCurrentLanguage(event.detail.language);
-     };
-
-     window.addEventListener('languageChange', handleLanguageChange as EventListener);
-     return () => {
-       window.removeEventListener('languageChange', handleLanguageChange as EventListener);
-     };
-   }, []);
-
-   // Gọi API khi ngôn ngữ thay đổi
-   useEffect(() => {
-     const fetchData = async () => {
-       try {
-         const res = await http.get(`/public/pages/productDetail?lang=${currentLanguage}`);
-         setDetailData(res.data);
-         console.log("Product Detail CMS data:", res.data);
-         // Ghi đè cmsData bằng dữ liệu từ sections[2] nếu có
-         if (res.data?.sections?.[2]?.data) {
-           console.log("Overriding CMS data with API data from sections[2].data", res.data.sections[2].data);
-           setCmsData(res.data.sections[2].data);
-           setTimeout(() => {console.log("Sau khi đợi 2s",cmsData)}, 2000)
-
-         }
-       } catch (error) {
-         console.error("Failed to fetch CMS data:", error);
-         // Giữ nguyên cmsData mặc định
-       }
-     };
-     fetchData();
-   }, [currentLanguage]);
-
-+  useEffect(() => {
-+    if (!skuParam) return;
-+    getProductDetailBySlug(skuParam)
-+      .then((res) => setApiProduct(res))
-+      .catch(() => setApiProduct(null));
-+  }, [skuParam]);
++        window.addEventListener("languageChange", handleLanguageChange as EventListener);
++        return () => {
++            window.removeEventListener("languageChange", handleLanguageChange as EventListener);
++        };
++    }, []);
 +
-   const skus = useMemo(() => Object.keys(PRODUCTS) as ProductSku[], []);
-   const sku = useMemo(() => {
-     const s = (skuParam || "") as ProductSku;
-     return (s && PRODUCTS[s]) ? s : skus[0];
-   }, [skuParam, skus]);
-
--  const base = sku ? PRODUCTS[sku] : null;
-+  const base = apiProduct ? { sku: apiProduct.slug as ProductSku, id: apiProduct.sku, name: apiProduct.name, price: apiProduct.price, img: apiProduct.imageUrl || "" } : (sku ? PRODUCTS[sku] : null);
-
-   const metas = useMemo(() => buildCatalogMetas(), []);
-   const meta = useMemo(() => metas.find((m) => m.sku === sku) || null, [metas, sku]);
-
-   const seed = useMemo(() => PRODUCT_DETAIL_SEEDS[sku], [sku]);
-   const images = useMemo(() => {
-     const s = seed?.images?.length ? seed.images : (base?.img ? [base.img] : []);
-     return s.length ? s : [
-       "https://images.unsplash.com/photo-1612810436541-336d31f6e5f4?auto=format&fit=crop&w=1600&q=80",
-       "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1200&q=80",
-       "https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?auto=format&fit=crop&w=1200&q=80",
-       "https://images.unsplash.com/photo-1587019158091-1a103c5dd4d2?auto=format&fit=crop&w=1200&q=80",
-     ];
-   }, [seed, base]);
-
-   const [mainImg, setMainImg] = useState(images[0]);
-   useEffect(() => {
-     setMainImg(images[0]);
-     window.scrollTo({ top: 0, behavior: "smooth" });
-   }, [sku, images]);
-
-   const [qty, setQty] = useState(1);
-   useEffect(() => setQty(1), [sku]);
-
-   const [cartOpen, setCartOpen] = useState(false);
-@@ -314,51 +323,51 @@ export default function ProductDetailPage() {
-   const seedRating = seed?.seedMeta?.rating ?? meta?.rating ?? 4.8;
-   const seedReviewsCount = seed?.seedMeta?.reviews ?? 312;
-   const seedSold = seed?.seedMeta?.sold ?? meta?.sold ?? 1240;
-
-   const effectiveAvg = stats.count ? stats.avg : seedRating;
-   const effectiveCount = stats.count ? stats.count : seedReviewsCount;
-
-   const filteredReviews = useMemo(() => {
-     let rs = listReviewsBySku(sku).slice();
-
-     if (rvFilterStar !== "all") rs = rs.filter((r) => String(r.stars) === rvFilterStar);
-     const q = rvSearch.trim().toLowerCase();
-     if (q) rs = rs.filter((r) => (r.name + " " + r.text).toLowerCase().includes(q));
-     if (rvSort === "new") rs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-     if (rvSort === "high") rs.sort((a, b) => b.stars - a.stars);
-     if (rvSort === "low") rs.sort((a, b) => a.stars - b.stars);
-     return rs;
-   }, [sku, rvFilterStar, rvSearch, rvSort, reviewOpen]);
-
-   if (!base) {
++    useEffect(() => {
++        let cancelled = false;
++
++        const fetchCmsContact = async () => {
++            try {
++                const res = await http.get(`/public/pages/contact?lang=${currentLanguage}`);
++                if (!cancelled) {
++                    const sectionData = res?.data?.sections?.[0]?.data ?? null;
++                    setCmsDataFromApi(sectionData);
++                }
++            } catch {
++                if (!cancelled) setCmsDataFromApi(null);
++            }
++        };
++
++        fetchCmsContact();
++
++        return () => {
++            cancelled = true;
++        };
++    }, [currentLanguage]);
++
++    const cmsData: CmsData = useMemo(() => {
++        return {
++            ...cmsDataDefault,
++            ...cmsDataFromApi,
++            hero: {
++                ...cmsDataDefault.hero,
++                ...(cmsDataFromApi?.hero || {}),
++            },
++            form: {
++                ...cmsDataDefault.form,
++                ...(cmsDataFromApi?.form || {}),
++            },
++            info: {
++                ...cmsDataDefault.info,
++                ...(cmsDataFromApi?.info || {}),
++            },
++        };
++    }, [cmsDataFromApi]);
++
      return (
-         <div className="text-slate-900">
-           <main className="px-4 pb-10">
-             <div className="max-w-4xl mx-auto card p-6">
-               <div className="text-2xl font-extrabold">Không tìm thấy sản phẩm</div>
--              <div className="mt-2 text-slate-600">SKU không hợp lệ hoặc PRODUCTS đang rỗng.</div>
-+              <div className="mt-2 text-slate-600">Không tìm thấy sản phẩm từ API.</div>
-               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
-             </div>
-           </main>
+         <div className="min-h-screen bg-slate-50 text-slate-900">
+             <section className="mx-auto max-w-7xl px-4 pt-8 pb-2">
+                 <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm md:p-8">
+                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
+-                        Liên hệ AYANAVITA
++                        {cmsData.hero.eyebrow}
+                     </p>
+-                    <h1 className="mt-2 text-2xl font-extrabold md:text-4xl">
+-                        Kết nối với đội ngũ tư vấn trong 24 giờ
+-                    </h1>
++                    <h1 className="mt-2 text-2xl font-extrabold md:text-4xl">{cmsData.hero.title}</h1>
+                     <p className="mt-3 max-w-3xl text-sm text-slate-600 md:text-base">
+-                        Nếu bạn cần tư vấn dịch vụ spa, khoá học hoặc hợp tác nhượng quyền,
+-                        hãy để lại thông tin. Đội ngũ AYANAVITA sẽ liên hệ để hỗ trợ lộ trình
+-                        phù hợp nhất cho bạn.
++                        {cmsData.hero.description}
+                     </p>
+                 </div>
+             </section>
+
+-            {/* Contact Section */}
+             <section className="mx-auto max-w-7xl px-4 pb-16">
+                 <div className="mt-8 grid gap-8 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 md:grid-cols-2 md:p-10">
+-
+-                    {/* Form */}
+                     <form
+                         className="space-y-5"
+                         onSubmit={(e) => {
+                             e.preventDefault();
+                             console.log("Form submitted");
+                         }}
+                     >
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Họ và tên
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.fullNameLabel}</label>
+                             <input
+                                 type="text"
+                                 required
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Nhập họ và tên của bạn"
++                                placeholder={cmsData.form.fullNamePlaceholder}
+                             />
+                         </div>
+
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Số điện thoại
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.phoneLabel}</label>
+                             <input
+                                 type="tel"
+                                 required
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Nhập số điện thoại"
++                                placeholder={cmsData.form.phonePlaceholder}
+                             />
+                         </div>
+
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Email
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.emailLabel}</label>
+                             <input
+                                 type="email"
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Nhập email (không bắt buộc)"
++                                placeholder={cmsData.form.emailPlaceholder}
+                             />
+                         </div>
+
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Nội dung cần tư vấn
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.messageLabel}</label>
+                             <textarea
+                                 rows={4}
+                                 required
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Mô tả nhu cầu của bạn..."
++                                placeholder={cmsData.form.messagePlaceholder}
+                             />
+                         </div>
+
+                         <button
+                             type="submit"
+                             className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition hover:bg-indigo-700"
+                         >
+-                            Gửi thông tin
++                            {cmsData.form.submitLabel}
+                         </button>
+                     </form>
+
+-                    {/* Info */}
+                     <div className="space-y-6">
+                         <div>
+-                            <h3 className="text-lg font-bold">
+-                                Thông tin liên hệ
+-                            </h3>
++                            <h3 className="text-lg font-bold">{cmsData.info.title}</h3>
+                             <p className="mt-2 text-sm text-slate-600">
+-                                Hotline: 0900 000 000
++                                {cmsData.info.hotlineLabel}: {cmsData.info.hotlineValue}
+                             </p>
+                             <p className="text-sm text-slate-600">
+-                                Email: contact@ayanavita.vn
++                                {cmsData.info.emailLabel}: {cmsData.info.emailValue}
+                             </p>
+                             <p className="text-sm text-slate-600">
+-                                Địa chỉ: 123 Nguyễn Huệ, Quận 1, TP.HCM
++                                {cmsData.info.addressLabel}: {cmsData.info.addressValue}
+                             </p>
++                            <a
++                                href={cmsData.info.mapLinkHref}
++                                target="_blank"
++                                rel="noreferrer"
++                                className="mt-2 inline-flex text-sm font-semibold text-indigo-600 hover:text-indigo-700"
++                            >
++                                {cmsData.info.mapLinkLabel}
++                            </a>
+                         </div>
+
+-                        <div className="rounded-2xl bg-indigo-50 p-5 text-sm text-slate-700">
+-                            Đội ngũ tư vấn sẽ phản hồi trong vòng 24 giờ làm việc.
+-                            Vui lòng đảm bảo thông tin chính xác để được hỗ trợ nhanh nhất.
+-                        </div>
++                        <div className="rounded-2xl bg-indigo-50 p-5 text-sm text-slate-700">{cmsData.info.note}</div>
+                     </div>
+                 </div>
+             </section>
          </div>
      );
-   }
-
-   const detail = {
-     cat: seed?.cat ?? "serum",
-     target: seed?.target ?? "repair",
-     skuText: seed?.skuText ?? String(base.id),
-     size: seed?.size ?? (meta ? `${meta.ml}ml (demo)` : "30ml (demo)"),
-     skinType: seed?.skinType ?? "Mọi loại da (demo)",
-     shortDesc:
-         seed?.shortDesc ??
-         "Sản phẩm mẫu cho trang chi tiết: tập trung ảnh, giá, CTA rõ ràng, review & gợi ý combo.",
-     longDesc:
-         seed?.longDesc ??
-         "Prototype trang chi tiết: khi làm thật, lấy mô tả dài/thành phần/hướng dẫn dùng từ DB. Nội dung hiện là mô phỏng để bạn ráp UI/UX.",
-     highlights: seed?.highlights ?? [
-       "Hỗ trợ routine Spa tại nhà (demo)",
-       "Kết cấu thấm nhanh (demo)",
-       "CTA rõ ràng: thêm giỏ / mua ngay",
-       "Có review filter + search (localStorage)",
-     ],
-diff --git a/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
-index 0f0066a4170e9492d75a038dc633b56c09c0b892..ecc2bfb2eb99b1739ab0e5c7d983f7903d6a50bc 100644
---- a/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
-@@ -1,302 +1,108 @@
--// src/pages/ProductsPage.tsx
- import React, { useEffect, useMemo, useState } from "react";
- import { Link } from "react-router-dom";
-
--
--import {http} from "../api/http";
--
--import { CATEGORY_PRODUCTS, type SkinConcern, type ProductType } from "../data/productCategory.data";
-+import { getProducts, type ApiProduct } from "../api/products.api";
- import { ProductFilters, type PriceRange, type SortKey } from "../components/products/ProductFilters";
- import { ProductCard } from "../components/products/ProductCard";
--
--// NOTE: Tách nội dung tĩnh ra cmsData để dùng như CMS động.
--// cmsData chỉ chứa nội dung (text, link, src...), không chứa style (màu/kích thước/className...).
--// Ưu tiên thuộc tính đơn & mảng; hạn chế object lồng sâu; không nhét DB hay logic data vào đây.
--const defaultCmsData = {
--    banner: {
--        imageAlt: "banner",
--        imageSrc:
--            "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1400&q=70",
--        eyebrow: "Danh mục",
--        title: "Chăm sóc da • Sức khoẻ • Spa at Home",
--        subtitle: "Lọc nhanh theo loại da, vấn đề, giá và đánh giá.",
--    },
--    actions: {
--        cartLabel: "Giỏ hàng",
--        compareLabel: "So sánh",
--        compareAlert: "So sánh (demo).",
--    },
--    badges: [
--        { icon: "fa-solid fa-star", text: "Đánh giá thật" },
--        { icon: "fa-solid fa-shield-halved", text: "Chính hãng" },
--        { icon: "fa-solid fa-truck-fast", text: "Giao nhanh" },
--    ],
--    results: {
--        label: "Hiển thị",
--        unit: "sản phẩm",
--    },
--    emptyState: "Không có sản phẩm phù hợp bộ lọc.",
--    pagination: {
--        prev: "Trước",
--        next: "Sau",
--        pageLabel: "Trang",
--    },
--    footer: "© 2025 AYANAVITA • Prototype Category",
--} as const;
--
--// --- PaginationBar được đưa trực tiếp vào file ---
--function PaginationBar({
--                           page,
--                           totalPages,
--                           onPrev,
--                           onNext,
--                           cmsData,
--                       }: {
--    page: number;
--    totalPages: number;
--    onPrev: () => void;
--    onNext: () => void;
--    cmsData: any;
--}) {
--    const prevDisabled = page <= 1;
--    const nextDisabled = page >= totalPages;
--
--    return (
--        <div className="mt-5 flex items-center justify-between">
--            <button
--                className={`btn ${prevDisabled ? "opacity-50" : ""}`}
--                type="button"
--                disabled={prevDisabled}
--                onClick={onPrev}
--            >
--                {cmsData?.pagination?.prev}
--            </button>
--            <div className="chip">
--                {cmsData?.pagination?.pageLabel} <span className="font-extrabold">{page}</span>/
--                <span className="font-extrabold">{totalPages}</span>
--            </div>
--            <button
--                className={`btn ${nextDisabled ? "opacity-50" : ""}`}
--                type="button"
--                disabled={nextDisabled}
--                onClick={onNext}
--            >
--                {cmsData?.pagination?.next}
--            </button>
--        </div>
--    );
-+import type { CategoryProduct, ProductType, SkinConcern } from "../data/productCategory.data";
-+
-+const concernMap: Record<string, SkinConcern> = {
-+  acne: "acne",
-+  aging: "aging",
-+  bright: "bright",
-+  sensitive: "sensitive",
-+};
-+
-+function toCategoryProduct(p: ApiProduct): CategoryProduct {
-+  const type = (["cleanser", "serum", "cream", "mask"].includes(p.type) ? p.type : "cleanser") as ProductType;
-+  const concerns = (p.concerns || []).map((c) => concernMap[c]).filter(Boolean) as SkinConcern[];
-+  return {
-+    sku: (p.slug as any),
-+    id: p.sku,
-+    name: p.name,
-+    type,
-+    concerns,
-+    price: p.price,
-+    rating: p.rating,
-+    sold: p.sold,
-+    updated: new Date(p.updatedAt).toISOString().slice(0, 10),
-+    img: p.imageUrl || "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=70",
-+  };
- }
--// --- Kết thúc PaginationBar ---
-
--function inRange(price: number, r: PriceRange) {
--    if (r === "all") return true;
--    if (r === "lt200") return price < 200_000;
--    if (r === "200-400") return price >= 200_000 && price <= 400_000;
--    if (r === "gt400") return price > 400_000;
--    return true;
-+function mapPriceRange(range: PriceRange): { minPrice?: number; maxPrice?: number } {
-+  if (range === "lt200") return { maxPrice: 200_000 };
-+  if (range === "200-400") return { minPrice: 200_000, maxPrice: 400_000 };
-+  if (range === "gt400") return { minPrice: 400_000 };
-+  return {};
- }
-
- export default function ProductsPage() {
--    // ====== language ======
--    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
--        return localStorage.getItem("preferred-language") || "vi";
--    });
--
--    // Lắng nghe sự kiện thay đổi ngôn ngữ
--    useEffect(() => {
--        const handleLanguageChange = (event: CustomEvent) => {
--            setCurrentLanguage(event.detail.language);
--        };
--
--        window.addEventListener("languageChange", handleLanguageChange as EventListener);
--        return () => {
--            window.removeEventListener("languageChange", handleLanguageChange as EventListener);
--        };
--    }, []);
--
--    // ====== fetch CMS product page ======
--    const [productData, setProductData] = useState<any>(null);
--
--    useEffect(() => {
--        let cancelled = false;
--
--        (async () => {
--            try {
--                const res = await http.get(`/public/pages/product?lang=${currentLanguage}`);
--                if (!cancelled) setProductData(res.data);
--            } catch (err) {
--                console.error("GET /public/pages/product failed:", err);
--                if (!cancelled) setProductData(null);
--            }
--        })();
--
--        return () => {
--            cancelled = true;
--        };
--    }, [currentLanguage]);
--
--    // ghi đè cmsData bằng productData?.sections[2]?.data
--    const cmsData = useMemo(() => {
--        return productData?.sections?.[2]?.data || defaultCmsData;
--    }, [productData]);
--
--    // filters
--    const [q, setQ] = useState("");
--    const [types, setTypes] = useState<ProductType[]>([]);
--    const [concern, setConcern] = useState<"all" | SkinConcern>("all");
--    const [priceRange, setPriceRange] = useState<PriceRange>("all");
--    const [sort, setSort] = useState<SortKey>("best");
--
--    // paging
--    const [page, setPage] = useState(1);
--    const pageSize = 6;
--
--    const list = useMemo(() => {
--        const qq = q.trim().toLowerCase();
--
--        let out = CATEGORY_PRODUCTS.filter((p) => {
--            const okQ = !qq || p.name.toLowerCase().includes(qq) || p.id.toLowerCase().includes(qq);
--            const okT = !types.length || types.includes(p.type);
--            const okC = concern === "all" ? true : (p.concerns || []).includes(concern);
--            const okP = inRange(p.price, priceRange);
--            return okQ && okT && okC && okP;
--        });
--
--        // sort
--        if (sort === "best") out = out.slice().sort((a, b) => b.sold - a.sold);
--        if (sort === "new") out = out.slice().sort((a, b) => (b.updated > a.updated ? 1 : -1));
--        if (sort === "priceAsc") out = out.slice().sort((a, b) => a.price - b.price);
--        if (sort === "priceDesc") out = out.slice().sort((a, b) => b.price - a.price);
--        if (sort === "rating") out = out.slice().sort((a, b) => b.rating - a.rating);
--
--        return out;
--    }, [q, types, concern, priceRange, sort]);
--
--    const totalPages = useMemo(() => Math.max(1, Math.ceil(list.length / pageSize)), [list.length]);
--    const safePage = Math.min(page, totalPages);
--
--    const pageItems = useMemo(() => {
--        const start = (safePage - 1) * pageSize;
--        return list.slice(start, start + pageSize);
--    }, [list, safePage]);
--
--    function toggleType(t: ProductType) {
--        setPage(1);
--        setTypes((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
--    }
--
--    function resetFilters() {
--        setQ("");
--        setTypes([]);
--        setConcern("all");
--        setPriceRange("all");
--        setSort("best");
--        setPage(1);
--    }
--
--    return (
--        <div className="text-slate-900">
--            {/*<SiteHeader active="products" />*/}
--
--            <main className="px-4 pb-10">
--                <div className="max-w-6xl mx-auto card overflow-hidden">
--                    {/* Banner */}
--                    <div className="relative">
--                        <img className="h-44 w-full object-cover" alt={cmsData?.banner?.imageAlt} src={cmsData?.banner?.imageSrc} />
--                        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/55 to-indigo-700/20" />
--                        <div className="absolute inset-0 p-6 flex flex-col justify-end">
--                            <div className="text-xs font-extrabold text-white/80">{cmsData?.banner?.eyebrow}</div>
--                            <h1 className="text-2xl md:text-3xl font-extrabold text-white">{cmsData?.banner?.title}</h1>
--                            <div className="mt-1 text-sm text-white/80">{cmsData?.banner?.subtitle}</div>
--                        </div>
--                    </div>
--
--                    <div className="p-6 grid gap-4 lg:grid-cols-4">
--                        {/* Filters */}
--                        <aside className="lg:col-span-1">
--                            <ProductFilters
--                                cmsData={productData?.sections?.[0]?.data}
--                                q={q}
--                                onQ={(v) => {
--                                    setQ(v);
--                                    setPage(1);
--                                }}
--                                types={types}
--                                onToggleType={toggleType}
--                                concern={concern}
--                                onConcern={(v) => {
--                                    setConcern(v);
--                                    setPage(1);
--                                }}
--                                priceRange={priceRange}
--                                onPriceRange={(v) => {
--                                    setPriceRange(v);
--                                    setPage(1);
--                                }}
--                                sort={sort}
--                                onSort={(v) => {
--                                    setSort(v);
--                                    setPage(1);
--                                }}
--                                onReset={resetFilters}
--                            />
--
--                            <div className="mt-3 flex flex-col gap-2 flex-wrap">
--                                <Link className="btn flex-1" to="/cart">
--                                    <i className="fa-solid fa-cart-shopping mr-2" />
--                                    {cmsData?.actions?.cartLabel}
--                                </Link>
--                                <button className="btn flex-1" type="button" onClick={() => window.alert(cmsData?.actions?.compareAlert)}>
--                                    <i className="fa-solid fa-scale-balanced mr-2" />
--                                    {cmsData?.actions?.compareLabel}
--                                </button>
--                            </div>
--                        </aside>
--
--                        {/* Products */}
--                        <section className="lg:col-span-3">
--                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
--                                <div className="flex items-center gap-2 flex-wrap">
--                                    {(cmsData?.badges || []).map((b: any) => (
--                                        <span key={`${b.icon}-${b.text}`} className="chip">
--                      <i className={b.icon} />
--                      <span className="ml-2">{b.text}</span>
--                    </span>
--                                    ))}
--                                </div>
--                                <div className="text-sm text-slate-600">
--                                    {cmsData?.results?.label}: <b>{list.length}</b> {cmsData?.results?.unit}
--                                </div>
--                            </div>
--
--                            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
--                                {pageItems.length ? (
--                                    pageItems.map((p) => (
--                                        <ProductCard
--                                            cmsData={productData?.sections?.[1]?.data}
--                                            key={p.id}
--                                            p={p}
--                                            detailTo={`/products/${String(p.sku)}`}
--                                        />
--                                    ))
--                                ) : (
--                                    <div className="text-slate-600 p-6">{cmsData?.emptyState}</div>
--                                )}
--                            </div>
-+  const [q, setQ] = useState("");
-+  const [types, setTypes] = useState<ProductType[]>([]);
-+  const [concern, setConcern] = useState<"all" | SkinConcern>("all");
-+  const [priceRange, setPriceRange] = useState<PriceRange>("all");
-+  const [sort, setSort] = useState<SortKey>("best");
-+  const [page, setPage] = useState(1);
-+
-+  const [items, setItems] = useState<CategoryProduct[]>([]);
-+  const [totalPages, setTotalPages] = useState(1);
-+
-+  const activeType = useMemo(() => (types.length ? types[0] : undefined), [types]);
-+
-+  useEffect(() => {
-+    const run = async () => {
-+      const data = await getProducts({
-+        q,
-+        page,
-+        pageSize: 6,
-+        sort,
-+        type: activeType,
-+        concern: concern === "all" ? undefined : concern,
-+        ...mapPriceRange(priceRange),
-+      });
-+      setItems((data.items || []).map(toCategoryProduct));
-+      setTotalPages(data.paging?.totalPages || 1);
-+    };
-+    run().catch(console.error);
-+  }, [q, page, sort, activeType, concern, priceRange]);
-+
-+  return (
-+    <div className="text-slate-900">
-+      <section className="max-w-7xl mx-auto px-4 py-6">
-+        <div className="grid lg:grid-cols-[300px_1fr] gap-5">
-+          <ProductFilters
-+            q={q}
-+            onQ={(v) => { setQ(v); setPage(1); }}
-+            types={types}
-+            onToggleType={(t) => { setTypes((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [t]); setPage(1); }}
-+            concern={concern}
-+            onConcern={(v) => { setConcern(v); setPage(1); }}
-+            priceRange={priceRange}
-+            onPriceRange={(v) => { setPriceRange(v); setPage(1); }}
-+            sort={sort}
-+            onSort={(v) => { setSort(v); setPage(1); }}
-+            onReset={() => { setQ(""); setTypes([]); setConcern("all"); setPriceRange("all"); setSort("best"); setPage(1); }}
-+          />
-+
-+          <div>
-+            <div className="mb-3 text-sm text-slate-600">Hiển thị {items.length} sản phẩm</div>
-+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-+              {items.map((p) => (
-+                <ProductCard key={p.id} p={p} detailTo={`/products/${String(p.sku)}`} />
-+              ))}
-+            </div>
-
--                            <PaginationBar
--                                cmsData={cmsData}
--                                page={safePage}
--                                totalPages={totalPages}
--                                onPrev={() => setPage((p) => Math.max(1, p - 1))}
--                                onNext={() => setPage((p) => p + 1)}
--                            />
--                        </section>
--                    </div>
--                </div>
-+            <div className="mt-5 flex items-center justify-between">
-+              <button className="btn" type="button" disabled={page <= 1} onClick={() => setPage((v) => v - 1)}>Trước</button>
-+              <div className="chip">Trang <b>{page}</b>/<b>{totalPages}</b></div>
-+              <button className="btn" type="button" disabled={page >= totalPages} onClick={() => setPage((v) => v + 1)}>Sau</button>
-+            </div>
-
--                <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">{cmsData?.footer}</div>
--            </main>
-+            <Link to="/" className="inline-block mt-5 text-sm text-indigo-700">← Về trang chủ</Link>
-+          </div>
-         </div>
--    );
 -}
 \ No newline at end of file
-+      </section>
-+    </div>
-+  );
-+}
-diff --git a/backend/ayanavitabackend/app/admin/src/App.tsx b/backend/ayanavitabackend/app/admin/src/App.tsx
-index 37bdbecc6a3fe3ec8eb2585b5a7b4fc4a5ea281a..1e8790ac9e87acbf2d28f36b04c6d8e5b6a29db7 100644
---- a/backend/ayanavitabackend/app/admin/src/App.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/App.tsx
-@@ -1,38 +1,40 @@
- import React from "react";
- import { Navigate, Route, Routes } from "react-router-dom";
-
- import { Layout } from "./components/Layout";
- import { AuthProvider } from "./app/auth.store";
- import { RequireAuth } from "./app/guard";
-
- import { LoginPage } from "./pages/LoginPage";
- import { CmsPagesPage } from "./pages/CmsPagesPage";
- import { CmsEditPage } from "./pages/CmsEditPage";
- import { LeadsPage } from "./pages/LeadsPage";
-+import { ProductsPage } from "./pages/ProductsPage";
- import { NotFound } from "./pages/NotFound";
-
- export default function App() {
-   return (
-     <AuthProvider>
-       <Routes>
-         <Route path="/login" element={<LoginPage />} />
-
-         <Route
-           path="/"
-           element={
-             <RequireAuth>
-               <Layout />
-             </RequireAuth>
-           }
-         >
-           <Route index element={<Navigate to="/cms/pages" replace />} />
-           <Route path="cms/pages" element={<CmsPagesPage />} />
-           <Route path="cms/pages/:slug" element={<CmsEditPage />} />
-           <Route path="leads" element={<LeadsPage />} />
-+          <Route path="products" element={<ProductsPage />} />
-         </Route>
-
-         <Route path="*" element={<NotFound />} />
-       </Routes>
-     </AuthProvider>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/admin/src/api/products.api.ts b/backend/ayanavitabackend/app/admin/src/api/products.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..cdc85dd0cb3d33386f3105e20273fdc3581557f7
---- /dev/null
-+++ b/backend/ayanavitabackend/app/admin/src/api/products.api.ts
-@@ -0,0 +1,34 @@
-+import { apiFetch } from "./client";
-+
-+export type AdminProduct = {
-+  id: number;
-+  sku: string;
-+  slug: string;
-+  name: string;
-+  description?: string;
-+  shortDescription?: string;
-+  imageUrl?: string;
-+  type: string;
-+  concerns: string[];
-+  rating: number;
-+  sold: number;
-+  price: number;
-+  published: boolean;
-+};
-+
-+export type ProductListRes = { items: AdminProduct[]; paging: { total: number } };
-+
-+export const productsApi = {
-+  list(token: string, q = "") {
-+    return apiFetch<ProductListRes>(`/products/admin?q=${encodeURIComponent(q)}`, { token });
-+  },
-+  create(token: string, payload: Partial<AdminProduct>) {
-+    return apiFetch<AdminProduct>("/products", { method: "POST", token, body: JSON.stringify(payload) });
-+  },
-+  update(token: string, id: number, payload: Partial<AdminProduct>) {
-+    return apiFetch<AdminProduct>(`/products/${id}`, { method: "PATCH", token, body: JSON.stringify(payload) });
-+  },
-+  remove(token: string, id: number) {
-+    return apiFetch<{ id: number }>(`/products/${id}`, { method: "DELETE", token });
-+  },
-+};
-diff --git a/backend/ayanavitabackend/app/admin/src/components/Layout.tsx b/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
-index c87d797ef90b7e641732653c711cbd19f89f9cbf..5891c38c4d7f310fbfa94cc9598cc5a5107dc921 100644
---- a/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
-@@ -5,58 +5,59 @@ import { ToastProvider } from "./Toast";
-
- function NavItem({ to, label }: { to: string; label: string }) {
-   return (
-     <NavLink
-       to={to}
-       className={({ isActive }) => `btn ${isActive ? "btn-primary" : ""}`}
-     >
-       {label}
-     </NavLink>
-   );
- }
-
- export function Layout() {
-   const { token, logout } = useAuth();
-   const nav = useNavigate();
-
-   return (
-     <ToastProvider>
-       <div className="topbar">
-         <div className="row">
-           <Link to="/" className="brand" aria-label="Home">
-             <span className="dot" aria-hidden="true" />
-             <div>
-               <span className="g-text">AYANAVITA Admin</span>
-               <div className="muted" style={{ fontSize: 12, fontWeight: 900, marginTop: 2 }}>
--                CMS • Leads • Publish
-+CMS • Leads • Products
-               </div>
-             </div>
-           </Link>
-
-           <div className="nav">
-             <NavItem to="/cms/pages" label="CMS Pages" />
-             <NavItem to="/leads" label="Leads" />
-+            <NavItem to="/products" label="Products" />
-
-             <span className="pill" title="JWT token (short)">
-               {token ? `${token.slice(0, 10)}…` : "no-token"}
-             </span>
-
-             <button
-               className="btn btn-danger"
-               type="button"
-               onClick={() => {
-                 logout();
-                 nav("/login", { replace: true });
-               }}
-             >
-               Logout
-             </button>
-           </div>
-         </div>
-       </div>
-
-       <div className="container">
-         <Outlet />
-       </div>
-     </ToastProvider>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductsPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductsPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..1436d8d806f4c0125deee81b3e80d7f5afa560c4
---- /dev/null
-+++ b/backend/ayanavitabackend/app/admin/src/pages/ProductsPage.tsx
-@@ -0,0 +1,121 @@
-+import React, { useEffect, useMemo, useState } from "react";
-+
-+import { useAuth } from "../app/auth.store";
-+import { productsApi, type AdminProduct } from "../api/products.api";
-+
-+const emptyForm = {
-+  sku: "",
-+  slug: "",
-+  name: "",
-+  type: "cleanser",
-+  concerns: "",
-+  price: 0,
-+  rating: 4.5,
-+  sold: 0,
-+  imageUrl: "",
-+  shortDescription: "",
-+  description: "",
-+  published: true,
-+};
-+
-+export function ProductsPage() {
-+  const { token } = useAuth();
-+  const [items, setItems] = useState<AdminProduct[]>([]);
-+  const [q, setQ] = useState("");
-+  const [loading, setLoading] = useState(false);
-+  const [editingId, setEditingId] = useState<number | null>(null);
-+  const [form, setForm] = useState(emptyForm);
-+
-+  const isEdit = useMemo(() => editingId !== null, [editingId]);
-+
-+  const load = async () => {
-+    if (!token) return;
-+    setLoading(true);
-+    try {
-+      const res = await productsApi.list(token, q);
-+      setItems(res.items || []);
-+    } finally {
-+      setLoading(false);
-+    }
-+  };
-+
-+  useEffect(() => {
-+    load();
-+  }, [token]);
-+
-+  const submit = async (e: React.FormEvent) => {
-+    e.preventDefault();
-+    if (!token) return;
-+    const payload = {
-+      ...form,
-+      concerns: form.concerns.split(",").map((x) => x.trim()).filter(Boolean),
-+    };
-+    if (editingId) await productsApi.update(token, editingId, payload as any);
-+    else await productsApi.create(token, payload as any);
-+
-+    setForm(emptyForm);
-+    setEditingId(null);
-+    await load();
-+  };
-+
-+  return (
-+    <div className="grid" style={{ gap: 18 }}>
-+      <div className="card">
-+        <div className="row" style={{ padding: 0 }}>
-+          <h1 className="h1">Quản lý sản phẩm</h1>
-+          <div style={{ display: "flex", gap: 8 }}>
-+            <input className="input" placeholder="Tìm theo tên/SKU" value={q} onChange={(e) => setQ(e.target.value)} />
-+            <button className="btn" type="button" onClick={load}>Tìm</button>
-+          </div>
-+        </div>
-+      </div>
-+
-+      <form className="card grid grid-3" onSubmit={submit}>
-+        <input className="input" placeholder="SKU" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required />
-+        <input className="input" placeholder="Slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} required />
-+        <input className="input" placeholder="Tên sản phẩm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-+        <input className="input" placeholder="Loại" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
-+        <input className="input" placeholder="Concerns: acne,aging" value={form.concerns} onChange={(e) => setForm({ ...form, concerns: e.target.value })} />
-+        <input className="input" type="number" placeholder="Giá" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
-+        <input className="input" type="number" step="0.1" min="0" max="5" placeholder="Rating" value={form.rating} onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })} />
-+        <input className="input" type="number" placeholder="Đã bán" value={form.sold} onChange={(e) => setForm({ ...form, sold: Number(e.target.value) })} />
-+        <input className="input" placeholder="Image URL" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
-+        <input className="input" placeholder="Mô tả ngắn" value={form.shortDescription} onChange={(e) => setForm({ ...form, shortDescription: e.target.value })} />
-+        <textarea className="textarea" placeholder="Mô tả chi tiết" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ minHeight: 100 }} />
-+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} /> Published</label>
-+        <div style={{ display: "flex", gap: 8 }}>
-+          <button className="btn btn-primary" type="submit">{isEdit ? "Cập nhật" : "Tạo mới"}</button>
-+          {isEdit && <button className="btn" type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }}>Huỷ</button>}
-+        </div>
-+      </form>
-+
-+      <div className="card">
-+        <table className="table">
-+          <thead>
-+            <tr><th>ID</th><th>SKU</th><th>Tên</th><th>Giá</th><th>Rating</th><th>Published</th><th></th></tr>
-+          </thead>
-+          <tbody>
-+            {loading ? <tr><td colSpan={7}>Loading...</td></tr> : items.map((p) => (
-+              <tr key={p.id}>
-+                <td>{p.id}</td>
-+                <td>{p.sku}</td>
-+                <td>{p.name}</td>
-+                <td>{p.price.toLocaleString("vi-VN")}</td>
-+                <td>{p.rating}</td>
-+                <td>{p.published ? "Yes" : "No"}</td>
-+                <td style={{ display: "flex", gap: 8 }}>
-+                  <button className="btn" onClick={() => { setEditingId(p.id); setForm({
-+                    sku: p.sku, slug: p.slug, name: p.name, type: p.type, concerns: (p.concerns || []).join(","),
-+                    price: p.price, rating: p.rating, sold: p.sold, imageUrl: p.imageUrl || "", shortDescription: p.shortDescription || "",
-+                    description: p.description || "", published: p.published,
-+                  }); }}>Sửa</button>
-+                  <button className="btn btn-danger" onClick={async () => { if (!token) return; await productsApi.remove(token, p.id); await load(); }}>Xoá</button>
-+                </td>
-+              </tr>
-+            ))}
-+          </tbody>
-+        </table>
-+      </div>
-+    </div>
-+  );
-+}
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/20260213090000_add_products_table/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/20260213090000_add_products_table/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..274c915e97afd7ceda2e37f562c43fed6441da07
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/20260213090000_add_products_table/migration.sql
-@@ -0,0 +1,25 @@
-+-- CreateTable
-+CREATE TABLE `Product` (
-+    `id` INTEGER NOT NULL AUTO_INCREMENT,
-+    `sku` VARCHAR(40) NOT NULL,
-+    `slug` VARCHAR(120) NOT NULL,
-+    `name` VARCHAR(255) NOT NULL,
-+    `description` LONGTEXT NULL,
-+    `shortDescription` VARCHAR(500) NULL,
-+    `imageUrl` TEXT NULL,
-+    `type` VARCHAR(40) NOT NULL DEFAULT 'cleanser',
-+    `concerns` VARCHAR(255) NOT NULL DEFAULT '',
-+    `rating` DOUBLE NOT NULL DEFAULT 4.5,
-+    `sold` INTEGER NOT NULL DEFAULT 0,
-+    `price` INTEGER NOT NULL DEFAULT 0,
-+    `published` BOOLEAN NOT NULL DEFAULT true,
-+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-+    `updatedAt` DATETIME(3) NOT NULL,
-+
-+    UNIQUE INDEX `Product_sku_key`(`sku`),
-+    UNIQUE INDEX `Product_slug_key`(`slug`),
-+    INDEX `Product_type_idx`(`type`),
-+    INDEX `Product_published_idx`(`published`),
-+    INDEX `Product_price_idx`(`price`),
-+    PRIMARY KEY (`id`)
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 46824f15bc4ab7cc9db26821afebf3457e441d4f..bcc1cb3b239c1e20a16fd8726350a4a3905f61bd 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -25,50 +25,73 @@ model User {
-   orders         Order[] // <— opposite for Order.user
-
-   // ✅ CMS (optional relations)
-   cmsSectionVersions CmsSectionVersion[]
-   mediaAssets        MediaAsset[]
- }
-
- model Course {
-   id          Int      @id @default(autoincrement())
-   title       String
-   slug        String   @unique
-   description String?
-   thumbnail   String?
-   price       Int      @default(0)
-   published   Boolean  @default(false)
-   createdAt   DateTime @default(now())
-   updatedAt   DateTime @updatedAt
-
-   lessons     Lesson[]
-   enrollments Enrollment[]
-
-   // ✅ ADD
-   orderItems OrderItem[] // <— opposite for OrderItem.course
- }
-
-+
-+model Product {
-+  id               Int      @id @default(autoincrement())
-+  sku              String   @unique @db.VarChar(40)
-+  slug             String   @unique @db.VarChar(120)
-+  name             String   @db.VarChar(255)
-+  description      String?  @db.LongText
-+  shortDescription String?  @db.VarChar(500)
-+  imageUrl         String?  @db.Text
-+  type             String   @default("cleanser") @db.VarChar(40)
-+  concerns         String   @default("") @db.VarChar(255)
-+  rating           Float    @default(4.5)
-+  sold             Int      @default(0)
-+  price            Int      @default(0)
-+  published        Boolean  @default(true)
-+  createdAt        DateTime @default(now())
-+  updatedAt        DateTime @updatedAt
-+
-+  @@index([type])
-+  @@index([published])
-+  @@index([price])
-+}
-+
- model Lesson {
-   id        Int              @id @default(autoincrement())
-   courseId  Int
-   title     String
-   slug      String
-   content   String?          @db.LongText
-   videoUrl  String?
-   order     Int              @default(0)
-   published Boolean          @default(false)
-   createdAt DateTime         @default(now())
-   updatedAt DateTime         @updatedAt
-   course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-   progress  LessonProgress[]
-
-   @@unique([courseId, slug])
-   @@index([courseId, order])
- }
-
- model Enrollment {
-   id       Int @id @default(autoincrement())
-   userId   Int
-   courseId Int
-   orderId  Int
-
-   createdAt DateTime @default(now())
-diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
-index 9f2a8b14037768f91719a92f91680b8110c06e3b..31dfad7d9b76151027e3df391c91e4d2efec9107 100644
---- a/backend/ayanavitabackend/app/api/src/app.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/app.module.ts
-@@ -1,30 +1,32 @@
- import { Module } from '@nestjs/common'
- import { PrismaModule } from './prisma/prisma.module'
- import { UsersModule } from './users/users.module'
- import { AuthModule } from './auth/auth.module'
- import { CoursesModule } from './courses/courses.module'
- import { LessonsModule } from './lessons/lessons.module'
- import { EnrollmentsModule } from './enrollments/enrollments.module'
- import { OrdersModule } from './orders/orders.module'
- import { ProgressModule } from './progress/progress.module'
- import { CmsModule } from './cms/cms.module'
-+import { ProductsModule } from './products/products.module'
-
-
-
-
- @Module({
-   imports: [
-     PrismaModule,
-     UsersModule,
-     AuthModule,
-     CoursesModule,
-     LessonsModule,
-     EnrollmentsModule,
-     ProgressModule,
-     OrdersModule,
-     CmsModule,
-+    ProductsModule,
-
-
-   ],
- })
- export class AppModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/products/dto/create-product.dto.ts b/backend/ayanavitabackend/app/api/src/products/dto/create-product.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..51c388070fcfe0bf5340757a0084ccb778f2bf70
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/products/dto/create-product.dto.ts
-@@ -0,0 +1,52 @@
-+import { IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
-+
-+export class CreateProductDto {
-+  @IsString()
-+  sku: string;
-+
-+  @IsString()
-+  slug: string;
-+
-+  @IsString()
-+  name: string;
-+
-+  @IsOptional()
-+  @IsString()
-+  description?: string;
-+
-+  @IsOptional()
-+  @IsString()
-+  shortDescription?: string;
-+
-+  @IsOptional()
-+  @IsString()
-+  imageUrl?: string;
-+
-+  @IsOptional()
-+  @IsString()
-+  type?: string;
-+
-+  @IsOptional()
-+  @IsArray()
-+  concerns?: string[];
-+
-+  @IsOptional()
-+  @IsNumber({ maxDecimalPlaces: 1 })
-+  @Min(0)
-+  @Max(5)
-+  rating?: number;
-+
-+  @IsOptional()
-+  @IsInt()
-+  @Min(0)
-+  sold?: number;
-+
-+  @IsOptional()
-+  @IsInt()
-+  @Min(0)
-+  price?: number;
-+
-+  @IsOptional()
-+  @IsBoolean()
-+  published?: boolean;
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/products/dto/query-products.dto.ts b/backend/ayanavitabackend/app/api/src/products/dto/query-products.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..fde609c361444d70d58108e8a62ac5929bbc812c
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/products/dto/query-products.dto.ts
-@@ -0,0 +1,50 @@
-+import { Type } from "class-transformer";
-+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
-+
-+export class QueryProductsDto {
-+  @IsOptional()
-+  @IsString()
-+  q?: string;
-+
-+  @IsOptional()
-+  @IsString()
-+  type?: string;
-+
-+  @IsOptional()
-+  @IsString()
-+  concern?: string;
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(0)
-+  minPrice?: number;
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(0)
-+  maxPrice?: number;
-+
-+  @IsOptional()
-+  @IsIn(["best", "new", "priceAsc", "priceDesc", "rating"])
-+  sort?: "best" | "new" | "priceAsc" | "priceDesc" | "rating";
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  page?: number;
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  @Max(50)
-+  pageSize?: number;
-+
-+  @IsOptional()
-+  @Type(() => Boolean)
-+  @IsBoolean()
-+  includeUnpublished?: boolean;
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/products/dto/update-product.dto.ts b/backend/ayanavitabackend/app/api/src/products/dto/update-product.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..87a2d16266eb319fa204d692f49539f82bc3b1cd
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/products/dto/update-product.dto.ts
-@@ -0,0 +1,4 @@
-+import { PartialType } from "@nestjs/mapped-types";
-+import { CreateProductDto } from "./create-product.dto";
-+
-+export class UpdateProductDto extends PartialType(CreateProductDto) {}
-diff --git a/backend/ayanavitabackend/app/api/src/products/products.controller.ts b/backend/ayanavitabackend/app/api/src/products/products.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..70081bc8c9d2fe41e05a9523e7a707548c332bea
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/products/products.controller.ts
-@@ -0,0 +1,61 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
-+
-+import { AccessTokenGuard } from "../auth/guards/access-token.guard";
-+import { RolesGuard } from "../auth/guards/roles.guard";
-+import { Roles } from "../auth/decorators/roles.decorator";
-+import { CreateProductDto } from "./dto/create-product.dto";
-+import { QueryProductsDto } from "./dto/query-products.dto";
-+import { UpdateProductDto } from "./dto/update-product.dto";
-+import { ProductsService } from "./products.service";
-+
-+@Controller("products")
-+export class ProductsController {
-+  constructor(private readonly products: ProductsService) {}
-+
-+  // Public list + filter
-+  @Get()
-+  findAll(@Query() query: QueryProductsDto) {
-+    return this.products.findAll(query, true);
-+  }
-+
-+  // Public detail by slug
-+  @Get("slug/:slug")
-+  findOneBySlug(@Param("slug") slug: string) {
-+    return this.products.findOneBySlug(slug, false);
-+  }
-+
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles("ADMIN")
-+  @Get("admin")
-+  adminFindAll(@Query() query: QueryProductsDto) {
-+    return this.products.findAll(query, false);
-+  }
-+
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles("ADMIN")
-+  @Get("admin/:id")
-+  adminFindOne(@Param("id", ParseIntPipe) id: number) {
-+    return this.products.findOne(id);
-+  }
-+
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles("ADMIN")
-+  @Post()
-+  create(@Body() dto: CreateProductDto) {
-+    return this.products.create(dto);
-+  }
-+
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles("ADMIN")
-+  @Patch(":id")
-+  update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateProductDto) {
-+    return this.products.update(id, dto);
-+  }
-+
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles("ADMIN")
-+  @Delete(":id")
-+  remove(@Param("id", ParseIntPipe) id: number) {
-+    return this.products.remove(id);
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/products/products.module.ts b/backend/ayanavitabackend/app/api/src/products/products.module.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..4013b44cea8cf026a19ecbdcae98c3ec95e0517b
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/products/products.module.ts
-@@ -0,0 +1,10 @@
-+import { Module } from "@nestjs/common";
-+
-+import { ProductsController } from "./products.controller";
-+import { ProductsService } from "./products.service";
-+
-+@Module({
-+  controllers: [ProductsController],
-+  providers: [ProductsService],
-+})
-+export class ProductsModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/products/products.service.ts b/backend/ayanavitabackend/app/api/src/products/products.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..0682d01909c9ba9c0445fd88616be4df4cc9fbbe
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/products/products.service.ts
-@@ -0,0 +1,117 @@
-+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-+import { Prisma } from "@prisma/client";
-+
-+import { PrismaService } from "../prisma/prisma.service";
-+import { CreateProductDto } from "./dto/create-product.dto";
-+import { QueryProductsDto } from "./dto/query-products.dto";
-+import { UpdateProductDto } from "./dto/update-product.dto";
-+
-+@Injectable()
-+export class ProductsService {
-+  constructor(private readonly prisma: PrismaService) {}
-+
-+  private normalizeConcerns(value?: string[] | string) {
-+    if (!value) return "";
-+    if (Array.isArray(value)) return value.map((x) => x.trim()).filter(Boolean).join(",");
-+    return value;
-+  }
-+
-+  private mapProduct<T extends { concerns: string }>(item: T) {
-+    return { ...item, concerns: item.concerns ? item.concerns.split(",").map((x) => x.trim()).filter(Boolean) : [] };
-+  }
-+
-+  async findAll(query: QueryProductsDto, forcePublished = true) {
-+    const page = query.page ?? 1;
-+    const pageSize = query.pageSize ?? 12;
-+    const skip = (page - 1) * pageSize;
-+    const publishedOnly = forcePublished && !query.includeUnpublished;
-+
-+    const where: Prisma.ProductWhereInput = {
-+      ...(publishedOnly ? { published: true } : {}),
-+      ...(query.q
-+        ? {
-+            OR: [
-+              { name: { contains: query.q, mode: "insensitive" } },
-+              { sku: { contains: query.q, mode: "insensitive" } },
-+            ],
-+          }
-+        : {}),
-+      ...(query.type ? { type: query.type } : {}),
-+      ...(query.concern ? { concerns: { contains: query.concern } } : {}),
-+      ...(query.minPrice !== undefined || query.maxPrice !== undefined
-+        ? {
-+            price: {
-+              ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
-+              ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
-+            },
-+          }
-+        : {}),
-+    };
-+
-+    const orderBy: Prisma.ProductOrderByWithRelationInput[] =
-+      query.sort === "new"
-+        ? [{ createdAt: "desc" }]
-+        : query.sort === "priceAsc"
-+          ? [{ price: "asc" }]
-+          : query.sort === "priceDesc"
-+            ? [{ price: "desc" }]
-+            : query.sort === "rating"
-+              ? [{ rating: "desc" }]
-+              : [{ sold: "desc" }, { rating: "desc" }];
-+
-+    const [items, total] = await this.prisma.$transaction([
-+      this.prisma.product.findMany({
-+        where,
-+        skip,
-+        take: pageSize,
-+        orderBy,
-+      }),
-+      this.prisma.product.count({ where }),
-+    ]);
-+
-+    return {
-+      items: items.map((x) => this.mapProduct(x)),
-+      paging: {
-+        page,
-+        pageSize,
-+        total,
-+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
-+      },
-+    };
-+  }
-+
-+  async findOneBySlug(slug: string, includeUnpublished = false) {
-+    const item = await this.prisma.product.findFirst({
-+      where: { slug, ...(includeUnpublished ? {} : { published: true }) },
-+    });
-+    if (!item) throw new NotFoundException("Product not found");
-+    return this.mapProduct(item);
-+  }
-+
-+  async findOne(id: number) {
-+    const item = await this.prisma.product.findUnique({ where: { id } });
-+    if (!item) throw new NotFoundException("Product not found");
-+    return this.mapProduct(item);
-+  }
-+
-+  async create(dto: CreateProductDto) {
-+    try {
-+      return this.mapProduct(await this.prisma.product.create({ data: { ...dto, concerns: this.normalizeConcerns(dto.concerns) } }));
-+    } catch (e) {
-+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-+        throw new ConflictException("SKU or slug already exists");
-+      }
-+      throw e;
-+    }
-+  }
-+
-+  async update(id: number, dto: UpdateProductDto) {
-+    await this.findOne(id);
-+    return this.mapProduct(await this.prisma.product.update({ where: { id }, data: { ...dto, ...(dto.concerns ? { concerns: this.normalizeConcerns(dto.concerns) } : {}) } }));
-+  }
-+
-+  async remove(id: number) {
-+    await this.findOne(id);
-+    return this.mapProduct(await this.prisma.product.delete({ where: { id } }));
-+  }
 +}
