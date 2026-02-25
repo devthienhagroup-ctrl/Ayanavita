@@ -200,9 +200,12 @@ export class BookingService {
     }))
   }
 
-  async listBranches(includeInactive = false): Promise<BranchResponseDto[]> {
+  async listBranches(includeInactive = false, serviceId?: number): Promise<BranchResponseDto[]> {
     const rows = await this.prisma.branch.findMany({
-      where: includeInactive ? {} : { isActive: true },
+      where: {
+        ...(includeInactive ? {} : { isActive: true }),
+        ...(serviceId ? { services: { some: { serviceId } } } : {}),
+      },
       select: { id: true, code: true, name: true, address: true, phone: true, isActive: true },
       orderBy: { id: 'asc' },
     })

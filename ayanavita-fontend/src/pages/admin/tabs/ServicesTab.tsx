@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import type { SpaService } from '../../../api/spaAdmin.api'
+import { useEffect, useMemo, useState } from 'react'
+import { spaAdminApi, type Branch, type SpaService, type Specialist } from '../../../api/spaAdmin.api'
 import type { ServicesTabProps } from './types'
 
 const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass: string) => {
@@ -14,6 +14,20 @@ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass:
 }
 
 const pageSizeOptions = [5, 10, 20, 50]
+
+const renderDetailLines = (items: string[]) => {
+  if (!items.length) return <p className='service-detail-empty'>Không có dữ liệu</p>
+  return (
+    <ul className='service-detail-lines'>
+      {items.map((item, index) => (
+        <li key={`${index}-${item}`}>
+          <i className='fa-solid fa-circle-dot service-detail-line-icon' />
+          <span>{index + 1}. {item}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 export function ServicesTab({
   services,
@@ -35,6 +49,10 @@ export function ServicesTab({
 }: ServicesTabProps) {
   const [isEditModalOpen, setEditModalOpen] = useState(false)
   const [detailService, setDetailService] = useState<SpaService | null>(null)
+  const [detailSpecialists, setDetailSpecialists] = useState<Specialist[]>([])
+  const [detailBranches, setDetailBranches] = useState<Branch[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
 
   const handleOpenCreate = () => {
     onCancelEdit()
@@ -57,6 +75,42 @@ export function ServicesTab({
     const end = Math.min(pagination.page * pagination.pageSize, pagination.total)
     return `${start}-${end} / ${pagination.total}`
   }, [pagination.page, pagination.pageSize, pagination.total])
+
+  useEffect(() => {
+    if (!detailService) {
+      setDetailSpecialists([])
+      setDetailBranches([])
+      setDetailError('')
+      return
+    }
+
+    let active = true
+    setDetailLoading(true)
+    setDetailError('')
+
+    Promise.all([
+      spaAdminApi.specialists({ serviceId: detailService.id }),
+      spaAdminApi.branches({ includeInactive: true, serviceId: detailService.id }),
+    ])
+      .then(([specialists, branches]) => {
+        if (!active) return
+        setDetailSpecialists(specialists)
+        setDetailBranches(branches)
+      })
+      .catch(() => {
+        if (!active) return
+        setDetailError('Không thể tải thêm dữ liệu chi tiết. Vui lòng thử lại.')
+        setDetailSpecialists([])
+        setDetailBranches([])
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [detailService])
 
   return (
     <section className='admin-card admin-card-full'>
@@ -211,25 +265,99 @@ export function ServicesTab({
 
       {detailService && (
         <div className='admin-modal-overlay' onClick={() => setDetailService(null)}>
-          <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
-            <div className='admin-row admin-row-space'>
-              <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> Chi tiết dịch vụ</h3>
+          <div className='admin-modal service-detail-modal' onClick={(e) => e.stopPropagation()}>
+            <div className='service-detail-header'>
+              <div>
+                <p className='service-detail-eyebrow'>SERVICE PROFILE</p>
+                <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> {detailService.name}</h3>
+              </div>
               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(null)}><i className='fa-solid fa-xmark' /> Đóng</button>
             </div>
-            <div className='admin-form-grid'>
-              <p><b>ID:</b> {detailService.id}</p>
-              <p><b>Tên dịch vụ:</b> {detailService.name}</p>
-              <p><b>Danh mục:</b> {detailService.category || '-'}</p>
-              <p><b>Thời lượng:</b> {detailService.durationMin} phút</p>
-              <p><b>Giá:</b> {detailService.price.toLocaleString('vi-VN')}đ</p>
-              <p><b>Rating:</b> {detailService.ratingAvg.toFixed(1)}</p>
-              <p><b>Lượt đặt:</b> {detailService.bookedCount ?? 0}</p>
-              <p><b>Tag:</b> {detailService.tag || '-'}</p>
-              <p><b>Mô tả:</b> {detailService.description || '-'}</p>
-              <p><b>Mục tiêu:</b> {(detailService.goals || []).join(', ') || '-'}</p>
-              <p><b>Phù hợp:</b> {(detailService.suitableFor || []).join(', ') || '-'}</p>
-              <p><b>Quy trình:</b> {(detailService.process || []).join(', ') || '-'}</p>
-              <p><b>Ảnh:</b> {detailService.imageUrl || '-'}</p>
+
+            {detailLoading && <p className='admin-helper'>Đang tải chuyên viên và chi nhánh liên quan...</p>}
+            {detailError && <p className='service-detail-error'>{detailError}</p>}
+
+            <div className='service-detail-layout'>
+              <section className='service-detail-image-panel'>
+                {detailService.imageUrl
+                  ? <img className='service-detail-image' src={detailService.imageUrl} alt={`Dịch vụ ${detailService.name}`} />
+                  : <div className='service-detail-image-empty'>Chưa có hình ảnh dịch vụ</div>}
+                <div className='service-detail-metrics'>
+                  <span className='admin-badge admin-badge-blue'>Giá: {detailService.price.toLocaleString('vi-VN')}đ</span>
+                  <span className='admin-badge admin-badge-yellow'>Thời lượng: {detailService.durationMin} phút</span>
+                  <span className='admin-badge admin-badge-pink'>Rating: {detailService.ratingAvg.toFixed(1)}</span>
+                  <span className='admin-badge admin-badge-green'>Lượt đặt: {detailService.bookedCount ?? 0}</span>
+                </div>
+              </section>
+
+              <section className='service-detail-content'>
+                <div className='service-detail-grid'>
+                  <article className='service-detail-card'>
+                    <h4><i className='fa-solid fa-clipboard-list' /> Thông tin nhanh</h4>
+                    <p><b>ID:</b> {detailService.id}</p>
+                    <p><b>Danh mục:</b> {detailService.category || '-'}</p>
+                    <p><b>Tag:</b> {detailService.tag || '-'}</p>
+                    <p><b>Mô tả:</b> {detailService.description || '-'}</p>
+                  </article>
+
+                  <article className='service-detail-card'>
+                    <h4><i className='fa-solid fa-file-lines' /> Nội dung dịch vụ</h4>
+                    <p><b>Mục tiêu:</b></p>
+                    {renderDetailLines(detailService.goals || [])}
+                    <p><b>Phù hợp:</b></p>
+                    {renderDetailLines(detailService.suitableFor || [])}
+                    <p><b>Quy trình:</b></p>
+                    {renderDetailLines(detailService.process || [])}
+                  </article>
+
+                  <article className='service-detail-card service-branch-specialists-card'>
+                    <h4><i className='fa-solid fa-building-circle-check' /> Chi nhánh & chuyên viên theo dịch vụ</h4>
+                    {detailBranches.length > 0
+                      ? (
+                        <ul className='service-branch-list'>
+                          {detailBranches.map((branch) => {
+                            const specialistsByBranch = detailSpecialists.filter((specialist) => specialist.branchIds.includes(branch.id))
+                            return (
+                              <li key={branch.id} className='service-branch-item'>
+                                <div className='service-branch-line'>
+                                  <i className='fa-solid fa-building service-branch-icon' />
+                                  <span><b>{branch.name}</b> • {branch.address}</span>
+                                </div>
+                                <ul className='service-specialist-sublist'>
+                                  {specialistsByBranch.length > 0
+                                    ? specialistsByBranch.map((specialist) => (
+                                      <li key={specialist.id} className='service-specialist-subitem'>
+                                        <i className='fa-solid fa-user-doctor service-specialist-icon' />
+                                        <span>{specialist.name} ({specialist.level})</span>
+                                      </li>
+                                    ))
+                                    : <li className='service-specialist-subitem service-detail-empty-item'><i className='fa-regular fa-circle-xmark service-specialist-icon' /><span>Chưa có chuyên viên cho dịch vụ này tại chi nhánh.</span></li>}
+                                </ul>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )
+                      : <p className='service-detail-empty'>Chưa có chi nhánh liên kết.</p>}
+                  </article>
+
+                  <article className='service-detail-card'>
+                    <h4><i className='fa-solid fa-user-doctor' /> Tổng chuyên viên phụ trách ({detailSpecialists.length})</h4>
+                    {detailSpecialists.length > 0
+                      ? (
+                        <ul className='service-detail-lines'>
+                          {detailSpecialists.map((specialist) => (
+                            <li key={specialist.id}>
+                              <i className='fa-solid fa-stethoscope service-detail-line-icon' />
+                              <span>{specialist.name} ({specialist.level})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                      : <p className='service-detail-empty'>Chưa có chuyên viên liên kết.</p>}
+                  </article>
+                </div>
+              </section>
             </div>
           </div>
         </div>

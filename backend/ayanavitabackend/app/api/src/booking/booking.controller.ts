@@ -81,8 +81,15 @@ export class BookingController {
   }
 
   @Get('branches')
-  branches(@Query('includeInactive') includeInactive?: string) {
-    return this.booking.listBranches(includeInactive === 'true')
+  branches(@Query('includeInactive') includeInactive?: string, @Query('serviceId') serviceId?: string) {
+    let parsedServiceId: number | undefined
+    if (serviceId !== undefined) {
+      parsedServiceId = Number(serviceId)
+      if (!Number.isInteger(parsedServiceId) || parsedServiceId < 1) {
+        throw new BadRequestException('serviceId must be a positive integer')
+      }
+    }
+    return this.booking.listBranches(includeInactive === 'true', parsedServiceId)
   }
 
   @Post('branches')

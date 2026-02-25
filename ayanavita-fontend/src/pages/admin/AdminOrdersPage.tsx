@@ -1,6 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ordersApi, type Order, type OrderStatus, type OrderItem } from "../../api/orders.api";
+import { useAuth } from "../../state/auth.store";
+import { ordersApi, type Order, type OrderItem, type OrderStatus } from "../../api/orders.api";
+import "./AdminSpaPage.css";
+import "./AdminOrdersPage.css";
 
 function fmtVND(v: number) {
   try {
@@ -11,26 +14,11 @@ function fmtVND(v: number) {
 }
 
 function StatusPill({ status }: { status: OrderStatus }) {
-  const style: React.CSSProperties = useMemo(() => {
-    const base: React.CSSProperties = {
-      display: "inline-flex",
-      alignItems: "center",
-      padding: "4px 10px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 800,
-      border: "1px solid #ddd",
-      background: "#fff",
-    };
-    if (status === "PAID") return { ...base, borderColor: "#16a34a" };
-    if (status === "PENDING") return { ...base, borderColor: "#f59e0b" };
-    return { ...base, borderColor: "#ef4444" };
-  }, [status]);
-
-  return <span style={style}>{status}</span>;
+  return <span className={`orders-status-pill orders-status-${status.toLowerCase()}`}>{status}</span>;
 }
 
 export function AdminOrdersPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<number | null>(null);
@@ -40,6 +28,22 @@ export function AdminOrdersPage() {
   const [status, setStatus] = useState<OrderStatus | "ALL">("ALL");
   const [q, setQ] = useState("");
   const qDebounceRef = useRef<number | null>(null);
+
+  const displayName = useMemo(() => {
+    if (!user?.email) return "Admin User";
+    const baseName = user.email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
+    return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email;
+  }, [user?.email]);
+  const roleLabel = user?.role === "ADMIN" ? "Administrator" : user?.role ?? "User";
+  const avatarLetter = (displayName[0] || "A").toUpperCase();
+
+  const stats = useMemo(() => {
+    const pending = items.filter((order) => order.status === "PENDING").length;
+    const paid = items.filter((order) => order.status === "PAID").length;
+    const cancelled = items.filter((order) => order.status === "CANCELLED").length;
+    const revenue = items.filter((order) => order.status === "PAID").reduce((sum, order) => sum + order.total, 0);
+    return { total: items.length, pending, paid, cancelled, revenue };
+  }, [items]);
 
   async function load(next?: { status?: OrderStatus | "ALL"; q?: string }) {
     setLoading(true);
@@ -63,13 +67,11 @@ export function AdminOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Apply filter immediately
   useEffect(() => {
     load({ status });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  // Debounced search
   useEffect(() => {
     if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current);
     qDebounceRef.current = window.setTimeout(() => {
@@ -98,112 +100,149 @@ export function AdminOrdersPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "24px auto", padding: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <h2>Admin Orders</h2>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <Link to="/courses">Courses</Link>
-          <Link to="/admin/spa">Admin Spa</Link>
-          <button onClick={() => load()} disabled={loading}>Reload</button>
+    <div className="admin-page orders-page">
+      <header className="admin-header">
+        <div>
+          <p className="admin-header-kicker">ADMIN / ORDERS</p>
+          <h1>Quản lý đơn hàng</h1>
+          <p>Theo dõi trạng thái thanh toán và kích hoạt enrollment cho học viên.</p>
         </div>
-      </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 12,
-          background: "#fff",
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          Status
-          <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
-            <option value="ALL">ALL</option>
-            <option value="PENDING">PENDING</option>
-            <option value="PAID">PAID</option>
-            <option value="CANCELLED">CANCELLED</option>
-          </select>
-        </label>
+        <div className="admin-user-badge">
+          <span className="admin-user-avatar">{avatarLetter}</span>
+          <span className="admin-user-meta">
+            <strong>{displayName}</strong>
+            <span>{roleLabel}</span>
+          </span>
+        </div>
+      </header>
 
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          Search
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="code / email / courseTitle / id"
-            style={{ minWidth: 280 }}
-          />
-        </label>
+      <section className="admin-overview orders-overview">
+        <article className="overview-card">
+          <span>Tổng đơn</span>
+          <strong>{stats.total}</strong>
+          <small>Đơn theo bộ lọc hiện tại</small>
+          <i className="fa-solid fa-cart-shopping overview-icon" aria-hidden="true" />
+        </article>
+        <article className="overview-card">
+          <span>Đang chờ</span>
+          <strong>{stats.pending}</strong>
+          <small>PENDING</small>
+          <i className="fa-solid fa-clock overview-icon" aria-hidden="true" />
+        </article>
+        <article className="overview-card">
+          <span>Đã thanh toán</span>
+          <strong>{stats.paid}</strong>
+          <small>PAID</small>
+          <i className="fa-solid fa-circle-check overview-icon" aria-hidden="true" />
+        </article>
+        <article className="overview-card">
+          <span>Doanh thu</span>
+          <strong>{fmtVND(stats.revenue)}</strong>
+          <small>Chỉ tính đơn đã thanh toán</small>
+          <i className="fa-solid fa-money-bill-wave overview-icon" aria-hidden="true" />
+        </article>
+      </section>
 
-        <div style={{ fontSize: 12, opacity: 0.75 }}>
+      <section className="admin-card admin-card-glow">
+        <div className="orders-toolbar">
+          <div className="orders-links">
+            <Link className="admin-btn admin-btn-ghost" to="/courses">
+              <i className="fa-solid fa-graduation-cap" aria-hidden="true" />
+              Courses
+            </Link>
+            <Link className="admin-btn admin-btn-ghost" to="/admin/spa">
+              <i className="fa-solid fa-spa" aria-hidden="true" />
+              Admin Spa
+            </Link>
+            <button className="admin-btn admin-btn-primary" onClick={() => load()} disabled={loading}>
+              <i className="fa-solid fa-rotate" aria-hidden="true" />
+              Reload
+            </button>
+          </div>
+
+          <div className="orders-filters">
+            <label className="admin-field">
+              <span className="admin-label">Status</span>
+              <select className="admin-input orders-select" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
+                <option value="ALL">ALL</option>
+                <option value="PENDING">PENDING</option>
+                <option value="PAID">PAID</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+            </label>
+
+            <label className="admin-field orders-search-field">
+              <span className="admin-label">Search</span>
+              <input
+                className="admin-input"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="code / email / courseTitle / id"
+              />
+            </label>
+          </div>
+        </div>
+
+        <p className="admin-helper orders-tip">
           Tip: bấm <b>Mark paid</b> để kích hoạt Enrollment ACTIVE cho user.
-        </div>
-      </div>
+        </p>
+      </section>
 
-      {loading && <div style={{ padding: 12 }}>Loading...</div>}
-      {err && <div style={{ padding: 12, color: "crimson" }}>{err}</div>}
-      {info && <div style={{ padding: 12 }}>{info}</div>}
+      {loading && <div className="orders-state">Loading...</div>}
+      {err && <div className="orders-state orders-error">{err}</div>}
+      {info && <div className="orders-state orders-info">{info}</div>}
 
-      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+      <div className="orders-list">
         {items.length === 0 && !loading ? (
-          <div style={{ padding: 12, opacity: 0.8 }}>No orders</div>
+          <div className="orders-empty">No orders</div>
         ) : (
           items.map((o) => (
-            <div
-              key={o.id}
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 14,
-                padding: 14,
-                background: "#fff",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ fontWeight: 900 }}>
-                  #{o.id} — {o.code}
+            <article key={o.id} className="admin-card order-card">
+              <div className="order-card-head">
+                <div className="order-title">
+                  <strong>#{o.id}</strong>
+                  <span>{o.code}</span>
                 </div>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  {o.user?.email ? <span style={{ fontSize: 13, opacity: 0.85 }}>{o.user.email}</span> : null}
+                <div className="order-meta">
+                  {o.user?.email ? <span className="order-email">{o.user.email}</span> : null}
                   <StatusPill status={o.status} />
                 </div>
               </div>
 
-              <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap" }}>
+              <div className="order-summary">
                 <div>
                   Tổng: <b>{fmtVND(o.total)}</b>
                 </div>
-                <div style={{ opacity: 0.75, fontSize: 13 }}>
-                  {o.createdAt ? new Date(o.createdAt).toLocaleString() : "-"}
-                </div>
+                <div className="order-time">{o.createdAt ? new Date(o.createdAt).toLocaleString() : "-"}</div>
               </div>
 
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>Items</div>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <div className="order-items">
+                <h4 className="admin-subtitle">
+                  <i className="fa-solid fa-list-check" aria-hidden="true" />
+                  Items
+                </h4>
+                <ul>
                   {o.items.map((it: OrderItem) => (
-                    <li key={it.id} style={{ marginBottom: 4 }}>
-                      <span style={{ fontWeight: 700 }}>{it.courseTitle}</span> — {fmtVND(it.price)} (courseId: {it.courseId})
+                    <li key={it.id}>
+                      <span>{it.courseTitle}</span> — {fmtVND(it.price)} (courseId: {it.courseId})
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <div className="admin-row">
                 <button
+                  className="admin-btn admin-btn-save"
                   onClick={() => onMarkPaid(o.id)}
                   disabled={o.status === "PAID" || acting === o.id}
                   title={o.status === "PAID" ? "Already paid" : "Mark paid"}
                 >
+                  <i className="fa-solid fa-money-check-dollar" aria-hidden="true" />
                   {acting === o.id ? "Processing..." : "Mark paid"}
                 </button>
               </div>
-            </div>
+            </article>
           ))
         )}
       </div>

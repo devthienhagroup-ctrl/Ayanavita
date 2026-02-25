@@ -63,7 +63,15 @@ export type Appointment = {
 }
 
 export const spaAdminApi = {
-  branches: (includeInactive = false) => get<Branch[]>(`/booking/branches${includeInactive ? '?includeInactive=true' : ''}`, { auth: false }),
+  branches: (params?: boolean | { includeInactive?: boolean; serviceId?: number }) => {
+    const includeInactive = typeof params === 'boolean' ? params : (params?.includeInactive ?? false)
+    const serviceId = typeof params === 'object' ? params.serviceId : undefined
+    const query = new URLSearchParams()
+    if (includeInactive) query.set('includeInactive', 'true')
+    if (serviceId) query.set('serviceId', String(serviceId))
+    const queryString = query.toString()
+    return get<Branch[]>(`/booking/branches${queryString ? `?${queryString}` : ''}`, { auth: false })
+  },
   services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number }) => {
     const query = new URLSearchParams()
     if (params?.q?.trim()) query.set('q', params.q.trim())
@@ -74,7 +82,13 @@ export const spaAdminApi = {
     return get<PaginatedServiceResponse>(`/booking/services${queryString ? `?${queryString}` : ''}`, { auth: false })
   },
   serviceCategories: () => get<ServiceCategory[]>('/booking/service-categories', { auth: false }),
-  specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
+  specialists: (params?: { branchId?: number; serviceId?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.branchId) query.set('branchId', String(params.branchId))
+    if (params?.serviceId) query.set('serviceId', String(params.serviceId))
+    const queryString = query.toString()
+    return get<Specialist[]>(`/booking/specialists${queryString ? `?${queryString}` : ''}`, { auth: false })
+  },
   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
   appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
 
