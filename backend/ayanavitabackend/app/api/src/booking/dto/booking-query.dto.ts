@@ -15,12 +15,6 @@ export class BookingFilterQueryDto {
   serviceId?: number
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  userId?: number
-
-  @IsOptional()
   @IsString()
   q?: string
 

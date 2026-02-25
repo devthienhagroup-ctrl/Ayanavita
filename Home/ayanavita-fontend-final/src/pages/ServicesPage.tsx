@@ -103,7 +103,7 @@ function ServiceCard({ s }: { s: ApiService }) {
           Chi tiết
         </Link>
 
-        <Link className="btn btn-primary" to="/booking">
+        <Link className="btn btn-primary" to={`/booking?serviceId=${s.dbId}`}>
           <i className="fa-solid fa-calendar-check" />
           Đặt
         </Link>

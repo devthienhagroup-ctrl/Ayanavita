@@ -28,7 +28,6 @@ model User {
   // ✅ CMS (optional relations)
   cmsSectionVersions CmsSectionVersion[]
   mediaAssets        MediaAsset[]
-  appointments       Appointment[]
   serviceReviews     ServiceReview[]
 }
 
@@ -135,19 +134,16 @@ model Appointment {
   branchId      Int
   serviceId     Int
   specialistId  Int?
-  userId        Int?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
   branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
   service    Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   specialist Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
-  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([branchId, appointmentAt])
   @@index([serviceId])
   @@index([specialistId])
-  @@index([userId])
 }
 
 model ServiceReview {
@@ -164,7 +160,6 @@ model ServiceReview {
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([serviceId])
-  @@index([userId])
 }
 
 
@@ -230,7 +225,6 @@ model Enrollment {
   order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
-  @@index([userId])
   @@index([courseId])
   @@index([orderId])
 }
@@ -255,7 +249,6 @@ model LessonProgress {
 
   @@unique([userId, lessonId])
   @@index([lessonId])
-  @@index([userId])
 }
 
 enum ProgressStatus {
@@ -318,7 +311,6 @@ model Order {
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items OrderItem[]
 
-  @@index([userId])
   @@index([status])
 }
 

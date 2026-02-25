@@ -384,9 +384,8 @@ export class BookingService {
   }
 
 
-  listAppointments(userId?: number) {
+  listAppointments() {
     return this.prisma.appointment.findMany({
-      where: userId ? { userId } : {},
       include: {
         branch: { select: { id: true, name: true } },
         service: { select: { id: true, name: true, durationMin: true, price: true } },
@@ -395,6 +394,98 @@ export class BookingService {
       orderBy: { appointmentAt: 'desc' },
     })
   }
+
+  private parseDateWindow(date: string) {
+    const dayStart = new Date(`${date}T00:00:00`)
+    const dayEnd = new Date(`${date}T23:59:59.999`)
+    if (Number.isNaN(dayStart.getTime()) || Number.isNaN(dayEnd.getTime())) {
+      throw new BadRequestException('Invalid date format, expected yyyy-mm-dd')
+    }
+    return { dayStart, dayEnd }
+  }
+
+  private toTimeLabel(date: Date) {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+
+  private overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
+    return startA < endB && endA > startB
+  }
+
+  private async getServiceCapacity(branchId: number, serviceId: number) {
+    return this.prisma.specialistBranchService.count({
+      where: {
+        branchId,
+        serviceId,
+        specialist: { isActive: true },
+      },
+    })
+  }
+
+  private async countOverlappingAppointments(params: {
+    branchId: number
+    serviceId: number
+    start: Date
+    end: Date
+    ignoreAppointmentId?: number
+  }) {
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        branchId: params.branchId,
+        serviceId: params.serviceId,
+        status: { not: 'CANCELED' },
+        appointmentAt: {
+          gte: new Date(params.start.getTime() - 12 * 60 * 60 * 1000),
+          lte: new Date(params.end.getTime() + 12 * 60 * 60 * 1000),
+        },
+        ...(params.ignoreAppointmentId ? { id: { not: params.ignoreAppointmentId } } : {}),
+      },
+      select: { id: true, appointmentAt: true, service: { select: { durationMin: true } } },
+    })
+
+    return rows.filter((row) => {
+      const start = new Date(row.appointmentAt)
+      const end = new Date(start.getTime() + row.service.durationMin * 60000)
+      return this.overlaps(params.start, params.end, start, end)
+    }).length
+  }
+
+  async getSlotSuggestions(branchId: number, serviceId: number, date: string) {
+    const [service, branchService] = await Promise.all([
+      this.prisma.service.findUnique({ where: { id: serviceId }, select: { id: true, durationMin: true } }),
+      this.prisma.branchService.findUnique({ where: { branchId_serviceId: { branchId, serviceId } } }),
+    ])
+
+    if (!service) throw new NotFoundException('Service not found')
+    if (!branchService) throw new BadRequestException('Service is not available in this branch')
+
+    const capacity = await this.getServiceCapacity(branchId, serviceId)
+    const durationMin = Math.max(1, service.durationMin || 1)
+
+    const { dayStart } = this.parseDateWindow(date)
+    const slotStart = new Date(dayStart)
+    slotStart.setHours(7, 0, 0, 0)
+    const closing = new Date(dayStart)
+    closing.setHours(21, 0, 0, 0)
+
+    const slots: Array<{ time: string; available: boolean; occupied: number }> = []
+    for (let cursor = new Date(slotStart); cursor < closing; cursor = new Date(cursor.getTime() + durationMin * 60000)) {
+      const end = new Date(cursor.getTime() + durationMin * 60000)
+      const occupied = await this.countOverlappingAppointments({ branchId, serviceId, start: cursor, end })
+      slots.push({
+        time: this.toTimeLabel(cursor),
+        occupied,
+        available: capacity > occupied,
+      })
+    }
+
+    return {
+      durationMin,
+      capacity,
+      slots,
+    }
+  }
+
   async listServiceReviews(serviceId?: number): Promise<ServiceReviewResponseDto[]> {
     const rows = await this.prisma.serviceReview.findMany({
       where: serviceId ? { serviceId } : {},
@@ -450,6 +541,38 @@ export class BookingService {
       if (!specialistBranchService) {
         throw new BadRequestException('Specialist is not available for this service in selected branch')
       }
+
+      const specialistAppointments = await this.prisma.appointment.findMany({
+        where: {
+          specialistId: dto.specialistId,
+          status: { not: 'CANCELED' },
+          appointmentAt: {
+            gte: new Date(appointmentAt.getTime() - 12 * 60 * 60 * 1000),
+            lte: new Date(appointmentAt.getTime() + 12 * 60 * 60 * 1000),
+          },
+        },
+        select: { appointmentAt: true, service: { select: { durationMin: true } } },
+      })
+      const specialistConflict = specialistAppointments.some((row) => {
+        const start = new Date(row.appointmentAt)
+        const end = new Date(start.getTime() + row.service.durationMin * 60000)
+        return this.overlaps(appointmentAt, new Date(appointmentAt.getTime() + service.durationMin * 60000), start, end)
+      })
+      if (specialistConflict) {
+        throw new BadRequestException('Specialist is already occupied at this time')
+      }
+    }
+
+    const capacity = await this.getServiceCapacity(dto.branchId, dto.serviceId)
+    const occupied = await this.countOverlappingAppointments({
+      branchId: dto.branchId,
+      serviceId: dto.serviceId,
+      start: appointmentAt,
+      end: new Date(appointmentAt.getTime() + service.durationMin * 60000),
+    })
+
+    if (capacity <= occupied) {
+      throw new BadRequestException('Selected time is fully booked for this service in selected branch')
     }
 
     const created = await this.prisma.appointment.create({
@@ -463,7 +586,6 @@ export class BookingService {
         branchId: dto.branchId,
         serviceId: dto.serviceId,
         specialistId: dto.specialistId,
-        userId: dto.userId,
       },
       include: {
         branch: { select: { id: true, name: true } },

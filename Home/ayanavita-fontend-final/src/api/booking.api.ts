@@ -37,8 +37,18 @@ export type BookingSpecialist = {
 };
 
 export const bookingApi = {
-  branches: async (): Promise<BookingBranch[]> => (await http.get("/booking/branches")).data,
-  services: async (): Promise<BookingService[]> => (await http.get("/booking/services")).data,
+  branches: async (params?: { serviceId?: number }): Promise<BookingBranch[]> =>
+    (await http.get("/booking/branches", { params })).data,
+  services: async (params?: { branchId?: number }): Promise<BookingService[]> => {
+    const { data } = await http.get("/booking/services", { params });
+    return Array.isArray(data) ? data : (data?.items ?? []);
+  },
   specialists: async (): Promise<BookingSpecialist[]> =>
     (await http.get("/booking/specialists")).data,
+  slotSuggestions: async (params: { branchId: number; serviceId: number; date: string }) =>
+    (await http.get("/booking/slot-suggestions", { params })).data as {
+      durationMin: number;
+      capacity: number;
+      slots: { time: string; available: boolean; occupied: number }[];
+    },
 };

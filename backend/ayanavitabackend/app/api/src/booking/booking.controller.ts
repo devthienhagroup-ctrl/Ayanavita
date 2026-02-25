@@ -190,9 +190,31 @@ export class BookingController {
     return this.booking.deleteSpecialist(id)
   }
 
+
+  @Get('slot-suggestions')
+  slotSuggestions(
+    @Query('branchId') branchId: string,
+    @Query('serviceId') serviceId: string,
+    @Query('date') date: string,
+  ) {
+    const parsedBranchId = Number(branchId)
+    const parsedServiceId = Number(serviceId)
+    if (!Number.isInteger(parsedBranchId) || parsedBranchId < 1) {
+      throw new BadRequestException('branchId must be a positive integer')
+    }
+    if (!Number.isInteger(parsedServiceId) || parsedServiceId < 1) {
+      throw new BadRequestException('serviceId must be a positive integer')
+    }
+    if (!date) {
+      throw new BadRequestException('date is required')
+    }
+
+    return this.booking.getSlotSuggestions(parsedBranchId, parsedServiceId, date)
+  }
+
   @Get('appointments')
-  appointments(@Query() query: BookingFilterQueryDto) {
-    return this.booking.listAppointments(query.userId)
+  appointments() {
+    return this.booking.listAppointments()
   }
 
   @Patch('appointments/:id')

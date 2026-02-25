@@ -32,9 +32,4 @@ export class CreateAppointmentDto {
   @IsInt()
   @Min(1)
   specialistId?: number
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  userId?: number
 }

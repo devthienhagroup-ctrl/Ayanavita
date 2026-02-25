@@ -198,7 +198,6 @@ async function main() {
       branchId: branches[0]?.id,
       serviceId: services[0]?.id,
       specialistId: specialists[0]?.id,
-      userId: user.id,
     },
     {
       code: 'APM-1002',
@@ -210,7 +209,6 @@ async function main() {
       branchId: branches[1]?.id,
       serviceId: services[1]?.id,
       specialistId: specialists[1]?.id,
-      userId: user.id,
     },
   ].filter((item) => item.branchId && item.serviceId)
 

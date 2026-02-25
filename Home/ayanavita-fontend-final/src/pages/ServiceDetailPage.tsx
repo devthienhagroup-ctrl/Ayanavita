@@ -192,7 +192,7 @@ export default function ServiceDetailPage() {
                   <div className="card p-4">
                     <div className="text-xs font-extrabold text-slate-500">Giá niêm yết</div>
                     <div className="text-2xl font-extrabold mt-1">{money(service.price)}</div>
-                    <Link to="/booking" className="btn btn-primary w-full mt-3"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
+                    <Link to={`/booking?serviceId=${service.id}`} className="btn btn-primary w-full mt-3"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
                     <Link to="/services" className="btn w-full mt-2"><i className="fa-solid fa-arrow-left" />Danh sách</Link>
                   </div>
 
@@ -203,7 +203,7 @@ export default function ServiceDetailPage() {
                         <li key={idx} className="flex gap-2"><span className="text-emerald-600 font-extrabold">•</span>{goal}</li>
                       )) : <li>Đang cập nhật.</li>}
                     </ul>
-                    {service.description ? <div className="mt-3 text-sm muted">{service.description}</div> : null}
+
                   </div>
                 </div>
 
@@ -224,6 +224,8 @@ export default function ServiceDetailPage() {
                         <span key={idx} className="chip"><i className="fa-solid fa-user-check text-amber-600" />{label}</span>
                       )) : <span className="text-sm muted">Đang cập nhật.</span>}
                     </div>
+                    <div className="font-extrabold mt-2">Mô tả: </div>
+                    {service.description ? <div className="mt-1 text-sm">{service.description}</div> : null}
                   </div>
                 </div>
 

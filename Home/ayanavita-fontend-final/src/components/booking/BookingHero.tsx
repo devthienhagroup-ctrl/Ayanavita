@@ -4,11 +4,9 @@ import React from "react";
 export function BookingHero({
   onFillDemo,
   onScrollForm,
-  onViewMyBookings,
 }: {
   onFillDemo: () => void;
   onScrollForm: () => void;
-  onViewMyBookings: () => void;
 }) {
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -27,7 +25,7 @@ export function BookingHero({
             Đặt lịch chăm sóc sắc đẹp & sức khoẻ tại AYANAVITA
           </h1>
           <p className="mt-3 text-slate-600">
-            Chọn dịch vụ, chi nhánh, ngày giờ và chuyên viên. Hệ thống demo sẽ tạo “phiếu đặt lịch” và lưu vào localStorage.
+            Chọn dịch vụ, chi nhánh, ngày giờ phù hợp. Hệ thống sẽ kiểm tra slot theo năng lực phục vụ thực tế từ backend.
           </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -58,13 +56,6 @@ export function BookingHero({
               className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95"
             >
               📝 Đặt lịch ngay
-            </button>
-            <button
-              type="button"
-              onClick={onViewMyBookings}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold hover:bg-slate-50"
-            >
-              📋 Xem lịch của tôi
             </button>
           </div>
         </div>

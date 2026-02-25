@@ -1,6 +1,6 @@
 // src/components/booking/BookingForm.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import type { DemoBranch, DemoService, DemoStaff } from "../../services/booking.demo";
+import type { DemoBranch, DemoService } from "../../services/booking.demo";
 import type { Booking } from "../../services/booking.storage";
 import { uid, money, isValidPhone, toISODate } from "../../services/booking.utils";
 
@@ -8,79 +8,67 @@ export type BookingDraft = {
   name: string;
   phone: string;
   email: string;
-  notify: "zalo" | "sms" | "email";
-  serviceId: string;
-  staffId: string; // "" means auto assign
-  branchId: string;
-  date: string; // yyyy-mm-dd
+  date: string;
   note: string;
 };
 
 export function BookingForm({
   services,
-  staff,
   branches,
+  selectedServiceId,
+  selectedBranchId,
   selectedSlot,
+  customTime,
+  onCustomTime,
   onToast,
   onCreate,
   onResetSignal,
   initialName,
+  onServiceChange,
+  onBranchChange,
+  onDateChange,
 }: {
   services: DemoService[];
-  staff: DemoStaff[];
   branches: DemoBranch[];
+  selectedServiceId: string;
+  selectedBranchId: string;
   selectedSlot: string | null;
+  customTime: string;
+  onCustomTime: (value: string) => void;
   onToast: (t: string, d?: string) => void;
   onCreate: (b: Booking) => void;
-  onResetSignal: number; // increase to reset
+  onResetSignal: number;
   initialName?: string;
+  onServiceChange: (serviceId: string) => void;
+  onBranchChange: (branchId: string) => void;
+  onDateChange: (date: string) => void;
 }) {
   const tomorrow = useMemo(() => toISODate(new Date(Date.now() + 86400000)), []);
   const [draft, setDraft] = useState<BookingDraft>(() => ({
     name: initialName || "",
     phone: "",
     email: "",
-    notify: "zalo",
-    serviceId: services[0]?.id || "",
-    staffId: "",
-    branchId: branches[0]?.id || "",
     date: tomorrow,
     note: "",
   }));
 
-  // sync name when user login demo
   useEffect(() => {
     if (initialName) setDraft((d) => ({ ...d, name: initialName }));
   }, [initialName]);
 
-  // external reset
   useEffect(() => {
     setDraft({
       name: initialName || "",
       phone: "",
       email: "",
-      notify: "zalo",
-      serviceId: services[0]?.id || "",
-      staffId: "",
-      branchId: branches[0]?.id || "",
       date: tomorrow,
       note: "",
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onResetSignal]);
+    onDateChange(tomorrow);
+  }, [onResetSignal, initialName, onDateChange, tomorrow]);
 
-
-  useEffect(() => {
-    setDraft((d) => ({
-      ...d,
-      serviceId: d.serviceId || services[0]?.id || "",
-      branchId: d.branchId || branches[0]?.id || "",
-    }));
-  }, [services, branches]);
-
-  const svc = useMemo(() => services.find((s) => s.id === draft.serviceId), [services, draft.serviceId]);
-  const staffPick = useMemo(() => staff.find((s) => s.id === draft.staffId), [staff, draft.staffId]);
-  const branchPick = useMemo(() => branches.find((b) => b.id === draft.branchId), [branches, draft.branchId]);
+  const svc = useMemo(() => services.find((s) => s.id === selectedServiceId), [services, selectedServiceId]);
+  const branchPick = useMemo(() => branches.find((b) => b.id === selectedBranchId), [branches, selectedBranchId]);
 
   const update = <K extends keyof BookingDraft>(k: K, v: BookingDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
@@ -88,13 +76,14 @@ export function BookingForm({
     const name = draft.name.trim();
     const phone = draft.phone.trim();
     const date = draft.date;
+    const pickedTime = customTime || selectedSlot;
 
     if (!name) return onToast("Thiếu thông tin", "Vui lòng nhập họ và tên.");
     if (!isValidPhone(phone)) return onToast("Số điện thoại chưa đúng", "Vui lòng nhập số bắt đầu bằng 0 và đủ 10–11 số.");
     if (!date) return onToast("Thiếu ngày", "Vui lòng chọn ngày.");
-    if (!svc) return onToast("Thiếu dịch vụ", "Vui lòng chọn dịch vụ.");
+    if (!svc) return onToast("Thiếu dịch vụ", "Vui lòng chọn dịch vụ trước.");
     if (!branchPick) return onToast("Thiếu chi nhánh", "Vui lòng chọn chi nhánh.");
-    if (!selectedSlot) return onToast("Chưa chọn giờ", "Vui lòng chọn một khung giờ.");
+    if (!pickedTime) return onToast("Chưa chọn giờ", "Vui lòng chọn khung giờ hoặc nhập giờ tùy chọn.");
 
     const booking: Booking = {
       id: uid("BK"),
@@ -102,17 +91,17 @@ export function BookingForm({
       name,
       phone,
       email: draft.email.trim(),
-      notify: draft.notify,
-      serviceId: svc?.id,
-      serviceName: svc?.name,
-      duration: svc?.duration,
-      price: svc?.price,
-      staffId: staffPick?.id || null,
-      staffName: staffPick?.name || "Hệ thống phân bổ",
-      branchId: branchPick?.id,
-      branchName: branchPick?.name,
+      notify: "email",
+      serviceId: svc.id,
+      serviceName: svc.name,
+      duration: svc.duration,
+      price: svc.price,
+      staffId: null,
+      staffName: "Hệ thống phân bổ",
+      branchId: branchPick.id,
+      branchName: branchPick.name,
       date,
-      time: selectedSlot,
+      time: pickedTime,
       note: draft.note.trim(),
       status: "confirmed",
     };
@@ -137,51 +126,24 @@ export function BookingForm({
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <div>
           <label className="text-sm font-extrabold text-slate-700">Họ và tên *</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            placeholder="Ví dụ: Lê Hiếu"
-            value={draft.name}
-            onChange={(e) => update("name", e.target.value)}
-          />
+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Ví dụ: Lê Hiếu" value={draft.name} onChange={(e) => update("name", e.target.value)} />
         </div>
         <div>
           <label className="text-sm font-extrabold text-slate-700">Số điện thoại *</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            placeholder="09xx xxx xxx"
-            value={draft.phone}
-            onChange={(e) => update("phone", e.target.value)}
-          />
+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="09xx xxx xxx" value={draft.phone} onChange={(e) => update("phone", e.target.value)} />
         </div>
 
         <div>
           <label className="text-sm font-extrabold text-slate-700">Email (tuỳ chọn)</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            placeholder="email@example.com"
-            value={draft.email}
-            onChange={(e) => update("email", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="text-sm font-extrabold text-slate-700">Kênh nhắc lịch</label>
-          <select
-            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            value={draft.notify}
-            onChange={(e) => update("notify", e.target.value as any)}
-          >
-            <option value="zalo">Zalo</option>
-            <option value="sms">SMS</option>
-            <option value="email">Email</option>
-          </select>
+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="email@example.com" value={draft.email} onChange={(e) => update("email", e.target.value)} />
         </div>
 
         <div>
           <label className="text-sm font-extrabold text-slate-700">Dịch vụ *</label>
           <select
             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            value={draft.serviceId}
-            onChange={(e) => update("serviceId", e.target.value)}
+            value={selectedServiceId}
+            onChange={(e) => onServiceChange(e.target.value)}
           >
             {services.map((s) => (
               <option key={s.id} value={s.id}>
@@ -192,27 +154,12 @@ export function BookingForm({
         </div>
 
         <div>
-          <label className="text-sm font-extrabold text-slate-700">Chuyên viên</label>
-          <select
-            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            value={draft.staffId}
-            onChange={(e) => update("staffId", e.target.value)}
-          >
-            <option value="">Không chọn (hệ thống phân bổ)</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} • {s.level}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
           <label className="text-sm font-extrabold text-slate-700">Chi nhánh *</label>
           <select
             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            value={draft.branchId}
-            onChange={(e) => update("branchId", e.target.value)}
+            value={selectedBranchId}
+            disabled={!selectedServiceId || !branches.length}
+            onChange={(e) => onBranchChange(e.target.value)}
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -228,55 +175,44 @@ export function BookingForm({
             type="date"
             className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
             value={draft.date}
-            onChange={(e) => update("date", e.target.value)}
+            onChange={(e) => {
+              update("date", e.target.value);
+              onDateChange(e.target.value);
+            }}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Giờ tự chọn (tuỳ chọn)</label>
+          <input
+            type="time"
+            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
+            value={customTime}
+            onChange={(e) => onCustomTime(e.target.value)}
           />
         </div>
 
         <div className="md:col-span-2">
           <label className="text-sm font-extrabold text-slate-700">Ghi chú</label>
-          <textarea
-            rows={3}
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            placeholder="Tình trạng da, nhu cầu…"
-            value={draft.note}
-            onChange={(e) => update("note", e.target.value)}
-          />
+          <textarea rows={3} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Tình trạng da, nhu cầu…" value={draft.note} onChange={(e) => update("note", e.target.value)} />
         </div>
       </div>
 
       <div className="mt-4 rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-slate-700">
-            Khung giờ đã chọn: <b>{selectedSlot || "Chưa chọn"}</b>
-            <span className="text-slate-500"> • Dự kiến: </span>
-            <b>{svc ? `${svc.duration} phút` : "—"}</b>
-          </div>
+        <div className="text-sm text-slate-700">
+          Khung giờ đã chọn: <b>{customTime || selectedSlot || "Chưa chọn"}</b>
+          <span className="text-slate-500"> • Dự kiến: </span>
+          <b>{svc ? `${svc.duration} phút` : "—"}</b>
+        </div>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold hover:bg-slate-50"
-              onClick={() => {
-                // parent will bump reset signal; this is just a hint
-                onToast("Reset", "Bấm Reset ở page để làm sạch toàn bộ.");
-              }}
-            >
-              Reset
-            </button>
-
-            <button
-              type="button"
-              className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95"
-              onClick={create}
-            >
-              ➕ Tạo lịch hẹn
-            </button>
-          </div>
+        <div className="mt-3 flex gap-2">
+          <button type="button" className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95" onClick={create}>
+            ➕ Tạo lịch hẹn
+          </button>
         </div>
 
         <div className="mt-2 text-sm text-slate-600">
-          Giá tham khảo: <b>{svc ? money(svc.price) : "—"}</b>{" "}
-          <span className="text-slate-500">• Có thể thay đổi theo tình trạng/ liệu trình.</span>
+          Giá tham khảo: <b>{svc ? money(svc.price) : "—"}</b> <span className="text-slate-500">• Có thể thay đổi theo tình trạng/ liệu trình.</span>
         </div>
       </div>
     </div>
