@@ -45,7 +45,7 @@ async function main() {
     {
       code: 'SV-01',
       name: 'Chăm sóc da chuyên sâu 👏',
-      category: 'skin',
+      categoryCode: 'SKIN',
       goals: ['restore', 'bright'],
       suitableFor: ['Da xỉn màu', 'Da thiếu ẩm'],
       durationMin: 75,
@@ -59,7 +59,7 @@ async function main() {
     {
       code: 'SV-03',
       name: 'Massage thư giãn toàn thân 🤗',
-      category: 'body',
+      categoryCode: 'BODY',
       goals: ['relax'],
       suitableFor: ['Người stress', 'Mất ngủ'],
       durationMin: 60,
@@ -73,7 +73,7 @@ async function main() {
     {
       code: 'SV-04',
       name: 'Gội đầu dưỡng sinh 🌿',
-      category: 'health',
+      categoryCode: 'HEALTH',
       goals: ['relax', 'pain'],
       suitableFor: ['Dân văn phòng', 'Hay đau đầu'],
       durationMin: 60,
@@ -87,7 +87,7 @@ async function main() {
     {
       code: 'SV-06',
       name: 'Combo da + massage ✨',
-      category: 'package',
+      categoryCode: 'PACKAGE',
       goals: ['restore', 'relax'],
       suitableFor: ['Cần phục hồi toàn diện', 'Thiếu thời gian'],
       durationMin: 120,
@@ -111,8 +111,29 @@ async function main() {
     await prisma.branch.upsert({ where: { code: b.code }, update: b, create: b })
   }
 
+  const categorySeeds = [
+    { code: 'SKIN', name: 'Chăm sóc da' },
+    { code: 'BODY', name: 'Chăm sóc cơ thể' },
+    { code: 'HEALTH', name: 'Dưỡng sinh' },
+    { code: 'PACKAGE', name: 'Combo liệu trình' },
+    { code: 'OTHER', name: 'Khác' },
+  ]
+
+  for (const c of categorySeeds) {
+    await prisma.serviceCategory.upsert({ where: { code: c.code }, update: c, create: c })
+  }
+
+  const categories = await prisma.serviceCategory.findMany()
+  const categoryMap = new Map(categories.map((c) => [c.code, c.id]))
+
   for (const s of serviceSeeds) {
-    await prisma.service.upsert({ where: { code: s.code }, update: s, create: s })
+    const { categoryCode, ...serviceData } = s
+    const categoryId = categoryMap.get(categoryCode) ?? categoryMap.get('OTHER')
+    await prisma.service.upsert({
+      where: { code: s.code },
+      update: { ...serviceData, categoryId },
+      create: { ...serviceData, categoryId },
+    })
   }
 
   for (const st of specialistSeeds) {

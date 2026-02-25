@@ -46,12 +46,22 @@ model Branch {
   appointments Appointment[]
 }
 
+model ServiceCategory {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(64)
+  name      String   @unique @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  services  Service[]
+}
+
 model Service {
   id           Int                 @id @default(autoincrement())
   code         String              @unique @db.VarChar(32)
   name         String              @db.VarChar(255)
   description  String?             @db.Text
-  category     String?             @db.VarChar(30)
+  categoryId   Int?
   goals        Json?
   suitableFor  Json?
   durationMin  Int
@@ -63,10 +73,13 @@ model Service {
   isActive     Boolean             @default(true)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
+  category     ServiceCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   branches     BranchService[]
   specialists  ServiceSpecialist[]
   appointments Appointment[]
   reviews      ServiceReview[]
+
+  @@index([categoryId])
 }
 
 model Specialist {
@@ -440,4 +453,3 @@ model PublicLead {
 
   @@index([type, createdAt])
 }
-
