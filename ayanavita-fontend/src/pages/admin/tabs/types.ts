@@ -11,6 +11,8 @@ export type ServiceForm = {
   durationMin: number
   price: number
   tag: string
+  branchIds: number[]
+  isActive: boolean
 }
 export type CategoryForm = {
   name: string
@@ -37,6 +39,7 @@ export type BranchesTabProps = CommonTabProps & {
 
 export type ServicesTabProps = CommonTabProps & {
   services: SpaService[]
+  branches: Branch[]
   categories: ServiceCategory[]
   serviceForm: ServiceForm
   editingService: SpaService | null

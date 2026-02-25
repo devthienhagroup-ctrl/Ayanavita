@@ -37,6 +37,7 @@ export class ServiceResponseDto {
   tag?: string | null
   imageUrl?: string | null
   branchIds!: number[]
+  isActive!: boolean
 }
 
 export class ServiceListResponseDto {

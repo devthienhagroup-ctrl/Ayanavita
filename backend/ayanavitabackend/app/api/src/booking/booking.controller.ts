@@ -114,6 +114,7 @@ export class BookingController {
       q: query.q,
       page: query.page,
       pageSize: query.pageSize,
+      includeInactive: query.includeInactive,
     })
   }
 

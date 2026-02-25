@@ -31,6 +31,7 @@ const renderDetailLines = (items: string[]) => {
 
 export function ServicesTab({
   services,
+  branches,
   categories,
   serviceForm,
   editingService,
@@ -151,7 +152,7 @@ export function ServicesTab({
               <th>Lượt đặt</th>
               <th>Mục tiêu </th>
               <th>Phù hợp </th>
-              <th>Quy trình </th>
+              <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -170,7 +171,11 @@ export function ServicesTab({
                 <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
                 <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
                 <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
-                <td>{renderJsonPreview(service.process || [], 'admin-badge-amber', 'admin-badge-yellow')}</td>
+                <td>
+                  <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? 'Đang hoạt động' : 'Đang tắt'}>
+                    <i className={`fa-solid ${service.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
+                  </span>
+                </td>
                 <td>
                   <div className='service-action-menu'>
                     <button className='admin-btn admin-btn-ghost service-action-trigger' aria-label='Mở thao tác'>
@@ -233,10 +238,14 @@ export function ServicesTab({
               <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Chỉnh sửa dịch vụ' : 'Tạo dịch vụ mới'}</h3>
               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> Đóng</button>
             </div>
-            <div className='admin-form-grid'>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
+            <p className='admin-helper'><b className='admin-required'>*</b> là thông tin bắt buộc.</p>
+            <div className='admin-form-grid services-edit-grid'>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục</span>
+                <span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ <b className='admin-required'>*</b></span>
+                <input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} />
+              </label>
+              <label className='admin-field'>
+                <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục <b className='admin-required'>*</b></span>
                 <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
                   <option value={0}>Chọn danh mục</option>
                   {categories.map((item) => (
@@ -244,13 +253,63 @@ export function ServicesTab({
                   ))}
                 </select>
               </label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu </span><input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp </span><input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình </span><input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-tag' /> Tag</span><input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-star' /> Rating trung bình</span><input className='admin-input' value={editingService?.ratingAvg?.toFixed(1) || '5.0'} disabled /></label>
+              <label className='admin-field'>
+                <span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút) <b className='admin-required'>*</b></span>
+                <input className='admin-input' type='number' min={1} value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} />
+              </label>
+              <label className='admin-field'>
+                <span className='admin-label'><i className='fa-solid fa-coins' /> Giá (VNĐ) <b className='admin-required'>*</b></span>
+                <input className='admin-input' type='number' min={0} value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} />
+              </label>
+              <label className='admin-field'>
+                <span className='admin-label'><i className='fa-solid fa-tag' /> Tag hiển thị</span>
+                <input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} />
+              </label>
+              <label className='admin-field'>
+                <span className='admin-label'><i className='fa-solid fa-power-off' /> Trạng thái hoạt động</span>
+                <span className='admin-checkbox'>
+                  <input type='checkbox' checked={Boolean(serviceForm.isActive)} onChange={(e) => onServiceFormChange({ ...serviceForm, isActive: e.target.checked })} />
+                  <span className='admin-checkbox-slider' />
+                  <span className='admin-checkbox-label'>{serviceForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
+                </span>
+              </label>
+              <label className='admin-field admin-field-full'>
+                <span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh áp dụng <b className='admin-required'>*</b></span>
+                <div className='services-branch-checklist'>
+                  {branches.map((branch) => {
+                    const checked = serviceForm.branchIds.includes(branch.id)
+                    return (
+                      <label key={branch.id} className={`services-branch-option ${branch.isActive ? '' : 'is-disabled'}`}>
+                        <input
+                          type='checkbox'
+                          checked={checked}
+                          disabled={!branch.isActive}
+                          onChange={(e) => {
+                            const nextBranchIds = e.target.checked
+                              ? [...serviceForm.branchIds, branch.id]
+                              : serviceForm.branchIds.filter((id) => id !== branch.id)
+                            onServiceFormChange({ ...serviceForm, branchIds: nextBranchIds })
+                          }}
+                        />
+                        <span>{branch.name}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <span className='admin-helper'>Chi nhánh đang tắt sẽ không thể chọn.</span>
+              </label>
+              <label className='admin-field admin-field-full'>
+                <span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu (phân tách bằng dấu phẩy ",")</span>
+                <input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} />
+              </label>
+              <label className='admin-field admin-field-full'>
+                <span className='admin-label'><i className='fa-solid fa-users' /> Phù hợp với (phân tách bằng dấu phẩy ",")</span>
+                <input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} />
+              </label>
+              <label className='admin-field admin-field-full'>
+                <span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (phân tách bằng dấu phẩy ",")</span>
+                <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} />
+              </label>
               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
               {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
@@ -286,6 +345,9 @@ export function ServicesTab({
                   <span className='admin-badge admin-badge-blue'>Giá: {detailService.price.toLocaleString('vi-VN')}đ</span>
                   <span className='admin-badge admin-badge-yellow'>Thời lượng: {detailService.durationMin} phút</span>
                   <span className='admin-badge admin-badge-pink'>Rating: {detailService.ratingAvg.toFixed(1)}</span>
+                  <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
+                    Trạng thái: {detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}
+                  </span>
                   <span className='admin-badge admin-badge-green'>Lượt đặt: {detailService.bookedCount ?? 0}</span>
                 </div>
               </section>
@@ -297,6 +359,7 @@ export function ServicesTab({
                     <p><b>ID:</b> {detailService.id}</p>
                     <p><b>Danh mục:</b> {detailService.category || '-'}</p>
                     <p><b>Tag:</b> {detailService.tag || '-'}</p>
+                    <p><b>Trạng thái:</b> <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>{detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span></p>
                     <p><b>Mô tả:</b> {detailService.description || '-'}</p>
                   </article>
 

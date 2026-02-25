@@ -12,7 +12,7 @@ import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
-const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
+const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true }
 const defaultCategoryForm: CategoryForm = { name: '' }
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '', branchId: 0 }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
@@ -96,6 +96,7 @@ export default function AdminSpaPage() {
       q: params?.q ?? serviceSearchKeyword,
       page: params?.page ?? servicePage,
       pageSize: params?.pageSize ?? servicePageSize,
+      includeInactive: true,
     })
     setServicePageItems(response.items)
     setServiceTotal(response.total)
@@ -110,8 +111,8 @@ export default function AdminSpaPage() {
       const [b, c, sAll, s, sp, r, a] = await Promise.all([
         spaAdminApi.branches(true),
         spaAdminApi.serviceCategories(),
-        spaAdminApi.services({ page: 1, pageSize: 100 }),
-        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize }),
+        spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true }),
+        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true }),
         spaAdminApi.specialists(),
         spaAdminApi.reviews(),
         spaAdminApi.appointments(),
@@ -300,9 +301,13 @@ export default function AdminSpaPage() {
         }
       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
 
-      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
+      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
         if (!serviceForm.categoryId) {
           await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
+          return
+        }
+        if (!serviceForm.branchIds.length) {
+          await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
           return
         }
         const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
@@ -319,6 +324,7 @@ export default function AdminSpaPage() {
           goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
           suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean),
           process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean),
+          branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0),
         }
         try {
           if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage)
@@ -341,6 +347,8 @@ export default function AdminSpaPage() {
           goals: service.goals?.join(', ') || '',
           suitableFor: service.suitableFor?.join(', ') || '',
           process: service.process?.join(', ') || '',
+          branchIds: service.branchIds || [],
+          isActive: service.isActive ?? true,
         })
       }} onDeleteService={async (service) => {
         try {

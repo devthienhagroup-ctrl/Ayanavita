@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
 export class BookingFilterQueryDto {
@@ -36,4 +36,8 @@ export class BookingFilterQueryDto {
   @Min(1)
   @Max(100)
   pageSize?: number
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  includeInactive?: boolean
 }

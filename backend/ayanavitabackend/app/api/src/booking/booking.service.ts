@@ -20,6 +20,11 @@ import {
 export class BookingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toPositiveIntArray(value: unknown): number[] {
+    if (!Array.isArray(value)) return []
+    return [...new Set(value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0))]
+  }
+
   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
@@ -220,14 +225,14 @@ export class BookingService {
     }))
   }
 
-  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number }): Promise<ServiceListResponseDto> {
+  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number; includeInactive?: boolean }): Promise<ServiceListResponseDto> {
     const page = params.page && params.page > 0 ? params.page : 1
     const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(params.pageSize, 100) : 10
     const skip = (page - 1) * pageSize
     const query = params.q?.trim()
 
     const where = {
-      isActive: true,
+      ...(params.includeInactive ? {} : { isActive: true }),
       ...(params.branchId ? { branches: { some: { branchId: params.branchId } } } : {}),
       ...(query ? { name: { contains: query } } : {}),
     }
@@ -250,6 +255,7 @@ export class BookingService {
           bookedCount: true,
           tag: true,
           imageUrl: true,
+          isActive: true,
           branches: { select: { branchId: true } },
         },
         orderBy: { id: 'asc' },
@@ -275,6 +281,7 @@ export class BookingService {
       tag: s.tag,
       imageUrl: s.imageUrl,
       branchIds: s.branches.map((b) => b.branchId),
+      isActive: s.isActive,
     }))
 
     return {
@@ -418,12 +425,13 @@ export class BookingService {
   }
 
 
-  private sanitizeServiceData(data: any) {
+  private sanitizeServiceData(data: any): { serviceData: Prisma.ServiceUncheckedCreateInput; branchIds: number[] } {
     const goalsInput = Array.isArray(data.goals) ? data.goals : []
     const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
     const processInput = Array.isArray(data.process) ? data.process : []
-    return {
-      name: data.name,
+    const branchIds = this.toPositiveIntArray(data.branchIds)
+    const serviceData: Prisma.ServiceUncheckedCreateInput = {
+      name: String(data.name ?? '').trim(),
       description: data.description,
       categoryId: data.categoryId ? Number(data.categoryId) : null,
       goals: goalsInput,
@@ -432,6 +440,12 @@ export class BookingService {
       durationMin: Number(data.durationMin ?? 60),
       price: Number(data.price ?? 0),
       tag: data.tag,
+      isActive: data.isActive !== undefined ? data.isActive === true || data.isActive === 'true' : true,
+    }
+
+    return {
+      serviceData,
+      branchIds,
     }
   }
 
@@ -439,17 +453,46 @@ export class BookingService {
     if (!data.categoryId) {
       throw new BadRequestException('categoryId is required')
     }
+
+    const { serviceData, branchIds } = this.sanitizeServiceData(data)
+    if (!branchIds.length) {
+      throw new BadRequestException('branchIds is required')
+    }
+
+    const availableBranches = await this.prisma.branch.count({ where: { id: { in: branchIds }, isActive: true } })
+    if (availableBranches !== branchIds.length) {
+      throw new BadRequestException('Some branchIds are invalid or inactive')
+    }
+
     let imageUrl: string | undefined
     if (file) {
       const uploaded = await this.uploadImageToCloud(file)
       imageUrl = uploaded.url
     }
-    return this.prisma.service.create({ data: { ...this.sanitizeServiceData(data), imageUrl } })
+
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.service.create({ data: { ...serviceData, imageUrl } })
+      await tx.branchService.createMany({
+        data: branchIds.map((branchId) => ({ branchId, serviceId: created.id })),
+        skipDuplicates: true,
+      })
+      return created
+    })
   }
 
   async updateService(id: number, data: any, file?: any) {
     const existing = await this.prisma.service.findUnique({ where: { id }, select: { imageUrl: true } })
     if (!existing) throw new NotFoundException('Service not found')
+
+    const { serviceData, branchIds } = this.sanitizeServiceData(data)
+    if (!branchIds.length) {
+      throw new BadRequestException('branchIds is required')
+    }
+
+    const availableBranches = await this.prisma.branch.count({ where: { id: { in: branchIds }, isActive: true } })
+    if (availableBranches !== branchIds.length) {
+      throw new BadRequestException('Some branchIds are invalid or inactive')
+    }
 
     let imageUrl = existing.imageUrl
     if (file) {
@@ -462,12 +505,37 @@ export class BookingService {
       }
     }
 
-    return this.prisma.service.update({ where: { id }, data: { ...this.sanitizeServiceData(data), imageUrl } })
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.service.update({ where: { id }, data: { ...serviceData, imageUrl } })
+      await tx.specialistBranchService.deleteMany({
+        where: {
+          serviceId: id,
+          branchId: { notIn: branchIds },
+        },
+      })
+      await tx.branchService.deleteMany({ where: { serviceId: id, branchId: { notIn: branchIds } } })
+      await tx.branchService.createMany({
+        data: branchIds.map((branchId) => ({ branchId, serviceId: id })),
+        skipDuplicates: true,
+      })
+      return updated
+    })
   }
 
   async deleteService(id: number) {
+    const appointmentCount = await this.prisma.appointment.count({ where: { serviceId: id } })
+
+    if (appointmentCount > 0) {
+      await this.prisma.service.update({ where: { id }, data: { isActive: false } })
+      return {
+        ok: true,
+        softDeleted: true,
+        message: 'Dịch vụ đã có lịch hẹn. Hệ thống chỉ tắt hoạt động để đảm bảo dữ liệu lịch hẹn.',
+      }
+    }
+
     await this.prisma.service.delete({ where: { id } })
-    return { ok: true }
+    return { ok: true, softDeleted: false }
   }
 
   async listServiceCategories(): Promise<ServiceCategoryResponseDto[]> {

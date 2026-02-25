@@ -425,6 +425,59 @@
   color: #16a34a;
 }
 
+.services-edit-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 14px;
+  row-gap: 10px;
+}
+
+.admin-required { color: #e11d48; }
+
+.services-branch-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.services-branch-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #dbe2ef;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.services-branch-option.is-disabled {
+  opacity: 0.5;
+}
+
+.services-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.services-status-icon.is-active {
+  color: #16a34a;
+}
+
+.services-status-icon.is-inactive {
+  color: #dc2626;
+}
+
+@media (max-width: 900px) {
+  .services-edit-grid,
+  .services-branch-checklist {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 .service-action-menu {
   position: relative;
   display: inline-flex;

@@ -17,6 +17,7 @@ export type SpaService = {
   imageUrl?: string
   tag?: string
   branchIds: number[]
+  isActive: boolean
 }
 export type PaginatedServiceResponse = {
   items: SpaService[]
@@ -72,12 +73,13 @@ export const spaAdminApi = {
     const queryString = query.toString()
     return get<Branch[]>(`/booking/branches${queryString ? `?${queryString}` : ''}`, { auth: false })
   },
-  services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number }) => {
+  services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number; includeInactive?: boolean }) => {
     const query = new URLSearchParams()
     if (params?.q?.trim()) query.set('q', params.q.trim())
     if (params?.page) query.set('page', String(params.page))
     if (params?.pageSize) query.set('pageSize', String(params.pageSize))
     if (params?.branchId) query.set('branchId', String(params.branchId))
+    if (params?.includeInactive) query.set('includeInactive', 'true')
     const queryString = query.toString()
     return get<PaginatedServiceResponse>(`/booking/services${queryString ? `?${queryString}` : ''}`, { auth: false })
   },
