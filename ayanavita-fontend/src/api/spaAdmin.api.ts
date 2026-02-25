@@ -34,8 +34,8 @@ export type ServiceCategory = {
 }
 export type Specialist = {
   id: number
-  code: string
   name: string
+  email: string
   level: string
   bio?: string
   branchId: number
@@ -129,10 +129,4 @@ export const spaAdminApi = {
 
   updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data, { auth: false }),
   deleteAppointment: (id: number) => del(`/booking/appointments/${id}`, { auth: false }),
-
-  syncRelations: (payload: {
-    branchService?: Array<{ branchId: number; serviceId: number }>
-    specialistBranchService?: Array<{ specialistId: number; branchId: number; serviceId: number }>
-  }) => post('/booking/relations/sync', payload, { auth: false }),
-
 }

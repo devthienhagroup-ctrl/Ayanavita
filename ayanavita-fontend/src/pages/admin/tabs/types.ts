@@ -18,9 +18,8 @@ export type CategoryForm = {
   name: string
 }
 
-export type SpecialistForm = { code: string; name: string; level: string; bio: string; branchId: number }
+export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[] }
 export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
-export type RelationForm = { branchId: number; serviceId: number; specialistId: number }
 
 export type CommonTabProps = {
   loading: boolean
@@ -73,15 +72,11 @@ export type SpecialistsTabProps = CommonTabProps & {
   services: SpaService[]
   specialists: Specialist[]
   specialistForm: SpecialistForm
-  relationForm: RelationForm
   editingSpecialist: Specialist | null
   onSpecialistFormChange: (next: SpecialistForm) => void
-  onRelationFormChange: (next: RelationForm) => void
   onSaveSpecialist: () => Promise<void>
   onEditSpecialist: (specialist: Specialist) => void
   onDeleteSpecialist: (specialist: Specialist) => Promise<void>
-  onShowSpecialistDetail: (specialist: Specialist) => void
-  onSaveRelation: () => Promise<void>
   onCancelEdit: () => void
 }
 

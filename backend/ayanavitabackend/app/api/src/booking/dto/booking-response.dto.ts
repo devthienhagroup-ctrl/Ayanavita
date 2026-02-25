@@ -76,8 +76,8 @@ export class ServiceCategoryResponseDto {
 
 export class SpecialistResponseDto {
   id!: number
-  code!: string
   name!: string
+  email!: string
   level!: string
   bio?: string | null
   branchId!: number

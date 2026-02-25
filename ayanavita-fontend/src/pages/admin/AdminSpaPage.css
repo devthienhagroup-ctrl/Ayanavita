@@ -221,8 +221,9 @@
 .admin-helper { color: #64748b; font-size: 12px; }
 
 .admin-input {
-  width: 95%;
+  width: 100%;
   padding: 10px 11px;
+  box-sizing: border-box;
   border-radius: 12px;
   border: 1px solid #d8deea;
   background: linear-gradient(180deg, #fff, #fafaff);
@@ -231,8 +232,47 @@
 }
 .admin-input:focus { outline: 2px solid #ddd6fe; border-color: #a78bfa; }
 
+.admin-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.admin-multi-select {
+  border: 1px solid #d8deea;
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: linear-gradient(180deg, #fff, #fafaff);
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.admin-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 14px;
+}
+
 .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
 .admin-row-nowrap { flex-wrap: nowrap; }
+
+.admin-row-between {
+  justify-content: space-between;
+}
+
+.admin-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-input-sm {
+  width: 220px;
+  min-width: 140px;
+}
 
 .admin-btn {
   border-radius: 11px;

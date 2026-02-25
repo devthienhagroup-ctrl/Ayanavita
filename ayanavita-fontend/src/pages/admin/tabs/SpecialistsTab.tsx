@@ -1,43 +1,100 @@
+import { useMemo, useState } from 'react'
 import type { SpecialistsTabProps } from './types'
 
-export function SpecialistsTab({ branches, services, specialists, specialistForm, relationForm, editingSpecialist, onSpecialistFormChange, onRelationFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onShowSpecialistDetail, onSaveRelation, onCancelEdit }: SpecialistsTabProps) {
-  const branchSpecialists = relationForm.branchId
-    ? specialists.filter((item) => item.branchId === relationForm.branchId)
-    : specialists
+export function SpecialistsTab({ branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
+  const branchServices = specialistForm.branchId
+    ? services.filter((service) => service.branchIds.includes(specialistForm.branchId))
+    : []
+
+  const toggleService = (serviceId: number) => {
+    const exists = specialistForm.serviceIds.includes(serviceId)
+    onSpecialistFormChange({
+      ...specialistForm,
+      serviceIds: exists
+        ? specialistForm.serviceIds.filter((item) => item !== serviceId)
+        : [...specialistForm.serviceIds, serviceId],
+    })
+  }
+
+  const [searchName, setSearchName] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  const filteredSpecialists = useMemo(() => {
+    const keyword = searchName.trim().toLowerCase()
+    if (!keyword) return specialists
+    return specialists.filter((item) => item.name.toLowerCase().includes(keyword))
+  }, [searchName, specialists])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSpecialists.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pagedSpecialists = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return filteredSpecialists.slice(start, start + pageSize)
+  }, [filteredSpecialists, pageSize, safePage])
 
   return (
     <div className='admin-grid'>
       <section className='admin-card admin-card-glow'>
         <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? 'Cập nhật chuyên viên' : 'Thêm chuyên viên'}</h3>
         <div className='admin-form-grid'>
-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Code</span><input className='admin-input' placeholder='SPEC_001' value={specialistForm.code} onChange={(e) => onSpecialistFormChange({ ...specialistForm, code: e.target.value })} /></label>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> Tên chuyên viên</span><input className='admin-input' placeholder='Tên chuyên viên' value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value) })}><option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-envelope' /> Email tài khoản</span><input className='admin-input' type='email' placeholder='staff@example.com' value={specialistForm.email} onChange={(e) => onSpecialistFormChange({ ...specialistForm, email: e.target.value })} /></label>
+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value), serviceIds: [] })}><option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> Cấp độ</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-address-card' /> Bio</span><textarea className='admin-input' placeholder='Mô tả năng lực chuyên viên' value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
+          <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> Bio</span><textarea className='admin-input admin-textarea' placeholder='Mô tả năng lực chuyên viên' value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
+
+          <div className='admin-field admin-field-full'>
+            <span className='admin-label'><i className='fa-solid fa-list-check' /> Dịch vụ theo chi nhánh</span>
+            <div className='admin-multi-select'>
+              {branchServices.length > 0 ? branchServices.map((service) => (
+                <label key={service.id} className='admin-checkbox-row'>
+                  <input type='checkbox' checked={specialistForm.serviceIds.includes(service.id)} onChange={() => toggleService(service.id)} />
+                  <span>{service.name}</span>
+                </label>
+              )) : <span className='admin-helper'>Vui lòng chọn chi nhánh để tải dịch vụ.</span>}
+            </div>
+          </div>
         </div>
         <div className='admin-row'>
           <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? 'Lưu thay đổi' : 'Thêm chuyên viên'}</button>
           {editingSpecialist && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
         </div>
-
-        <hr className='admin-divider' />
-        <h4 className='admin-subtitle'><i className='fa-solid fa-link' /> Gán chuyên viên cho dịch vụ theo chi nhánh</h4>
-        <div className='admin-form-grid'>
-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh</span><select className='admin-input' value={relationForm.branchId} onChange={(e) => onRelationFormChange({ ...relationForm, branchId: Number(e.target.value), specialistId: 0 })}><option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-spa' /> Dịch vụ</span><select className='admin-input' value={relationForm.serviceId} onChange={(e) => onRelationFormChange({ ...relationForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user-nurse' /> Chuyên viên</span><select className='admin-input' value={relationForm.specialistId} onChange={(e) => onRelationFormChange({ ...relationForm, specialistId: Number(e.target.value) })}><option value={0}>Chọn chuyên viên</option>{branchSpecialists.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-        </div>
-        <button className='admin-btn admin-btn-ghost' onClick={onSaveRelation}><i className='fa-solid fa-floppy-disk' />Lưu quan hệ</button>
       </section>
 
       <section className='admin-card'>
         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chuyên viên</h3>
+        <div className='admin-row admin-row-between'>
+          <label className='admin-field-inline'>
+            <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên</span>
+            <input
+              className='admin-input admin-input-sm'
+              placeholder='Nhập tên chuyên viên'
+              value={searchName}
+              onChange={(e) => { setSearchName(e.target.value); setPage(1) }}
+            />
+          </label>
+
+          <label className='admin-field-inline'>
+            <span className='admin-label'><i className='fa-solid fa-list-ol' /> /Trang</span>
+            <select
+              className='admin-input admin-input-sm'
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+            </select>
+          </label>
+        </div>
+
         <div className='admin-table-wrap'>
           <table className='admin-table'>
             <thead>
               <tr>
                 <th>Tên</th>
+                <th>Email</th>
                 <th>Cấp độ</th>
                 <th>Chi nhánh</th>
                 <th>Dịch vụ</th>
@@ -45,16 +102,16 @@ export function SpecialistsTab({ branches, services, specialists, specialistForm
               </tr>
             </thead>
             <tbody>
-              {specialists.map((item) => (
+              {pagedSpecialists.map((item) => (
                 <tr key={item.id}>
                   <td className='td-strong'>{item.name}</td>
+                  <td>{item.email}</td>
                   <td><span className={`admin-badge ${item.level === 'EXPERT' ? 'admin-badge-purple' : item.level === 'SENIOR' ? 'admin-badge-blue' : 'admin-badge-pastel'}`}>{item.level}</span></td>
-                  <td>{item.branchId || '-'}</td>
-                  <td>{item.serviceIds.join(', ') || '-'}</td>
+                  <td>{branches.find((branch) => branch.id === item.branchId)?.name || '-'}</td>
+                  <td>{item.serviceIds.length}</td>
                   <td>
                     <div className='admin-row'>
                       <button className='admin-btn admin-btn-ghost' onClick={() => onEditSpecialist(item)}>Sửa</button>
-                      <button className='admin-btn admin-btn-ghost' onClick={() => onShowSpecialistDetail(item)}>Chi tiết</button>
                       <button className='admin-btn admin-btn-danger' onClick={() => onDeleteSpecialist(item)}>Xóa</button>
                     </div>
                   </td>
@@ -62,6 +119,14 @@ export function SpecialistsTab({ branches, services, specialists, specialistForm
               ))}
             </tbody>
           </table>
+        </div>
+        <div className='admin-row admin-row-between'>
+          <span className='admin-helper'>Hiển thị {pagedSpecialists.length}/{filteredSpecialists.length} chuyên viên</span>
+          <div className='admin-row'>
+            <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>Trước</button>
+            <span className='admin-helper'>Trang {safePage}/{totalPages}</span>
+            <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
+          </div>
         </div>
       </section>
     </div>

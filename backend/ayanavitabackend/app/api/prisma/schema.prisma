@@ -29,6 +29,7 @@ model User {
   cmsSectionVersions CmsSectionVersion[]
   mediaAssets        MediaAsset[]
   serviceReviews     ServiceReview[]
+  specialistProfile  Specialist?
 }
 
 model Branch {
@@ -80,7 +81,7 @@ model Service {
 
 model Specialist {
   id          Int                 @id @default(autoincrement())
-  code        String              @unique @db.VarChar(32)
+  userId      Int                 @unique
   name        String              @db.VarChar(255)
   branchId    Int
   level       SpecialistLevel     @default(SENIOR)
@@ -89,6 +90,7 @@ model Specialist {
   isActive    Boolean             @default(true)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
   serviceLinks SpecialistBranchService[]
   appointments Appointment[]

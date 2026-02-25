@@ -49,13 +49,15 @@ export function SlotPicker({
               disabled={disabled}
               onClick={() => onPick(s.t)}
               className={[
-                "aspect-square rounded-2xl p-2 text-center ring-1 ring-slate-200",
+                "aspect-square rounded-2xl p-2 text-center ring-1 ring-slate-200 transition-all",
                 disabled ? "cursor-not-allowed bg-slate-100 opacity-60" : "bg-white hover:bg-slate-50",
-                active ? "ring-2 ring-indigo-500" : "",
+                active
+                  ? "-translate-y-0.5 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-500 shadow-[0_0_0_3px_rgba(99,102,241,0.18)]"
+                  : "",
               ].join(" ")}
             >
               <div className="text-sm font-extrabold">{s.t}</div>
-              <div className="mt-1 text-[11px] text-slate-500">{disabled ? "Hết chỗ" : "Còn chỗ"}</div>
+              <div className={["mt-1 text-[11px]", active ? "text-indigo-700" : "text-slate-500"].join(" ")}>{disabled ? "Hết chỗ" : "Còn chỗ"}</div>
             </button>
           );
         })}

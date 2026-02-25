@@ -7,14 +7,14 @@ import { CategoriesTab } from './tabs/CategoriesTab'
 import { ReviewsTab } from './tabs/ReviewsTab'
 import { ServicesTab } from './tabs/ServicesTab'
 import { SpecialistsTab } from './tabs/SpecialistsTab'
-import type { BranchForm, CategoryForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
+import type { BranchForm, CategoryForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
 import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
 const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true }
 const defaultCategoryForm: CategoryForm = { name: '' }
-const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '', branchId: 0 }
+const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [] }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
 
@@ -76,7 +76,6 @@ export default function AdminSpaPage() {
   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
   const [reviewForm, setReviewForm] = useState<ReviewForm>(defaultReviewForm)
-  const [relationForm, setRelationForm] = useState<RelationForm>({ branchId: 0, serviceId: 0, specialistId: 0 })
 
   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
   const selectedServiceReviews = useMemo(() => {
@@ -258,7 +257,7 @@ export default function AdminSpaPage() {
         <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
         <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
         <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({serviceTotal})</button>
-        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
+        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên</button>
         <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
       </nav>
 
@@ -360,9 +359,13 @@ export default function AdminSpaPage() {
         }
       }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
 
-      {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} relationForm={relationForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onRelationFormChange={setRelationForm} onSaveSpecialist={async () => {
+      {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
         if (!specialistForm.branchId) {
           await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
+          return
+        }
+        if (!specialistForm.email.trim()) {
+          await AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
           return
         }
         try {
@@ -375,28 +378,13 @@ export default function AdminSpaPage() {
         } catch (error) {
           await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.'))
         }
-      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ code: specialist.code, name: specialist.name, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId }) }} onDeleteSpecialist={async (specialist) => {
+      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [] }) }} onDeleteSpecialist={async (specialist) => {
         try {
           await spaAdminApi.deleteSpecialist(specialist.id)
           await loadAll()
           await AlertJs.success('Đã xóa chuyên viên')
         } catch (error) {
           await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.'))
-        }
-      }} onShowSpecialistDetail={(specialist) => { void AlertJs.info(`Chuyên viên: ${specialist.name}`, specialist.bio || 'Không có mô tả chi tiết.') }} onSaveRelation={async () => {
-        if (!relationForm.branchId || !relationForm.serviceId || !relationForm.specialistId) {
-          await AlertJs.error('Thiếu dữ liệu', 'Vui lòng chọn đầy đủ chi nhánh, dịch vụ và chuyên viên.')
-          return
-        }
-        try {
-          await spaAdminApi.syncRelations({
-            branchService: [{ branchId: relationForm.branchId, serviceId: relationForm.serviceId }],
-            specialistBranchService: [{ specialistId: relationForm.specialistId, branchId: relationForm.branchId, serviceId: relationForm.serviceId }],
-          })
-          await loadAll()
-          await AlertJs.success('Đã lưu quan hệ')
-        } catch (error) {
-          await AlertJs.error('Lưu quan hệ thất bại', getVietnameseError(error, 'Không thể đồng bộ quan hệ dữ liệu.'))
         }
       }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
 

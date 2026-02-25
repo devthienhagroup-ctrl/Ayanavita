@@ -21,6 +21,7 @@ type ToastState =
 type BranchOption = {
   id: number;
   name: string;
+  address?: string;
 };
 
 type ServiceReview = {
@@ -45,8 +46,6 @@ type ServiceDetail = {
   branchIds: number[];
   reviews: ServiceReview[];
 };
-
-const SLOTS = ["09:00", "10:30", "13:30", "15:00", "19:00"];
 
 export default function ServiceDetailPage() {
   const { serviceId } = useParams();
@@ -74,10 +73,12 @@ export default function ServiceDetailPage() {
 
   const [name, setName] = useState("Khách hàng Demo");
   const [phone, setPhone] = useState("0900000000");
+  const [email, setEmail] = useState("");
   const [date, setDate] = useState(() => toISODate(new Date()));
+  const [time, setTime] = useState("09:00");
   const [note, setNote] = useState("");
-  const [branch, setBranch] = useState("");
-  const [slot, setSlot] = useState(SLOTS[0]);
+  const [branchId, setBranchId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const [toast, setToast] = useState<ToastState>(null);
   const todayISO = useMemo(() => toISODate(new Date()), []);
@@ -104,10 +105,10 @@ export default function ServiceDetailPage() {
 
         setService(detail);
         const normalizedBranches = Array.isArray(branchRows)
-          ? branchRows.map((item: any) => ({ id: item.id, name: item.name }))
+          ? branchRows.map((item: any) => ({ id: item.id, name: item.name, address: item.address }))
           : [];
         setBranches(normalizedBranches);
-        setBranch(normalizedBranches[0]?.name || "");
+        setBranchId(normalizedBranches[0] ? String(normalizedBranches[0].id) : "");
       } catch {
         if (!mounted) return;
         setError("Không thể tải dữ liệu dịch vụ. Vui lòng thử lại.");
@@ -127,29 +128,78 @@ export default function ServiceDetailPage() {
     window.setTimeout(() => setToast(null), 4500);
   }
 
-  function submitBooking() {
+  async function submitBooking() {
     if (!service) return;
 
     const n = name.trim();
     const p = phone.trim();
+    const e = email.trim();
     const d = date.trim();
+    const t = time.trim();
+    const selectedBranch = branches.find((item) => String(item.id) === branchId);
 
     if (!n) return showToast({ type: "error", message: "Vui lòng nhập Họ và tên." });
     if (!isValidPhone(p)) {
       return showToast({ type: "error", message: "SĐT chưa đúng (bắt đầu 0, đủ 10–11 số)." });
     }
+    if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+      return showToast({ type: "error", message: "Email chưa đúng định dạng." });
+    }
     if (!d) return showToast({ type: "error", message: "Vui lòng chọn Ngày." });
     if (d < todayISO) return showToast({ type: "error", message: "Ngày đặt phải >= hôm nay." });
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t)) {
+      return showToast({ type: "error", message: "Giờ hẹn chưa đúng định dạng HH:mm." });
+    }
+    if (!branchId || !selectedBranch) {
+      return showToast({ type: "error", message: "Vui lòng chọn chi nhánh để đặt lịch." });
+    }
 
-    const msg =
-      `Đặt lịch thành công (demo).\n` +
-      `- Dịch vụ: ${service.name} (#${service.id})\n` +
-      `- Chi nhánh: ${branch || "Chưa chọn"}\n` +
-      `- Ngày: ${d} • Giờ: ${slot}\n` +
-      `- Ghi chú: ${note.trim() || "(không)"}`;
+    setSubmitting(true);
+    try {
+      const slotData = await http.get("/booking/slot-suggestions", {
+        params: {
+          branchId: Number(branchId),
+          serviceId: service.id,
+          date: d,
+        },
+      });
 
-    showToast({ type: "success", message: msg });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+      const matchedSlot = (slotData.data?.slots || []).find((item: any) => item.time === t);
+      if (matchedSlot && !matchedSlot.available) {
+        return showToast({
+          type: "error",
+          message: `Khung giờ ${t} tại ${selectedBranch.name} đã hết chỗ. Vui lòng chọn giờ khác.`,
+        });
+      }
+
+      await http.post("/booking/appointments", {
+        customerName: n,
+        customerPhone: p,
+        customerEmail: e || undefined,
+        appointmentAt: `${d}T${t}:00`,
+        note: note.trim() || undefined,
+        branchId: Number(branchId),
+        serviceId: service.id,
+      });
+
+      const msg =
+        `Đặt lịch thành công.\n` +
+        `- Dịch vụ: ${service.name} (#${service.id})\n` +
+        `- Chi nhánh: ${selectedBranch.name}${selectedBranch.address ? ` - ${selectedBranch.address}` : ""}\n` +
+        `- Ngày: ${d} • Giờ: ${t}\n` +
+        `- SĐT: ${p}${e ? ` • Email: ${e}` : ""}\n` +
+        `- Ghi chú: ${note.trim() || "(không)"}`;
+
+      showToast({ type: "success", message: msg });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err: any) {
+      showToast({
+        type: "error",
+        message: err?.response?.data?.message || "Không thể tạo lịch hẹn. Vui lòng kiểm tra lại thông tin và thử lại.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -247,16 +297,23 @@ export default function ServiceDetailPage() {
 
               <aside className="card p-6">
                 <div className="font-extrabold">Đặt lịch nhanh</div>
-                <div className="text-sm muted mt-1">Nhập thông tin để đặt lịch (demo).</div>
+                <div className="text-sm muted mt-1">Nhập nhanh như form đặt lịch: không cần chọn dịch vụ, hệ thống dùng dịch vụ đang xem.</div>
 
                 <div className="mt-3 grid gap-2">
+                  <input className="field" value={service.name} readOnly />
                   <input className="field" placeholder="Họ và tên" value={name} onChange={(e) => setName(e.target.value)} />
                   <input className="field" placeholder="Số điện thoại" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <input className="field" type="email" placeholder="Email (không bắt buộc)" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <select className="field" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                    <option value="">Chọn chi nhánh</option>
+                    {branches.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
+                  </select>
                   <input className="field" type="date" value={date} min={todayISO} onChange={(e) => setDate(e.target.value)} />
+                  <input className="field" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
                   <textarea className="field" rows={4} placeholder="Ghi chú (tình trạng da, dị ứng...)" value={note} onChange={(e) => setNote(e.target.value)} />
-                  <button onClick={submitBooking} className="btn btn-primary" type="button">
+                  <button onClick={submitBooking} className="btn btn-primary" type="button" disabled={submitting || !service}>
                     <i className="fa-solid fa-calendar-check" />
-                    Xác nhận đặt
+                    {submitting ? "Đang đặt lịch..." : "Xác nhận đặt"}
                   </button>
                 </div>
 

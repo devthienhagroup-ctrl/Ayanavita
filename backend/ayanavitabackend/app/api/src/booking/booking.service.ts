@@ -1,8 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { Prisma, Role } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
 import { promises as fs } from 'fs'
-import { createHash, createHmac } from 'crypto'
+import { createHash, createHmac, randomBytes } from 'crypto'
 import { extname, join } from 'path'
+import * as tls from 'tls'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
 import {
@@ -19,6 +21,8 @@ import {
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name)
+
   constructor(private readonly prisma: PrismaService) {}
 
   private toPositiveIntArray(value: unknown): number[] {
@@ -362,11 +366,11 @@ export class BookingService {
       },
       select: {
         id: true,
-        code: true,
         name: true,
         level: true,
         bio: true,
         branchId: true,
+        user: { select: { email: true } },
         serviceLinks: { select: { serviceId: true } },
       },
       orderBy: { id: 'asc' },
@@ -374,8 +378,8 @@ export class BookingService {
 
     return rows.map((s) => ({
       id: s.id,
-      code: s.code,
       name: s.name,
+      email: s.user.email,
       level: s.level,
       bio: s.bio,
       branchId: s.branchId,
@@ -799,26 +803,226 @@ export class BookingService {
     if (!Number.isInteger(branchId) || branchId < 1) {
       throw new BadRequestException('branchId is required')
     }
+    const email = String(data.email || '').trim().toLowerCase()
+    if (!email) {
+      throw new BadRequestException('email is required')
+    }
+    const password = this.generatePassword()
+    const passwordHash = await bcrypt.hash(password, 10)
+    const serviceIds = this.toPositiveIntArray(data.serviceIds)
 
-    return this.prisma.specialist.create({ data: { ...data, branchId } })
+    const created = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: passwordHash,
+          role: Role.STAFF,
+          name: String(data.name || '').trim() || null,
+        },
+      })
+
+      const specialist = await tx.specialist.create({
+        data: {
+          name: String(data.name || '').trim(),
+          level: data.level,
+          bio: data.bio,
+          branchId,
+          userId: user.id,
+        },
+      })
+
+      if (serviceIds.length > 0) {
+        await tx.specialistBranchService.createMany({
+          data: serviceIds.map((serviceId) => ({ specialistId: specialist.id, branchId, serviceId })),
+          skipDuplicates: true,
+        })
+      }
+
+      return specialist
+    })
+
+    void this.sendSpecialistCredentialsMail(email, password, String(data.name || '').trim() || 'Chuyên viên').catch((error) => {
+      this.logger.error(`Không gửi được email tài khoản chuyên viên tới ${email}`, error?.stack ?? String(error))
+    })
+
+    return created
   }
 
   async updateSpecialist(id: number, data: any) {
-    const payload = { ...data }
-    if (payload.branchId !== undefined) {
-      const branchId = Number(payload.branchId)
-      if (!Number.isInteger(branchId) || branchId < 1) {
+    const specialist = await this.prisma.specialist.findUnique({ where: { id }, include: { user: true } })
+    if (!specialist) {
+      throw new NotFoundException('Specialist not found')
+    }
+
+    const payload: Record<string, unknown> = {}
+    let branchId = specialist.branchId
+    if (data.branchId !== undefined) {
+      const parsedBranchId = Number(data.branchId)
+      if (!Number.isInteger(parsedBranchId) || parsedBranchId < 1) {
         throw new BadRequestException('branchId is invalid')
       }
+      branchId = parsedBranchId
       payload.branchId = branchId
     }
 
-    return this.prisma.specialist.update({ where: { id }, data: payload })
+    if (data.name !== undefined) payload.name = String(data.name || '').trim()
+    if (data.level !== undefined) payload.level = data.level
+    if (data.bio !== undefined) payload.bio = data.bio
+
+    const email = data.email !== undefined ? String(data.email || '').trim().toLowerCase() : specialist.user.email
+    const serviceIds = this.toPositiveIntArray(data.serviceIds)
+    const shouldResetPassword = data.email !== undefined && email !== specialist.user.email
+
+    if (!email) throw new BadRequestException('email is required')
+
+    return this.prisma.$transaction(async (tx) => {
+      const userData: Record<string, unknown> = {
+        email,
+        role: Role.STAFF,
+      }
+      if (data.name !== undefined) {
+        userData.name = String(data.name || '').trim() || null
+      }
+
+      let plainPassword: string | null = null
+      if (shouldResetPassword) {
+        plainPassword = this.generatePassword()
+        userData.password = await bcrypt.hash(plainPassword, 10)
+      }
+
+      await tx.user.update({ where: { id: specialist.userId }, data: userData })
+
+      const updated = await tx.specialist.update({ where: { id }, data: payload })
+
+      await tx.specialistBranchService.deleteMany({ where: { specialistId: id } })
+      if (serviceIds.length > 0) {
+        await tx.specialistBranchService.createMany({
+          data: serviceIds.map((serviceId) => ({ specialistId: id, branchId, serviceId })),
+          skipDuplicates: true,
+        })
+      }
+
+      if (plainPassword) {
+        void this.sendSpecialistCredentialsMail(email, plainPassword, String(data.name || specialist.name || '').trim() || 'Chuyên viên').catch((error) => {
+          this.logger.error(`Không gửi được email mật khẩu mới tới ${email}`, error?.stack ?? String(error))
+        })
+      }
+
+      return updated
+    })
   }
 
   async deleteSpecialist(id: number) {
-    await this.prisma.specialist.delete({ where: { id } })
+    const specialist = await this.prisma.specialist.findUnique({ where: { id }, select: { userId: true } })
+    if (!specialist) throw new NotFoundException('Specialist not found')
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.specialist.delete({ where: { id } })
+      await tx.user.delete({ where: { id: specialist.userId } })
+    })
     return { ok: true }
+  }
+
+  private generatePassword() {
+    return randomBytes(9).toString('base64url')
+  }
+
+  private async sendSpecialistCredentialsMail(email: string, password: string, name: string) {
+    const user = process.env.MAIL_USER ?? 'manage.ayanavita@gmail.com'
+    const pass = process.env.MAIL_PASS ?? 'xetp fhph luse qydj'
+    const subject = 'Tài khoản chuyên viên AYANAVITA'
+    const body = `Xin chào ${name},\n\nBạn đã được cấp tài khoản chuyên viên (STAFF) tại hệ thống AYANAVITA.\nEmail: ${email}\nMật khẩu mới: ${password}\n\nVui lòng đăng nhập và đổi mật khẩu để bảo mật tài khoản.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
+
+    await this.sendSmtpViaGmail({ user, pass, to: email, subject, body })
+  }
+
+  private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string }) {
+    const { user, pass, to, subject, body } = params
+
+    const readSmtpResponse = (socket: tls.TLSSocket) =>
+      new Promise<string>((resolve, reject) => {
+        let buffer = ''
+
+        const cleanup = () => {
+          socket.off('data', onData)
+          socket.off('error', onError)
+          socket.off('close', onClose)
+        }
+
+        const onError = (err: Error) => {
+          cleanup()
+          reject(err)
+        }
+
+        const onClose = () => {
+          cleanup()
+          reject(new Error('SMTP connection closed unexpectedly'))
+        }
+
+        const onData = (chunk: Buffer) => {
+          buffer += chunk.toString('utf8')
+          const normalized = buffer.replace(/\r\n/g, '\n')
+          const lines = normalized.split('\n').filter(Boolean)
+          if (lines.length === 0) return
+          const lastLine = lines[lines.length - 1]
+          if (!/^\d{3} /.test(lastLine)) return
+          cleanup()
+          resolve(normalized.trim())
+        }
+
+        socket.on('data', onData)
+        socket.once('error', onError)
+        socket.once('close', onClose)
+      })
+
+    const sendCommand = async (socket: tls.TLSSocket, command: string, expectedCodes: number[]) => {
+      socket.write(`${command}\r\n`)
+      const response = await readSmtpResponse(socket)
+      const code = Number(response.slice(0, 3))
+      if (!expectedCodes.includes(code)) {
+        throw new Error(`SMTP command failed (${command}): ${response}`)
+      }
+      return response
+    }
+
+    const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
+      const client = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => resolve(client))
+      client.once('error', reject)
+    })
+
+    try {
+      const greeting = await readSmtpResponse(socket)
+      if (!greeting.startsWith('220')) {
+        throw new Error(`SMTP greeting failed: ${greeting}`)
+      }
+
+      await sendCommand(socket, 'EHLO ayanavita.local', [250])
+      await sendCommand(socket, 'AUTH LOGIN', [334])
+      await sendCommand(socket, Buffer.from(user).toString('base64'), [334])
+      await sendCommand(socket, Buffer.from(pass).toString('base64'), [235])
+      await sendCommand(socket, `MAIL FROM:<${user}>`, [250])
+      await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251])
+      await sendCommand(socket, 'DATA', [354])
+
+      const message = [
+        `Subject: ${subject}`,
+        `From: AYANAVITA <${user}>`,
+        `To: ${to}`,
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        body,
+        '.',
+      ].join('\r\n')
+      socket.write(`${message}\r\n`)
+      const dataResponse = await readSmtpResponse(socket)
+      if (!dataResponse.startsWith('250')) {
+        throw new Error(`SMTP send failed: ${dataResponse}`)
+      }
+
+      await sendCommand(socket, 'QUIT', [221])
+    } finally {
+      socket.end()
+    }
   }
 
   async createServiceReview(data: any) {

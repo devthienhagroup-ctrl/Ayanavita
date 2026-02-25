@@ -96,11 +96,11 @@ async function main() {
     },
   ]
 
-  const specialistSeeds: Array<{ code: string; name: string; level: SpecialistLevel; bio: string; branchCode: string }> = [
-    { code: 'LINH', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.', branchCode: 'HCM_Q1' },
-    { code: 'TRANG', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.', branchCode: 'HN_CG' },
-    { code: 'MAI', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.', branchCode: 'DN_HC' },
-    { code: 'NAM', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.', branchCode: 'HCM_Q1' },
+  const specialistSeeds: Array<{ email: string; name: string; level: SpecialistLevel; bio: string; branchCode: string }> = [
+    { email: 'linh.staff@ayanavita.local', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.', branchCode: 'HCM_Q1' },
+    { email: 'trang.staff@ayanavita.local', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.', branchCode: 'HN_CG' },
+    { email: 'mai.staff@ayanavita.local', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.', branchCode: 'DN_HC' },
+    { email: 'nam.staff@ayanavita.local', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.', branchCode: 'HCM_Q1' },
   ]
 
   for (const b of branchSeeds) {
@@ -142,12 +142,40 @@ async function main() {
   for (const st of specialistSeeds) {
     const branchId = branchByCode.get(st.branchCode)
     if (!branchId) continue
-    const { branchCode, ...specialistData } = st
-    await prisma.specialist.upsert({
-      where: { code: st.code },
-      update: { ...specialistData, branchId },
-      create: { ...specialistData, branchId },
+
+    const staffUser = await prisma.user.upsert({
+      where: { email: st.email },
+      update: { name: st.name, role: 'STAFF' },
+      create: {
+        email: st.email,
+        password: passwordHash,
+        name: st.name,
+        role: 'STAFF',
+      },
     })
+
+    const existingSpecialist = await prisma.specialist.findUnique({ where: { userId: staffUser.id } })
+    if (existingSpecialist) {
+      await prisma.specialist.update({
+        where: { id: existingSpecialist.id },
+        data: {
+          name: st.name,
+          level: st.level,
+          bio: st.bio,
+          branch: { connect: { id: branchId } },
+        },
+      })
+    } else {
+      await prisma.specialist.create({
+        data: {
+          name: st.name,
+          level: st.level,
+          bio: st.bio,
+          branch: { connect: { id: branchId } },
+          user: { connect: { id: staffUser.id } },
+        },
+      })
+    }
   }
 
   const services = await prisma.service.findMany()
