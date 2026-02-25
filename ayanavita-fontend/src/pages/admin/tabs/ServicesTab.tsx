@@ -1,6 +1,6 @@
 import type { ServicesTabProps } from './types'
 
-export function ServicesTab({ services, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onSaveService, onEditService, onDeleteService, onCancelEdit }: ServicesTabProps) {
+export function ServicesTab({ services, categories, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onSaveService, onEditService, onDeleteService, onCancelEdit }: ServicesTabProps) {
   return (
     <div className='admin-grid'>
       <section className='admin-card admin-card-glow'>
@@ -8,6 +8,15 @@ export function ServicesTab({ services, serviceForm, editingService, selectedIma
         <div className='admin-form-grid'>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ (tự sinh)</span><input className='admin-input' placeholder='Tự sinh theo tên dịch vụ' value={serviceForm.code} disabled /></label>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' placeholder='Tên dịch vụ nổi bật' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
+          <label className='admin-field'>
+            <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục</span>
+            <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
+              <option value={0}>Chọn danh mục</option>
+              {categories.filter((item) => item.isActive).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu</span><input className='admin-input' placeholder='Relax, Detox,...' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp (JSON)</span><input className='admin-input' placeholder='Nhập như goals, ví dụ: Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' placeholder='60' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
@@ -32,6 +41,7 @@ export function ServicesTab({ services, serviceForm, editingService, selectedIma
                 <th>Code</th>
                 <th>Thời lượng</th>
                 <th>Giá</th>
+                <th>Danh mục</th>
                 <th>Mục tiêu</th>
                 <th>Những ai phù hợp (JSON)</th>
                 <th>Thao tác</th>
@@ -44,6 +54,7 @@ export function ServicesTab({ services, serviceForm, editingService, selectedIma
                   <td><span className='admin-badge admin-badge-purple'>{service.code}</span></td>
                   <td>{service.durationMin} phút</td>
                   <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
+                  <td>{service.category || '-'}</td>
                   <td>
                     <div className='admin-badge-wrap'>
                       {(service.goals || []).slice(0, 3).map((goal) => <span key={goal} className='admin-badge admin-badge-pastel'>{goal}</span>)}

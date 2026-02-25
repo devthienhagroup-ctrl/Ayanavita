@@ -132,6 +132,26 @@ export class BookingController {
     return this.booking.deleteService(id)
   }
 
+  @Get('service-categories')
+  serviceCategories() {
+    return this.booking.listServiceCategories()
+  }
+
+  @Post('service-categories')
+  createServiceCategory(@Body() data: any) {
+    return this.booking.createServiceCategory(data)
+  }
+
+  @Patch('service-categories/:id')
+  updateServiceCategory(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+    return this.booking.updateServiceCategory(id, data)
+  }
+
+  @Delete('service-categories/:id')
+  deleteServiceCategory(@Param('id', ParseIntPipe) id: number) {
+    return this.booking.deleteServiceCategory(id)
+  }
+
   @Get('specialists')
   specialists(@Query() query: BookingFilterQueryDto) {
     return this.booking.listSpecialists(query.branchId, query.serviceId)

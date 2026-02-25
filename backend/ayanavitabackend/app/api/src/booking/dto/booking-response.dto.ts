@@ -26,6 +26,7 @@ export class ServiceResponseDto {
   code!: string
   name!: string
   description?: string | null
+  categoryId?: number | null
   category?: string | null
   goals!: string[]
   suitableFor!: string[]
@@ -36,6 +37,14 @@ export class ServiceResponseDto {
   tag?: string | null
   imageUrl?: string | null
   branchIds!: number[]
+}
+
+export class ServiceCategoryResponseDto {
+  id!: number
+  code!: string
+  name!: string
+  isActive!: boolean
+  serviceCount!: number
 }
 
 export class SpecialistResponseDto {

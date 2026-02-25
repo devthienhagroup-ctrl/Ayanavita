@@ -1,16 +1,21 @@
-import type { Appointment, Branch, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
+import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
 
 export type BranchForm = Partial<Branch>
 export type ServiceForm = {
   code: string
   name: string
   description: string
-  category: string
+  categoryId: number
   goals: string
   suitableFor: string
   durationMin: number
   price: number
   tag: string
+}
+export type CategoryForm = {
+  code: string
+  name: string
+  isActive: boolean
 }
 
 export type SpecialistForm = { code: string; name: string; level: string; bio: string }
@@ -34,6 +39,7 @@ export type BranchesTabProps = CommonTabProps & {
 
 export type ServicesTabProps = CommonTabProps & {
   services: SpaService[]
+  categories: ServiceCategory[]
   serviceForm: ServiceForm
   editingService: SpaService | null
   selectedImageName: string
@@ -42,6 +48,17 @@ export type ServicesTabProps = CommonTabProps & {
   onSaveService: () => Promise<void>
   onEditService: (service: SpaService) => void
   onDeleteService: (service: SpaService) => Promise<void>
+  onCancelEdit: () => void
+}
+
+export type CategoriesTabProps = CommonTabProps & {
+  categories: ServiceCategory[]
+  categoryForm: CategoryForm
+  editingCategory: ServiceCategory | null
+  onCategoryFormChange: (next: CategoryForm) => void
+  onSaveCategory: () => Promise<void>
+  onEditCategory: (category: ServiceCategory) => void
+  onDeleteCategory: (category: ServiceCategory) => Promise<void>
   onCancelEdit: () => void
 }
 

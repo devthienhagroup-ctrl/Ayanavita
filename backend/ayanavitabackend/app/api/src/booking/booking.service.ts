@@ -171,7 +171,7 @@ export class BookingService {
         id: true,
         code: true,
         name: true,
-        category: true,
+        category: { select: { code: true } },
         goals: true,
         suitableFor: true,
         durationMin: true,
@@ -188,7 +188,7 @@ export class BookingService {
       id: s.code,
       dbId: s.id,
       name: s.name,
-      cat: s.category ?? 'health',
+      cat: s.category?.code?.toLowerCase() ?? 'health',
       goal: this.toStringArray(s.goals),
       duration: s.durationMin,
       price: s.price,
@@ -227,7 +227,8 @@ export class BookingService {
         code: true,
         name: true,
         description: true,
-        category: true,
+        categoryId: true,
+        category: { select: { name: true } },
         goals: true,
         suitableFor: true,
         durationMin: true,
@@ -246,7 +247,8 @@ export class BookingService {
       code: s.code,
       name: s.name,
       description: s.description,
-      category: s.category,
+      categoryId: s.categoryId,
+      category: s.category?.name,
       goals: this.toStringArray(s.goals),
       suitableFor: this.toStringArray(s.suitableFor),
       durationMin: s.durationMin,
@@ -411,7 +413,7 @@ export class BookingService {
       code: data.code || this.normalizeServiceCode(data.name),
       name: data.name,
       description: data.description,
-      category: data.category,
+      categoryId: data.categoryId ? Number(data.categoryId) : null,
       goals: goalsInput,
       suitableFor: suitableForInput,
       durationMin: Number(data.durationMin ?? 60),
@@ -421,6 +423,9 @@ export class BookingService {
   }
 
   async createService(data: any, file?: any) {
+    if (!data.categoryId) {
+      throw new BadRequestException('categoryId is required')
+    }
     let imageUrl: string | undefined
     if (file) {
       const uploaded = await this.uploadImageToCloud(file)
@@ -449,6 +454,58 @@ export class BookingService {
 
   async deleteService(id: number) {
     await this.prisma.service.delete({ where: { id } })
+    return { ok: true }
+  }
+
+  async listServiceCategories(): Promise<ServiceCategoryResponseDto[]> {
+    const rows = await this.prisma.serviceCategory.findMany({
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        isActive: true,
+        _count: { select: { services: true } },
+      },
+      orderBy: { id: 'asc' },
+    })
+
+    return rows.map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      isActive: item.isActive,
+      serviceCount: item._count.services,
+    }))
+  }
+
+  async createServiceCategory(data: any) {
+    return this.prisma.serviceCategory.create({
+      data: {
+        code: String(data.code || '').trim().toUpperCase(),
+        name: String(data.name || '').trim(),
+        isActive: data.isActive ?? true,
+      },
+    })
+  }
+
+  async updateServiceCategory(id: number, data: any) {
+    return this.prisma.serviceCategory.update({
+      where: { id },
+      data: {
+        ...(data.code !== undefined ? { code: String(data.code).trim().toUpperCase() } : {}),
+        ...(data.name !== undefined ? { name: String(data.name).trim() } : {}),
+        ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {}),
+      },
+    })
+  }
+
+  async deleteServiceCategory(id: number) {
+    const linkedServices = await this.prisma.service.count({ where: { categoryId: id } })
+    if (linkedServices > 0) {
+      throw new BadRequestException('Danh mục đang có dịch vụ, không thể xóa')
+    }
+
+    await this.prisma.serviceCategory.delete({ where: { id } })
     return { ok: true }
   }
 

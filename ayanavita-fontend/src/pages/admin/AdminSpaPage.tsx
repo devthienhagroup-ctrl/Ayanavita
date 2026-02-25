@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { spaAdminApi, type Appointment, type Branch, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
+import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
 import { AlertJs } from '../../utils/alertJs'
 import './AdminSpaPage.css'
 import { BranchesTab } from './tabs/BranchesTab'
+import { CategoriesTab } from './tabs/CategoriesTab'
 import { ReviewsTab } from './tabs/ReviewsTab'
 import { ServicesTab } from './tabs/ServicesTab'
 import { SpecialistsTab } from './tabs/SpecialistsTab'
-import type { BranchForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
+import type { BranchForm, CategoryForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
 import { useAuth } from '../../state/auth.store'
 
-type TabKey = 'branches' | 'services' | 'specialists' | 'reviews'
+type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
-const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', suitableFor: '', durationMin: 60, price: 0, tag: 'Spa' }
+const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', categoryId: 0, goals: '', suitableFor: '', durationMin: 60, price: 0, tag: 'Spa' }
+const defaultCategoryForm: CategoryForm = { code: '', name: '', isActive: true }
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
@@ -65,6 +67,7 @@ export default function AdminSpaPage() {
   const [loading, setLoading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [services, setServices] = useState<SpaService[]>([])
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [specialists, setSpecialists] = useState<Specialist[]>([])
   const [reviews, setReviews] = useState<ServiceReview[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -74,6 +77,8 @@ export default function AdminSpaPage() {
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
   const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
   const [editingService, setEditingService] = useState<SpaService | null>(null)
+  const [categoryForm, setCategoryForm] = useState<CategoryForm>(defaultCategoryForm)
+  const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
   const [reviewForm, setReviewForm] = useState<ReviewForm>(defaultReviewForm)
@@ -95,14 +100,16 @@ export default function AdminSpaPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [b, s, sp, r, a] = await Promise.all([
+      const [b, c, s, sp, r, a] = await Promise.all([
         spaAdminApi.branches(true),
+        spaAdminApi.serviceCategories(),
         spaAdminApi.services(),
         spaAdminApi.specialists(),
         spaAdminApi.reviews(),
         spaAdminApi.appointments(),
       ])
       setBranches(b)
+      setCategories(c)
       setServices(s)
       setSpecialists(sp)
       setReviews(r)
@@ -227,6 +234,7 @@ export default function AdminSpaPage() {
 
       <nav className='admin-tabs'>
         <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
+        <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
         <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({services.length})</button>
         <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
         <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
@@ -239,10 +247,46 @@ export default function AdminSpaPage() {
         setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
       }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
-      {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={(next) => {
+      {tab === 'categories' && <CategoriesTab loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
+        if (!categoryForm.code.trim() || !categoryForm.name.trim()) {
+          await AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập mã và tên danh mục.')
+          return
+        }
+        try {
+          if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryForm)
+          else await spaAdminApi.createServiceCategory(categoryForm)
+          setEditingCategory(null)
+          setCategoryForm(defaultCategoryForm)
+          await loadAll()
+          await AlertJs.success('Đã lưu danh mục dịch vụ')
+        } catch (error) {
+          await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.'))
+        }
+      }} onEditCategory={(category) => {
+        setEditingCategory(category)
+        setCategoryForm({ code: category.code, name: category.name, isActive: category.isActive })
+      }} onDeleteCategory={async (category) => {
+        if (category.serviceCount > 0) {
+          await AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
+          return
+        }
+        try {
+          await spaAdminApi.deleteServiceCategory(category.id)
+          await loadAll()
+          await AlertJs.success('Đã xóa danh mục')
+        } catch (error) {
+          await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.'))
+        }
+      }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
+
+      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={(next) => {
         const nextName = next.name ?? serviceForm.name ?? ''
         setServiceForm({ ...next, code: normalizeServiceCode(nextName) })
       }} onSelectImage={setSelectedImage} onSaveService={async () => {
+        if (!serviceForm.categoryId) {
+          await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
+          return
+        }
         const payload = {
           ...serviceForm,
           goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
@@ -266,6 +310,7 @@ export default function AdminSpaPage() {
           ...defaultServiceForm,
           ...service,
           code: service.code || normalizeServiceCode(service.name),
+          categoryId: service.categoryId || 0,
           goals: service.goals?.join(', ') || '',
           suitableFor: service.suitableFor?.join(', ') || '',
         })

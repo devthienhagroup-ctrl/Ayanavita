@@ -6,6 +6,7 @@ export type SpaService = {
   code: string
   name: string
   description?: string
+  categoryId?: number
   category?: string
   goals: string[]
   suitableFor: string[]
@@ -14,6 +15,13 @@ export type SpaService = {
   ratingAvg: number
   imageUrl?: string
   branchIds: number[]
+}
+export type ServiceCategory = {
+  id: number
+  code: string
+  name: string
+  isActive: boolean
+  serviceCount: number
 }
 export type Specialist = {
   id: number
@@ -49,6 +57,7 @@ export type Appointment = {
 export const spaAdminApi = {
   branches: (includeInactive = false) => get<Branch[]>(`/booking/branches${includeInactive ? '?includeInactive=true' : ''}`, { auth: false }),
   services: () => get<SpaService[]>('/booking/services', { auth: false }),
+  serviceCategories: () => get<ServiceCategory[]>('/booking/service-categories', { auth: false }),
   specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
   appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
@@ -74,6 +83,10 @@ export const spaAdminApi = {
     return request(`/booking/services/${id}`, { method: 'PATCH', body: form, auth: false })
   },
   deleteService: (id: number) => del(`/booking/services/${id}`, { auth: false }),
+
+  createServiceCategory: (data: Partial<ServiceCategory>) => post('/booking/service-categories', data, { auth: false }),
+  updateServiceCategory: (id: number, data: Partial<ServiceCategory>) => patch(`/booking/service-categories/${id}`, data, { auth: false }),
+  deleteServiceCategory: (id: number) => del(`/booking/service-categories/${id}`, { auth: false }),
 
   createSpecialist: (data: any) => post('/booking/specialists', data, { auth: false }),
   updateSpecialist: (id: number, data: any) => patch(`/booking/specialists/${id}`, data, { auth: false }),
