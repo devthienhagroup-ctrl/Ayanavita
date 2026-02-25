@@ -18,9 +18,7 @@ export type SpaService = {
 }
 export type ServiceCategory = {
   id: number
-  code: string
   name: string
-  isActive: boolean
   serviceCount: number
 }
 export type Specialist = {

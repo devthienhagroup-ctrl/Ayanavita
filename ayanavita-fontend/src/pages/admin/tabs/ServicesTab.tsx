@@ -12,7 +12,7 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
             <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục</span>
             <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
               <option value={0}>Chọn danh mục</option>
-              {categories.filter((item) => item.isActive).map((item) => (
+              {categories.map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
               ))}
             </select>

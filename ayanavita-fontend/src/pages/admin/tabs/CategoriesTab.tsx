@@ -6,15 +6,7 @@ export function CategoriesTab({ categories, categoryForm, editingCategory, onCat
       <section className='admin-card admin-card-glow'>
         <h3 className='admin-card-title'><i className='fa-solid fa-layer-group' /> {editingCategory ? 'Cập nhật danh mục dịch vụ' : 'Tạo danh mục dịch vụ'}</h3>
         <div className='admin-form-grid'>
-          <label className='admin-field'><span className='admin-label'>Mã danh mục</span><input className='admin-input' placeholder='VD: SKINCARE' value={categoryForm.code} onChange={(e) => onCategoryFormChange({ ...categoryForm, code: e.target.value.toUpperCase() })} /></label>
           <label className='admin-field'><span className='admin-label'>Tên danh mục</span><input className='admin-input' placeholder='VD: Chăm sóc da' value={categoryForm.name} onChange={(e) => onCategoryFormChange({ ...categoryForm, name: e.target.value })} /></label>
-          <label className='admin-field'>
-            <span className='admin-label'>Trạng thái</span>
-            <select className='admin-input' value={String(categoryForm.isActive)} onChange={(e) => onCategoryFormChange({ ...categoryForm, isActive: e.target.value === 'true' })}>
-              <option value='true'>Đang hoạt động</option>
-              <option value='false'>Ngưng hoạt động</option>
-            </select>
-          </label>
         </div>
         <div className='admin-row'>
           <button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button>
@@ -29,8 +21,6 @@ export function CategoriesTab({ categories, categoryForm, editingCategory, onCat
             <thead>
               <tr>
                 <th>Tên danh mục</th>
-                <th>Mã</th>
-                <th>Trạng thái</th>
                 <th>Số dịch vụ</th>
                 <th>Thao tác</th>
               </tr>
@@ -39,8 +29,6 @@ export function CategoriesTab({ categories, categoryForm, editingCategory, onCat
               {categories.map((category) => (
                 <tr key={category.id}>
                   <td className='td-strong'>{category.name}</td>
-                  <td><span className='admin-badge admin-badge-purple'>{category.code}</span></td>
-                  <td>{category.isActive ? 'Hoạt động' : 'Không hoạt động'}</td>
                   <td>{category.serviceCount}</td>
                   <td>
                     <div className='admin-row'>

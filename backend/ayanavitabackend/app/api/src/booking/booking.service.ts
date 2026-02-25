@@ -172,7 +172,7 @@ export class BookingService {
         id: true,
         code: true,
         name: true,
-        category: { select: { code: true } },
+        category: { select: { name: true } },
         goals: true,
         suitableFor: true,
         durationMin: true,
@@ -189,7 +189,7 @@ export class BookingService {
       id: s.code,
       dbId: s.id,
       name: s.name,
-      cat: s.category?.code?.toLowerCase() ?? 'health',
+      cat: (s.category?.name ?? 'health').toLowerCase().replace(/\s+/g, '-'),
       goal: this.toStringArray(s.goals),
       duration: s.durationMin,
       price: s.price,
@@ -462,9 +462,7 @@ export class BookingService {
     const rows = await this.prisma.serviceCategory.findMany({
       select: {
         id: true,
-        code: true,
         name: true,
-        isActive: true,
         _count: { select: { services: true } },
       },
       orderBy: { id: 'asc' },
@@ -472,9 +470,7 @@ export class BookingService {
 
     return rows.map((item) => ({
       id: item.id,
-      code: item.code,
       name: item.name,
-      isActive: item.isActive,
       serviceCount: item._count.services,
     }))
   }
@@ -482,9 +478,7 @@ export class BookingService {
   async createServiceCategory(data: any) {
     return this.prisma.serviceCategory.create({
       data: {
-        code: String(data.code || '').trim().toUpperCase(),
         name: String(data.name || '').trim(),
-        isActive: data.isActive ?? true,
       },
     })
   }
@@ -493,9 +487,7 @@ export class BookingService {
     return this.prisma.serviceCategory.update({
       where: { id },
       data: {
-        ...(data.code !== undefined ? { code: String(data.code).trim().toUpperCase() } : {}),
         ...(data.name !== undefined ? { name: String(data.name).trim() } : {}),
-        ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {}),
       },
     })
   }

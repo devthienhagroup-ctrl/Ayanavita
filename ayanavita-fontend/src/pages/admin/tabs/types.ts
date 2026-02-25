@@ -13,9 +13,7 @@ export type ServiceForm = {
   tag: string
 }
 export type CategoryForm = {
-  code: string
   name: string
-  isActive: boolean
 }
 
 export type SpecialistForm = { code: string; name: string; level: string; bio: string }

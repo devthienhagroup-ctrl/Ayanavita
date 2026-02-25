@@ -41,9 +41,7 @@ export class ServiceResponseDto {
 
 export class ServiceCategoryResponseDto {
   id!: number
-  code!: string
   name!: string
-  isActive!: boolean
   serviceCount!: number
 }
 

@@ -48,9 +48,7 @@ model Branch {
 
 model ServiceCategory {
   id        Int      @id @default(autoincrement())
-  code      String   @unique @db.VarChar(64)
   name      String   @unique @db.VarChar(255)
-  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   services  Service[]

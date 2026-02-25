@@ -13,7 +13,7 @@ import { useAuth } from '../../state/auth.store'
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
 const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', categoryId: 0, goals: '', suitableFor: '', durationMin: 60, price: 0, tag: 'Spa' }
-const defaultCategoryForm: CategoryForm = { code: '', name: '', isActive: true }
+const defaultCategoryForm: CategoryForm = { name: '' }
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
@@ -248,8 +248,8 @@ export default function AdminSpaPage() {
       }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
       {tab === 'categories' && <CategoriesTab loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
-        if (!categoryForm.code.trim() || !categoryForm.name.trim()) {
-          await AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập mã và tên danh mục.')
+        if (!categoryForm.name.trim()) {
+          await AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
           return
         }
         try {
@@ -264,7 +264,7 @@ export default function AdminSpaPage() {
         }
       }} onEditCategory={(category) => {
         setEditingCategory(category)
-        setCategoryForm({ code: category.code, name: category.name, isActive: category.isActive })
+        setCategoryForm({ name: category.name })
       }} onDeleteCategory={async (category) => {
         if (category.serviceCount > 0) {
           await AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
