@@ -21,6 +21,7 @@ export class BookingService {
   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
+  private readonly s3PublicBaseUrl = process.env.CLOUDFLY_PUBLIC_BASE_URL
   private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
   private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
 
@@ -48,52 +49,9 @@ export class BookingService {
     return createHmac('sha256', key).update(value, 'utf8').digest()
   }
 
-  private presignCloudReadUrl(key: string, expiresInSeconds = 1800) {
-    const endpoint = this.s3Endpoint.replace(/\/$/, '')
-    const host = new URL(endpoint).host
-    const now = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
-    const dateStamp = now.slice(0, 8)
-    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
-
-    const params = new URLSearchParams({
-      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-      'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD',
-      'X-Amz-Credential': `${this.s3AccessKey}/${credentialScope}`,
-      'X-Amz-Date': now,
-      'X-Amz-Expires': String(expiresInSeconds),
-      'X-Amz-SignedHeaders': 'host',
-      'x-amz-checksum-mode': 'ENABLED',
-      'x-id': 'GetObject',
-    })
-
-    const canonicalQuery = [...params.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&')
-
-    const canonicalRequest = [
-      'GET',
-      `/${this.s3Bucket}/${key}`,
-      canonicalQuery,
-      `host:${host}\n`,
-      'host',
-      'UNSIGNED-PAYLOAD',
-    ].join('\n')
-
-    const stringToSign = [
-      'AWS4-HMAC-SHA256',
-      now,
-      credentialScope,
-      createHash('sha256').update(canonicalRequest).digest('hex'),
-    ].join('\n')
-
-    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
-    const kRegion = this.hmac(kDate, this.s3Region)
-    const kService = this.hmac(kRegion, 's3')
-    const kSigning = this.hmac(kService, 'aws4_request')
-    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
-
-    return `${endpoint}/${this.s3Bucket}/${key}?${canonicalQuery}&X-Amz-Signature=${signature}`
+  private publicCloudUrl(key: string) {
+    const baseUrl = this.s3PublicBaseUrl?.trim().replace(/\/$/, '') || this.s3Endpoint.replace(/\/$/, '')
+    return `${baseUrl}/${this.s3Bucket}/${key}`
   }
 
   private extractCloudKey(input: { fileName?: string; url?: string }) {
@@ -114,9 +72,22 @@ export class BookingService {
     const payloadHash = method === 'PUT' && file
       ? createHash('sha256').update(file.buffer).digest('hex')
       : createHash('sha256').update('').digest('hex')
+    const contentType = file?.mimetype || 'image/jpeg'
+    const acl = 'public-read'
 
-    const canonicalHeaders = `host:${endpointHost}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
-    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
+    const signingHeaders: Record<string, string> = {
+      host: endpointHost,
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+    }
+    if (method === 'PUT') {
+      signingHeaders['content-type'] = contentType
+      signingHeaders['x-amz-acl'] = acl
+    }
+
+    const sortedHeaderKeys = Object.keys(signingHeaders).sort()
+    const canonicalHeaders = sortedHeaderKeys.map((headerKey) => `${headerKey}:${signingHeaders[headerKey]}`).join('\n') + '\n'
+    const signedHeaders = sortedHeaderKeys.join(';')
     const canonicalRequest = [method, `/${this.s3Bucket}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
     const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
     const stringToSign = [
@@ -142,7 +113,8 @@ export class BookingService {
     }
 
     if (method === 'PUT' && file) {
-      headers['content-type'] = file.mimetype || 'image/jpeg'
+      headers['content-type'] = contentType
+      headers['x-amz-acl'] = acl
     }
 
     const res = await fetch(uploadUrl, {
@@ -166,7 +138,7 @@ export class BookingService {
 
     return {
       fileName: key,
-      url: this.presignCloudReadUrl(key),
+      url: this.publicCloudUrl(key),
       size: file.size,
     }
   }

@@ -69,18 +69,29 @@ function ServiceCard({ s }: { s: ApiService }) {
         alt={s.name}
       />
 
-      <div className="mt-3 flex items-start justify-between gap-2">
-        <div>
-          <div className="font-extrabold">{s.name}</div>
-          <div className="text-xs text-slate-500">
-            {s.id} • {s.duration} phút
-          </div>
+      <div className="mt-3">
+        <div
+          className="font-extrabold"
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {s.name}
         </div>
 
-        <span className="chip">
-          <i className="fa-solid fa-tag text-emerald-600" />
-          {money(s.price)}
-        </span>
+        <div className="mt-2">
+          <span className="chip">
+            <i className="fa-solid fa-tag text-emerald-600" />
+            {money(s.price)}
+          </span>
+        </div>
+
+        <div className="mt-2 text-xs text-slate-500">
+          {s.id} • {s.duration} phút
+        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between text-sm text-slate-700">
