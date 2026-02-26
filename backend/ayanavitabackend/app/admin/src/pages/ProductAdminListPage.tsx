@@ -10,6 +10,7 @@ import {
   updateAdminCategory,
 } from "../api/productAdmin.api";
 import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
+import { AppAlert } from "../components/AppAlert";
 
 function CategoryRow({
   category,
@@ -130,8 +131,8 @@ export function ProductAdminListPage() {
     "(chưa đặt tên)";
 
   return (
-    <div>
-      <div className="card" style={{ marginBottom: 16 }}>
+    <div className="grid" style={{ gap: 14 }}>
+      <div className="card hero-card" style={{ marginBottom: 0 }}>
         <p className="muted" style={{ margin: 0 }}>Quản lý sản phẩm</p>
         <h2 className="h1">Danh sách sản phẩm</h2>
         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
@@ -148,6 +149,12 @@ export function ProductAdminListPage() {
           ))}
         </div>
       </div>
+
+      <AppAlert
+        kind="warning"
+        title="Lưu ý dữ liệu"
+        message="Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn."
+      />
 
       <div className="card">
         {loading ? (

@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createAttribute,
+  deleteProductImage,
   createIngredient,
   fetchAdminCategories,
   fetchAdminProductById,
   fetchCatalogLanguages,
+  updateProductImage,
+  uploadProductImage,
   updateAdminProduct,
   upsertTranslation,
 } from "../api/productAdmin.api";
@@ -19,6 +22,7 @@ export function ProductAdminDetailPage() {
   const [languages, setLanguages] = useState<AdminLanguage[]>([]);
   const [activeLang, setActiveLang] = useState("vi");
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -41,6 +45,38 @@ export function ProductAdminDetailPage() {
     const next = await updateAdminProduct(product);
     setProduct(next);
     setSaving(false);
+  };
+
+  const onUploadImage = async (file?: File | null) => {
+    if (!product || !file) return;
+    setUploadingImage(true);
+    try {
+      const uploaded = await uploadProductImage(product.id, file, product.images.length === 0, product.images.length);
+      setProduct((prev) => (prev ? { ...prev, images: [...prev.images, uploaded] } : prev));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const onPersistImage = async (imageId: string) => {
+    if (!product) return;
+    const found = product.images.find((img) => img.id === imageId);
+    if (!found) return;
+    const updated = await updateProductImage(product.id, found);
+    setProduct((prev) =>
+      prev
+        ? {
+            ...prev,
+            images: prev.images.map((img) => (img.id === imageId ? updated : img)),
+          }
+        : prev,
+    );
+  };
+
+  const onDeleteImage = async (imageId: string) => {
+    if (!product) return;
+    await deleteProductImage(product.id, imageId);
+    setProduct((prev) => (prev ? { ...prev, images: prev.images.filter((img) => img.id !== imageId) } : prev));
   };
 
   if (!product) {
@@ -282,6 +318,104 @@ export function ProductAdminDetailPage() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <h3 className="h2" style={{ margin: 0 }}>Hình ảnh sản phẩm</h3>
+          <label className="btn btn-primary" style={{ cursor: "pointer" }}>
+            {uploadingImage ? "Đang tải ảnh..." : "+ Tải ảnh"}
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              disabled={uploadingImage}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                void onUploadImage(file);
+                e.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="grid" style={{ gap: 10, marginTop: 10 }}>
+          {product.images.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>Chưa có ảnh cho sản phẩm này.</p>
+          ) : (
+            product.images.map((image, idx) => (
+              <div key={image.id} className="card" style={{ padding: 10 }}>
+                <div className="grid grid-2" style={{ alignItems: "start" }}>
+                  <img src={image.imageUrl} alt={`Product ${idx + 1}`} style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8 }} />
+                  <div className="grid" style={{ gap: 8 }}>
+                    <label>
+                      <div className="muted">URL ảnh</div>
+                      <input
+                        className="input"
+                        value={image.imageUrl}
+                        onChange={(e) =>
+                          setProduct((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  images: prev.images.map((row) => (row.id === image.id ? { ...row, imageUrl: e.target.value } : row)),
+                                }
+                              : prev,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <div className="muted">Thứ tự hiển thị</div>
+                      <input
+                        type="number"
+                        min={0}
+                        className="input"
+                        value={image.sortOrder}
+                        onChange={(e) =>
+                          setProduct((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  images: prev.images.map((row) =>
+                                    row.id === image.id ? { ...row, sortOrder: Number(e.target.value) || 0 } : row,
+                                  ),
+                                }
+                              : prev,
+                          )
+                        }
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={image.isPrimary}
+                        onChange={(e) =>
+                          setProduct((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  images: prev.images.map((row) => ({
+                                    ...row,
+                                    isPrimary: row.id === image.id ? e.target.checked : false,
+                                  })),
+                                }
+                              : prev,
+                          )
+                        }
+                      />
+                      Ảnh chính
+                    </label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn" onClick={() => void onPersistImage(image.id)}>Lưu ảnh</button>
+                      <button className="btn btn-danger" onClick={() => void onDeleteImage(image.id)}>Xóa ảnh</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

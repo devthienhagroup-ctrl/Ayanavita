@@ -1,4 +1,5 @@
 import { api } from "../lib/http";
+import { API_BASE } from "../env";
 import {
   type AdminLanguage,
   type LanguageCode,
@@ -8,6 +9,7 @@ import {
   type ProductIngredient,
   type ProductTranslation,
   type ProductGuideContent,
+  type ProductImage,
 } from "../types/productAdmin";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -146,6 +148,7 @@ type ApiProduct = {
   }>;
   attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
   ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
+  images?: Array<{ id: string | number; imageUrl: string; isPrimary?: boolean; sortOrder?: number }>;
 };
 
 const mapProduct = (
@@ -191,6 +194,12 @@ const mapProduct = (
       value: row.valueText || String(row.valueNumber ?? ""),
     };
   }),
+  images: (item.images || []).map((row) => ({
+    id: String(row.id),
+    imageUrl: row.imageUrl,
+    isPrimary: Boolean(row.isPrimary),
+    sortOrder: Number(row.sortOrder || 0),
+  })),
   updatedAt: item.updatedAt || new Date().toISOString(),
 });
 
@@ -339,6 +348,54 @@ export async function updateAdminProduct(item: ProductAdminItem): Promise<Produc
   const ingredientKeys = Object.fromEntries(Array.from(ingredientKeyMap.values()).map((v) => [String(v.id), v]));
   const attributeKeys = Object.fromEntries(Array.from(attributeKeyMap.values()).map((v) => [String(v.id), v]));
   return mapProduct(product, languages, ingredientKeys, attributeKeys);
+}
+
+export async function uploadProductImage(productId: string, file: File, isPrimary = false, sortOrder = 0): Promise<ProductImage> {
+  const token = localStorage.getItem("aya_admin_token") || "";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("isPrimary", String(isPrimary));
+  formData.append("sortOrder", String(sortOrder));
+
+  const response = await fetch(`${API_BASE}/catalog/products/${productId}/images/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+  const row = (await response.json()) as { id: string | number; imageUrl: string; isPrimary?: boolean; sortOrder?: number };
+  return {
+    id: String(row.id),
+    imageUrl: row.imageUrl,
+    isPrimary: Boolean(row.isPrimary),
+    sortOrder: Number(row.sortOrder || 0),
+  };
+}
+
+export async function updateProductImage(productId: string, image: ProductImage): Promise<ProductImage> {
+  const row = await api<{ id: string | number; imageUrl: string; isPrimary?: boolean; sortOrder?: number }>(
+    `/catalog/products/${productId}/images/${image.id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        imageUrl: image.imageUrl,
+        isPrimary: image.isPrimary,
+        sortOrder: image.sortOrder,
+      }),
+    },
+  );
+
+  return {
+    id: String(row.id),
+    imageUrl: row.imageUrl,
+    isPrimary: Boolean(row.isPrimary),
+    sortOrder: Number(row.sortOrder || 0),
+  };
+}
+
+export async function deleteProductImage(productId: string, imageId: string): Promise<void> {
+  await api(`/catalog/products/${productId}/images/${imageId}`, { method: "DELETE" });
 }
 
 export async function fetchAdminCategories(): Promise<ProductCategory[]> {

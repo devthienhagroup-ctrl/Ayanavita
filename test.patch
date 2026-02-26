@@ -1,815 +1,946 @@
-diff --git a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-index 83d759cc460f8b90b0ab7ca9783ef083ce31319b..74241f4b68fff7b361c42ddab9c551cf25fa750b 100644
---- a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-+++ b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-@@ -1,130 +1,171 @@
- import { api } from "../lib/http";
- import {
-   type AdminLanguage,
-   type LanguageCode,
-   type ProductAdminItem,
-   type ProductAttribute,
-   type ProductCategory,
-   type ProductIngredient,
-   type ProductTranslation,
-+  type ProductGuideContent,
- } from "../types/productAdmin";
+diff --git a/backend/ayanavitabackend/app/admin/src/App.tsx b/backend/ayanavitabackend/app/admin/src/App.tsx
+index 96e1395e1d6c0d7b4c4972386318802a1c5cbf87..adbe51c9c572d0acafcd15ae3ffda61f15e05828 100644
+--- a/backend/ayanavitabackend/app/admin/src/App.tsx
++++ b/backend/ayanavitabackend/app/admin/src/App.tsx
+@@ -1,44 +1,45 @@
+ import React from "react";
+ import { Navigate, Route, Routes } from "react-router-dom";
 
- const uid = () => Math.random().toString(36).slice(2, 10);
+ import { Layout } from "./components/Layout";
+ import { AuthProvider } from "./app/auth.store";
+ import { RequireAuth } from "./app/guard";
 
- const slugify = (text: string) =>
-   text
-     .toLowerCase()
-     .trim()
-     .normalize("NFD")
-     .replace(/[\u0300-\u036f]/g, "")
-     .replace(/[^a-z0-9\s-]/g, "")
-     .replace(/\s+/g, "-")
-     .replace(/-+/g, "-") || `item-${uid()}`;
+ import { LoginPage } from "./pages/LoginPage";
+ import { CmsPagesPage } from "./pages/CmsPagesPage";
+ import { CmsEditPage } from "./pages/CmsEditPage";
+ import { LeadsPage } from "./pages/LeadsPage";
+ import { NotFound } from "./pages/NotFound";
+ import { ProductAdminListPage } from "./pages/ProductAdminListPage";
+ import { ProductAdminDetailPage } from "./pages/ProductAdminDetailPage";
+ import { CatalogCrudPage } from "./pages/CatalogCrudPage";
++import { HomePage } from "./pages/HomePage";
 
- const defaultLanguages: AdminLanguage[] = [
-   { code: "vi", label: "Tiếng Việt" },
-   { code: "en", label: "English" },
-   { code: "de", label: "Deutsch" },
- ];
+ export default function App() {
+   return (
+     <AuthProvider>
+       <Routes>
+         <Route path="/login" element={<LoginPage />} />
 
- let languageCache: AdminLanguage[] | null = null;
+         <Route
+           path="/"
+           element={
+             <RequireAuth>
+               <Layout />
+             </RequireAuth>
+           }
+         >
+-          <Route index element={<Navigate to="/cms/pages" replace />} />
++          <Route index element={<HomePage />} />
+           <Route path="cms/pages" element={<CmsPagesPage />} />
+           <Route path="cms/pages/:slug" element={<CmsEditPage />} />
+           <Route path="leads" element={<LeadsPage />} />
+           <Route path="catalog/products" element={<ProductAdminListPage />} />
+           <Route path="catalog/products/:productId" element={<ProductAdminDetailPage />} />
+           <Route path="catalog/crud" element={<CatalogCrudPage />} />
+         </Route>
 
-+const emptyGuideContent = (): ProductGuideContent => ({
-+  intro: "",
-+  steps: [],
-+});
+         <Route path="*" element={<NotFound />} />
+       </Routes>
+     </AuthProvider>
+   );
+ }
+diff --git a/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx b/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..de0ad771d70a982a22b55a020f3d0842bac2d872
+--- /dev/null
++++ b/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx
+@@ -0,0 +1,20 @@
++import React from "react";
 +
-+const normalizeGuideContent = (value: unknown): ProductGuideContent => {
-+  if (!value || typeof value !== "object") return emptyGuideContent();
++type AlertKind = "info" | "success" | "warning" | "error";
 +
-+  const raw = value as { intro?: unknown; steps?: unknown };
-+  const intro = typeof raw.intro === "string" ? raw.intro : "";
-+  const steps = Array.isArray(raw.steps)
-+    ? raw.steps
-+        .map((step) => {
-+          if (!step || typeof step !== "object") return null;
-+          const s = step as { order?: unknown; content?: unknown };
-+          const content = typeof s.content === "string" ? s.content : "";
-+          const order = Number(s.order);
-+          if (!content) return null;
-+          return { order: Number.isFinite(order) && order > 0 ? Math.floor(order) : 1, content };
-+        })
-+        .filter((step): step is { order: number; content: string } => Boolean(step))
-+        .sort((a, b) => a.order - b.order)
-+    : [];
-+
-+  return { intro, steps };
-+};
-+
- export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
-   if (languageCache) return languageCache;
-   try {
-     const rows = await api<Array<{ code: string; name: string }>>("/catalog/languages");
-     languageCache =
-       rows.map((row) => ({ code: row.code, label: row.name })) || defaultLanguages;
-   } catch {
-     languageCache = defaultLanguages;
++export function AppAlert({
++  kind = "info",
++  title,
++  message,
++}: {
++  kind?: AlertKind;
++  title: string;
++  message: string;
++}) {
++  return (
++    <div className={`app-alert app-alert-${kind}`} role="alert">
++      <div className="app-alert-title">{title}</div>
++      <div className="app-alert-message">{message}</div>
++    </div>
++  );
++}
+diff --git a/backend/ayanavitabackend/app/admin/src/components/Layout.tsx b/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
+index ef406ed9c905a07bb84c2037061be039c83e3775..e83ecd8ecd16d1b8b23c7c929ddbd2f98277f663 100644
+--- a/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
++++ b/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
+@@ -1,64 +1,65 @@
+ import React from "react";
+ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+ import { useAuth } from "../app/auth.store";
+ import { ToastProvider } from "./Toast";
+
+ function NavItem({ to, label }: { to: string; label: string }) {
+   return (
+-    <NavLink
+-      to={to}
+-      className={({ isActive }) => `btn ${isActive ? "btn-primary" : ""}`}
+-    >
++    <NavLink to={to} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+       {label}
+     </NavLink>
+   );
+ }
+
+ export function Layout() {
+   const { token, logout } = useAuth();
+   const nav = useNavigate();
+
+   return (
+     <ToastProvider>
+-      <div className="topbar">
+-        <div className="row">
++      <div className="app-shell">
++        <aside className="side-nav">
+           <Link to="/" className="brand" aria-label="Home">
+             <span className="dot" aria-hidden="true" />
+             <div>
+               <span className="g-text">AYANAVITA Admin</span>
+-              <div className="muted" style={{ fontSize: 12, fontWeight: 900, marginTop: 2 }}>
+-                CMS • Leads • Publish
++              <div className="muted" style={{ fontSize: 12, fontWeight: 800, marginTop: 2 }}>
++                Modern control center
+               </div>
+             </div>
+           </Link>
+
+-          <div className="nav">
++          <div className="nav-list">
++            <NavItem to="/" label="Trang chủ" />
+             <NavItem to="/cms/pages" label="CMS Pages" />
+             <NavItem to="/leads" label="Leads" />
+             <NavItem to="/catalog/products" label="Products" />
+             <NavItem to="/catalog/crud" label="Catalog CRUD" />
++          </div>
+
++          <div className="side-footer">
+             <span className="pill" title="JWT token (short)">
+-              {token ? `${token.slice(0, 10)}…` : "no-token"}
++              {token ? `${token.slice(0, 12)}…` : "no-token"}
+             </span>
+-
+             <button
+               className="btn btn-danger"
+               type="button"
+               onClick={() => {
+                 logout();
+                 nav("/login", { replace: true });
+               }}
+             >
+               Logout
+             </button>
+           </div>
+-        </div>
+-      </div>
++        </aside>
+
+-      <div className="container">
+-        <Outlet />
++        <main className="main-content">
++          <div className="container">
++            <Outlet />
++          </div>
++        </main>
+       </div>
+     </ToastProvider>
+   );
+ }
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx
+index 5ee62b2db6748d4d659223eb23d8e54c90f77ee3..2d4d1754924c995aa6969285c7219349254c7fc8 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx
+@@ -1,28 +1,29 @@
+ import React, { useState } from 'react'
+ import { useAuth } from '../app/auth.store'
+ import { apiFetch } from '../api/client'
++import { AppAlert } from '../components/AppAlert'
+
+ const defaults: Record<string, string> = {
+   categories: JSON.stringify(
+     {
+       status: 'active',
+       translations: [
+         { languageCode: 'vi', name: 'Chăm sóc da', slug: 'cham-soc-da' },
+         { languageCode: 'en', name: 'Skincare', slug: 'skincare' },
+       ],
+     },
+     null,
+     2,
+   ),
+   products: JSON.stringify(
+     {
+       sku: 'SPA-SAMPLE-001',
+       categoryId: 1,
+       price: 489000,
+       status: 'active',
+       translations: [
+         { languageCode: 'vi', name: 'Serum Spa', slug: 'serum-spa' },
+         { languageCode: 'en', name: 'Spa Serum', slug: 'spa-serum' },
+       ],
+     },
+     null,
+@@ -53,54 +54,65 @@ const defaults: Record<string, string> = {
+   ),
+ }
+
+ function Panel({ resource }: { resource: 'categories' | 'products' | 'attributes' | 'ingredients' }) {
+   const { token } = useAuth()
+   const [payload, setPayload] = useState(defaults[resource])
+   const [id, setId] = useState('')
+   const [result, setResult] = useState('')
+
+   const callApi = async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE') => {
+     try {
+       const path = `/catalog/${resource}${id ? `/${id}` : ''}`
+       const body = method === 'POST' || method === 'PATCH' ? JSON.parse(payload) : undefined
+       const data = await apiFetch<any>(path, {
+         method,
+         token,
+         ...(body ? { body: JSON.stringify(body) } : {}),
+       })
+       setResult(JSON.stringify(data, null, 2))
+     } catch (error: any) {
+       setResult(error?.message || 'Request failed')
+     }
    }
-   return languageCache;
+
+   return (
+-    <div className="card" style={{ marginBottom: 20 }}>
+-      <h3 style={{ marginTop: 0, textTransform: 'capitalize' }}>{resource}</h3>
++    <div className="card">
++      <h3 style={{ marginTop: 0, marginBottom: 10, textTransform: 'capitalize' }}>{resource}</h3>
+       <div style={{ display: 'grid', gap: 8 }}>
+         <input className="input" placeholder="ID (for get one/patch/delete)" value={id} onChange={(e) => setId(e.target.value)} />
+-        <textarea className="input" style={{ minHeight: 180, fontFamily: 'monospace' }} value={payload} onChange={(e) => setPayload(e.target.value)} />
++        <textarea className="textarea" style={{ minHeight: 180, fontFamily: 'monospace' }} value={payload} onChange={(e) => setPayload(e.target.value)} />
+         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+           <button className="btn" onClick={() => callApi('GET')}>GET</button>
+           <button className="btn btn-primary" onClick={() => callApi('POST')}>POST</button>
+           <button className="btn" onClick={() => callApi('PATCH')}>PATCH</button>
+           <button className="btn btn-danger" onClick={() => callApi('DELETE')}>DELETE</button>
+         </div>
+-        <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{result}</pre>
++        <pre className="card" style={{ whiteSpace: 'pre-wrap', margin: 0, background: '#0f172a', color: '#e2e8f0' }}>{result || 'Response sẽ hiển thị ở đây.'}</pre>
+       </div>
+     </div>
+   )
  }
 
- const ensureTranslations = (
-   languages: AdminLanguage[],
--  rows: Array<{ languageCode: string; name?: string; shortDescription?: string; description?: string }> = [],
-+  rows: Array<{
-+    languageCode: string;
-+    name?: string;
-+    shortDescription?: string;
-+    description?: string;
-+    guideContent?: unknown;
-+  }> = [],
- ): ProductTranslation[] =>
-   languages.map((lang) => {
-     const found = rows.find((item) => item.languageCode === lang.code);
-     return {
-       lang: lang.code,
-       name: found?.name || "",
-       shortDescription: found?.shortDescription || "",
-       description: found?.description || "",
-+      guideContent: normalizeGuideContent(found?.guideContent),
-     };
-   });
-
- type ApiCategory = {
-   id: string | number;
-   translations?: Array<{ languageCode: string; name: string; description?: string }>;
- };
-
- type ApiAttributeKey = {
-   id: string | number;
-   code: string;
-   translations?: Array<{ languageCode: string; displayName: string }>;
- };
-
- type ApiIngredientKey = {
-   id: string | number;
-   code: string;
-   translations?: Array<{ languageCode: string; displayName: string }>;
- };
-
- const loadAttributeKeys = async (): Promise<Record<string, ApiAttributeKey>> => {
-   const rows = await api<ApiAttributeKey[]>("/catalog/attributes");
-   return Object.fromEntries(rows.map((item) => [String(item.id), item]));
- };
-
- const loadIngredientKeys = async (): Promise<Record<string, ApiIngredientKey>> => {
-   const rows = await api<ApiIngredientKey[]>("/catalog/ingredients");
-   return Object.fromEntries(rows.map((item) => [String(item.id), item]));
- };
-
- const mapCategory = (item: ApiCategory, languages: AdminLanguage[]): ProductCategory => ({
-   id: String(item.id),
-   translations: languages.map((lang) => {
-     const found = item.translations?.find((row) => row.languageCode === lang.code);
-     return {
-       lang: lang.code,
-       name: found?.name || "",
-       description: found?.description || "",
-     };
-   }),
- });
-
- type ApiProduct = {
-   id: string | number;
-   sku: string;
-   categoryId?: string | number | null;
-   price: number;
-   status?: string;
-   stock?: number;
-   updatedAt?: string;
--  translations?: Array<{ languageCode: string; name: string; shortDescription?: string; description?: string }>;
-+  translations?: Array<{
-+    languageCode: string;
-+    name: string;
-+    shortDescription?: string;
-+    description?: string;
-+    guideContent?: unknown;
-+  }>;
-   attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
-   ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
- };
-
- const mapProduct = (
-   item: ApiProduct,
-   languages: AdminLanguage[],
-   ingredientKeys: Record<string, ApiIngredientKey> = {},
-   attributeKeys: Record<string, ApiAttributeKey> = {},
- ): ProductAdminItem => ({
-   id: String(item.id),
-   sku: item.sku,
-   categoryId: item.categoryId ? String(item.categoryId) : "",
-   price: Number(item.price || 0),
-   stock: Number(item.stock || 0),
-   status: item.status === "active" ? "active" : "draft",
-   translations: ensureTranslations(languages, item.translations),
-   ingredients: (item.ingredients || []).map((row) => {
-     const key = ingredientKeys[String(row.ingredientKeyId)];
-     const nameByLang = Object.fromEntries(
-       languages.map((lang) => [
-         lang.code,
-         key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
-       ]),
-     );
-@@ -142,89 +183,91 @@ const mapProduct = (
-         lang.code,
-         key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
-       ]),
-     );
-
-     return {
-       id: String(row.attributeKeyId),
-       keyByLang,
-       value: row.valueText || String(row.valueNumber ?? ""),
-     };
-   }),
-   updatedAt: item.updatedAt || new Date().toISOString(),
- });
-
- const toProductPayload = (item: ProductAdminItem) => ({
-   sku: item.sku,
-   categoryId: item.categoryId ? Number(item.categoryId) : null,
-   price: Number(item.price || 0),
-   status: item.status,
-   translations: item.translations.map((row) => ({
-     languageCode: row.lang,
-     name: row.name || "",
-     slug: slugify(row.name || `${item.sku}-${row.lang}`),
-     shortDescription: row.shortDescription || "",
-     description: row.description || "",
-+    guideContent: row.guideContent,
-   })),
- });
-
- export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
-   const languages = await fetchCatalogLanguages();
-   const [products, ingredientKeys, attributeKeys] = await Promise.all([
-     api<ApiProduct[]>("/catalog/products"),
-     loadIngredientKeys(),
-     loadAttributeKeys(),
-   ]);
-   return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
- }
-
- export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
-   const languages = await fetchCatalogLanguages();
-   try {
-     const [item, ingredientKeys, attributeKeys] = await Promise.all([
-       api<ApiProduct>(`/catalog/products/${id}`),
-       loadIngredientKeys(),
-       loadAttributeKeys(),
-     ]);
-     return mapProduct(item, languages, ingredientKeys, attributeKeys);
-   } catch {
-     return null;
-   }
- }
-
- export async function createAdminProduct(): Promise<ProductAdminItem> {
-   const languages = await fetchCatalogLanguages();
-   const payload = {
-     sku: `AYA-${uid().toUpperCase()}`,
-     price: 0,
-     status: "draft",
-     translations: languages.map((lang) => ({
-       languageCode: lang.code,
-       name: "",
-       slug: `new-${lang.code}-${uid()}`,
-       shortDescription: "",
-       description: "",
-+      guideContent: emptyGuideContent(),
-     })),
-   };
-   const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
-   return mapProduct(created, languages);
- }
-
- export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
-   const languages = await fetchCatalogLanguages();
-   const product = await api<ApiProduct>(`/catalog/products/${item.id}`, {
-     method: "PATCH",
-     body: JSON.stringify(toProductPayload(item)),
-   });
-
-   const ingredientKeysByCode = await api<ApiIngredientKey[]>("/catalog/ingredients");
-   const ingredientKeyMap = new Map(ingredientKeysByCode.map((k) => [k.code.toLowerCase(), k]));
-   const ingredientItems: Array<{ ingredientKeyId: number; note: string; value: string; sortOrder: number }> = [];
-   for (const [idx, ingredient] of item.ingredients.entries()) {
-     const viName = ingredient.nameByLang.vi || ingredient.nameByLang.en || Object.values(ingredient.nameByLang)[0] || "";
-     const code = slugify(viName || `ingredient-${idx}`);
-     let key = ingredientKeyMap.get(code);
-     if (!key) {
-       key = await api<ApiIngredientKey>("/catalog/ingredients", {
-         method: "POST",
-         body: JSON.stringify({
-           code,
-@@ -326,32 +369,32 @@ export async function updateAdminCategory(category: ProductCategory): Promise<Pr
-     method: "PATCH",
-     body: JSON.stringify({
-       translations: category.translations.map((row) => ({
-         languageCode: row.lang,
-         name: row.name,
-         slug: slugify(`${row.name || "category"}-${row.lang}`),
-         description: row.description || "",
-       })),
-     }),
-   });
-   const languages = await fetchCatalogLanguages();
-   return mapCategory(updated, languages);
- }
-
- export async function deleteAdminCategory(categoryId: string): Promise<void> {
-   await api(`/catalog/categories/${categoryId}`, { method: "DELETE" });
- }
-
- export function upsertTranslation(
-   translations: ProductTranslation[],
-   lang: LanguageCode,
-   patch: Partial<ProductTranslation>,
- ): ProductTranslation[] {
-   const existing = translations.find((item) => item.lang === lang);
-   if (!existing) {
--    return [...translations, { lang, name: "", shortDescription: "", description: "", ...patch }];
-+    return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
-   }
-   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
- }
-
- export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
- export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });
-diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-index 70592e8b82334574773c9803772ff8bb964b9df5..8d070ca0950febbeb6f10e50a5c82053aa21d059 100644
---- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-@@ -134,50 +134,176 @@ export function ProductAdminDetailPage() {
-             <input
-               className="input"
-               value={translation?.shortDescription || ""}
-               onChange={(e) =>
-                 setProduct((prev) =>
-                   prev
-                     ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { shortDescription: e.target.value }) }
-                     : prev,
-                 )
-               }
-             />
-           </label>
-           <label>
-             <div className="muted">Mô tả chi tiết</div>
-             <textarea
-               rows={4}
-               className="input"
-               value={translation?.description || ""}
-               onChange={(e) =>
-                 setProduct((prev) =>
-                   prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { description: e.target.value }) } : prev,
-                 )
-               }
-             />
-           </label>
-+          <label>
-+            <div className="muted">Hướng dẫn sử dụng - Giới thiệu</div>
-+            <textarea
-+              rows={3}
-+              className="input"
-+              value={translation?.guideContent?.intro || ""}
-+              onChange={(e) =>
-+                setProduct((prev) =>
-+                  prev
-+                    ? {
-+                        ...prev,
-+                        translations: upsertTranslation(prev.translations, activeLang, {
-+                          guideContent: {
-+                            intro: e.target.value,
-+                            steps: translation?.guideContent?.steps || [],
-+                          },
-+                        }),
-+                      }
-+                    : prev,
-+                )
-+              }
-+            />
-+          </label>
+ export function CatalogCrudPage() {
+   return (
+-    <div>
+-      <h2>Catalog CRUD (Simple Admin)</h2>
+-      <p className="muted">Trang đơn giản để tương tác API CRUD cho category, sản phẩm, thuộc tính, thành phần.</p>
+-      <Panel resource="categories" />
+-      <Panel resource="products" />
+-      <Panel resource="attributes" />
+-      <Panel resource="ingredients" />
++    <div className="grid">
++      <div className="card hero-card">
++        <h2 className="h1">Catalog CRUD</h2>
++        <p className="muted">Bố cục mới tập trung thao tác API nhanh cho category, sản phẩm, thuộc tính và thành phần.</p>
++      </div>
 +
++      <AppAlert
++        kind="info"
++        title="Alert"
++        message="Đây là khu vực thao tác trực tiếp CRUD. Vui lòng kiểm tra payload trước khi PATCH/DELETE."
++      />
++
++      <div className="grid grid-2">
++        <Panel resource="categories" />
++        <Panel resource="products" />
++        <Panel resource="attributes" />
++        <Panel resource="ingredients" />
++      </div>
+     </div>
+   )
+ }
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/HomePage.tsx b/backend/ayanavitabackend/app/admin/src/pages/HomePage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..e286df4543ac45e69448d0cb258fbf12cf050822
+--- /dev/null
++++ b/backend/ayanavitabackend/app/admin/src/pages/HomePage.tsx
+@@ -0,0 +1,66 @@
++import React from "react";
++import { Link } from "react-router-dom";
++import { AppAlert } from "../components/AppAlert";
++
++const menuItems = [
++  {
++    title: "CMS Pages",
++    desc: "Quản lý nội dung trang, chỉnh sửa section, preview nhanh trước khi publish.",
++    to: "/cms/pages",
++    icon: "✦",
++  },
++  {
++    title: "Leads",
++    desc: "Theo dõi book/talk submissions với bảng dữ liệu rõ ràng và lọc nhanh.",
++    to: "/leads",
++    icon: "★",
++  },
++  {
++    title: "Products",
++    desc: "Danh sách sản phẩm đa ngôn ngữ, chỉnh sửa thông tin và trạng thái.",
++    to: "/catalog/products",
++    icon: "⬢",
++  },
++  {
++    title: "Catalog CRUD",
++    desc: "Tạo/sửa/xóa nhanh catalog entries phục vụ quản trị nội bộ.",
++    to: "/catalog/crud",
++    icon: "◉",
++  },
++];
++
++export function HomePage() {
++  return (
++    <div className="grid" style={{ gap: 16 }}>
++      <section className="card hero-card">
++        <p className="muted" style={{ margin: 0 }}>Trang chủ quản trị</p>
++        <h1 className="h1" style={{ marginTop: 10 }}>Ayanavita Admin Hub</h1>
++        <p className="muted" style={{ marginTop: 8, maxWidth: 760 }}>
++          Thiết kế mới theo hướng modern/minimalist, tối ưu khả năng thao tác: điều hướng rõ ràng,
++          thẻ chức năng trực quan, và alert nhấn mạnh trạng thái quan trọng.
++        </p>
++      </section>
++
++      <AppAlert
++        kind="info"
++        title="Thông báo"
++        message="Sau khi đăng nhập hệ thống sẽ vào trang này để bạn truy cập nhanh toàn bộ chức năng quản trị."
++      />
++
++      <section className="grid grid-2">
++        {menuItems.map((item) => (
++          <article className="card menu-card" key={item.to}>
++            <div className="menu-icon" aria-hidden="true">{item.icon}</div>
++            <div>
++              <h2 className="h2" style={{ marginBottom: 8 }}>{item.title}</h2>
++              <p className="muted" style={{ margin: 0 }}>{item.desc}</p>
++            </div>
++            <div style={{ marginTop: 14 }}>
++              <Link to={item.to} className="btn btn-primary">Mở chức năng</Link>
++            </div>
++          </article>
++        ))}
++      </section>
++    </div>
++  );
++}
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/LeadsPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/LeadsPage.tsx
+index cb969c56405f065b86dd1c45ac4eddb1ef9cbcb0..df012bfede3d717a520d429a356a997743125f09 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/LeadsPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/LeadsPage.tsx
+@@ -1,85 +1,96 @@
+ import React, { useEffect, useState } from "react";
+ import { adminListLeads, type LeadRow, type LeadType } from "../api/leads.api";
+ import { useAuth } from "../app/auth.store";
+ import { useToast } from "../components/Toast";
++import { AppAlert } from "../components/AppAlert";
+
+ export function LeadsPage() {
+   const { token } = useAuth();
+   const toast = useToast();
+
+   const [type, setType] = useState<LeadType>("book");
+   const [rows, setRows] = useState<LeadRow[]>([]);
+   const [loading, setLoading] = useState(true);
+
+   async function load(t: LeadType) {
+     setLoading(true);
+     try {
+       const data = await adminListLeads(token, t);
+       setRows(data);
+     } catch (e: any) {
+       toast.push({ kind: "err", title: "Load leads failed", detail: e?.message || String(e) });
+     } finally {
+       setLoading(false);
+     }
+   }
+
+-  useEffect(() => { load(type); }, [type]);
++  useEffect(() => {
++    load(type);
++  }, [type]);
+
+   return (
+-    <div className="card">
+-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+-        <div>
+-          <div className="h1">Leads</div>
+-          <div className="muted" style={{ marginTop: 6 }}>Book / Talk submissions</div>
+-        </div>
++    <div className="grid" style={{ gap: 14 }}>
++      <div className="card hero-card">
++        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
 +          <div>
-+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-+              <div className="muted">Hướng dẫn sử dụng - Các bước</div>
-+              <button
-+                className="btn"
-+                onClick={() =>
-+                  setProduct((prev) => {
-+                    if (!prev) return prev;
-+                    const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
-+                    const steps = current?.steps || [];
-+                    return {
-+                      ...prev,
-+                      translations: upsertTranslation(prev.translations, activeLang, {
-+                        guideContent: {
-+                          intro: current?.intro || "",
-+                          steps: [...steps, { order: steps.length + 1, content: "" }],
-+                        },
-+                      }),
-+                    };
-+                  })
-+                }
-+              >
-+                + Thêm bước
-+              </button>
-+            </div>
-+
-+            <div className="grid" style={{ gap: 8 }}>
-+              {(translation?.guideContent?.steps || []).map((step, idx) => (
-+                <div key={`${step.order}-${idx}`} className="card" style={{ padding: 10 }}>
-+                  <div className="grid grid-2">
-+                    <label>
-+                      <div className="muted">Thứ tự</div>
-+                      <input
-+                        type="number"
-+                        min={1}
-+                        className="input"
-+                        value={step.order}
-+                        onChange={(e) =>
-+                          setProduct((prev) => {
-+                            if (!prev) return prev;
-+                            const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
-+                            const steps = (current?.steps || []).map((row, rowIdx) =>
-+                              rowIdx === idx ? { ...row, order: Number(e.target.value) || 1 } : row,
-+                            );
-+                            return {
-+                              ...prev,
-+                              translations: upsertTranslation(prev.translations, activeLang, {
-+                                guideContent: { intro: current?.intro || "", steps },
-+                              }),
-+                            };
-+                          })
-+                        }
-+                      />
-+                    </label>
-+                    <label>
-+                      <div className="muted">Nội dung bước</div>
-+                      <input
-+                        className="input"
-+                        value={step.content}
-+                        onChange={(e) =>
-+                          setProduct((prev) => {
-+                            if (!prev) return prev;
-+                            const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
-+                            const steps = (current?.steps || []).map((row, rowIdx) =>
-+                              rowIdx === idx ? { ...row, content: e.target.value } : row,
-+                            );
-+                            return {
-+                              ...prev,
-+                              translations: upsertTranslation(prev.translations, activeLang, {
-+                                guideContent: { intro: current?.intro || "", steps },
-+                              }),
-+                            };
-+                          })
-+                        }
-+                      />
-+                    </label>
-+                  </div>
-+                  <button
-+                    className="btn btn-danger"
-+                    style={{ marginTop: 8 }}
-+                    onClick={() =>
-+                      setProduct((prev) => {
-+                        if (!prev) return prev;
-+                        const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
-+                        const steps = (current?.steps || [])
-+                          .filter((_, rowIdx) => rowIdx !== idx)
-+                          .map((row, orderIdx) => ({ ...row, order: orderIdx + 1 }));
-+                        return {
-+                          ...prev,
-+                          translations: upsertTranslation(prev.translations, activeLang, {
-+                            guideContent: { intro: current?.intro || "", steps },
-+                          }),
-+                        };
-+                      })
-+                    }
-+                  >
-+                    Xóa bước
-+                  </button>
-+                </div>
-+              ))}
-+            </div>
++            <div className="h1">Leads</div>
++            <div className="muted" style={{ marginTop: 6 }}>Book / Talk submissions với điều hướng rõ ràng.</div>
++          </div>
+
+-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+-          <button className={`btn ${type==="book" ? "btn-primary" : ""}`} onClick={() => setType("book")}>BOOK</button>
+-          <button className={`btn ${type==="talk" ? "btn-primary" : ""}`} onClick={() => setType("talk")}>TALK</button>
+-          <button className="btn" onClick={() => load(type)} disabled={loading}>{loading ? "Loading…" : "Refresh"}</button>
++          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++            <button className={`btn ${type === "book" ? "btn-primary" : ""}`} onClick={() => setType("book")}>BOOK</button>
++            <button className={`btn ${type === "talk" ? "btn-primary" : ""}`} onClick={() => setType("talk")}>TALK</button>
++            <button className="btn" onClick={() => load(type)} disabled={loading}>{loading ? "Loading…" : "Refresh"}</button>
 +          </div>
          </div>
        </div>
 
-       <div className="grid grid-2">
-         <div className="card">
-           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-             <h3 className="h2">CRUD thành phần</h3>
-             <button className="btn" onClick={() => setProduct((prev) => (prev ? { ...prev, ingredients: [...prev.ingredients, createIngredient()] } : prev))}>+ Thêm</button>
-           </div>
-           <div className="grid" style={{ marginTop: 10 }}>
-             {product.ingredients.map((item) => (
-               <div key={item.id} className="card" style={{ padding: 10 }}>
-                 <input
-                   className="input"
-                   placeholder={`Tên thành phần (${activeLang})`}
-                   value={item.nameByLang[activeLang] || ""}
-                   onChange={(e) =>
-                     setProduct((prev) =>
-                       prev
-                         ? {
-                             ...prev,
-                             ingredients: prev.ingredients.map((row) =>
-                               row.id === item.id
-                                 ? { ...row, nameByLang: { ...row.nameByLang, [activeLang]: e.target.value } }
-                                 : row,
-diff --git a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
-index 414b149a633418d041cda7d3c3860004a287c665..b162bda86e4713a5f10e25f2631e9f3e01f1d94c 100644
---- a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
-+++ b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
-@@ -1,37 +1,48 @@
- export type LanguageCode = string;
+-      <div className="sep" />
++      <AppAlert
++        kind="success"
++        title="Mẹo thao tác"
++        message="Bạn có thể chuyển đổi BOOK/TALK để phân loại lead nhanh hơn trước khi xuất dữ liệu."
++      />
 
- export type AdminLanguage = {
-   code: LanguageCode;
-   label: string;
- };
-
- export type ProductTranslation = {
-   lang: LanguageCode;
-   name: string;
-   shortDescription: string;
-   description: string;
-+  guideContent: ProductGuideContent;
-+};
-+
-+export type ProductGuideStep = {
-+  order: number;
-+  content: string;
-+};
-+
-+export type ProductGuideContent = {
-+  intro: string;
-+  steps: ProductGuideStep[];
- };
-
- export type LocalizedTextMap = Record<LanguageCode, string>;
-
- export type ProductIngredient = {
-   id: string;
-   nameByLang: LocalizedTextMap;
-   note: string;
- };
-
- export type ProductAttribute = {
-   id: string;
-   keyByLang: LocalizedTextMap;
-   value: string;
- };
-
- export type CategoryTranslation = {
-   lang: LanguageCode;
-   name: string;
-   description: string;
- };
-
- export type ProductCategory = {
-   id: string;
-   translations: CategoryTranslation[];
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/20260226022000_add_product_translation_guide_content/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/20260226022000_add_product_translation_guide_content/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..c55074d6c6ee7c2de492a48fb753bb3b5a5d1245
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/20260226022000_add_product_translation_guide_content/migration.sql
-@@ -0,0 +1,2 @@
-+ALTER TABLE `product_translations`
-+ADD COLUMN `guide_content` JSON NULL;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 42aee322f13c50bc41fe16151bd5a9e9809c970f..df45b6bcea3ef8468faeef6223a605a382e10850 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -351,50 +351,51 @@ model CategoryTranslation {
-
- model CatalogProduct {
-   id         BigInt   @id @default(autoincrement())
-   sku        String   @unique @db.VarChar(64)
-   categoryId BigInt?  @map("category_id")
-   price      Decimal  @default(0) @db.Decimal(18, 2)
-   status     String   @default("active") @db.VarChar(20)
-   createdAt  DateTime @default(now()) @map("created_at")
-   updatedAt  DateTime @updatedAt @map("updated_at")
-
-   category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-   translations ProductTranslation[]
-   attributes   ProductAttribute[]
-   ingredients  ProductIngredient[]
-
-   @@map("products")
+-      <table className="table">
+-        <thead>
+-          <tr>
+-            <th>ID</th>
+-            <th>Created</th>
+-            <th>Lang</th>
+-            <th>Contact</th>
+-            <th>Info</th>
+-          </tr>
+-        </thead>
+-        <tbody>
+-          {rows.map((r) => (
+-            <tr key={r.id}>
+-              <td><code>{r.id}</code></td>
+-              <td className="muted">{r.createdAt || ""}</td>
+-              <td className="muted">{r.lang || "-"}</td>
+-              <td>
+-                <div style={{ fontWeight: 950 }}>
+-                  {type === "book" ? (r.name || "-") : (r.contact || "-")}
+-                </div>
+-                <div className="muted">
+-                  {type === "book" ? (r.phone || "-") : (r.topic || "-")}
+-                </div>
+-              </td>
+-              <td className="muted" style={{ whiteSpace: "pre-wrap" }}>
+-                {type === "book"
+-                  ? `date=${r.date || "-"} time=${r.time || "-"}\nnote=${r.note || ""}`
+-                  : `${r.message || ""}`}
+-              </td>
+-            </tr>
+-          ))}
+-          {rows.length === 0 ? (
++      <div className="card">
++        <table className="table">
++          <thead>
+             <tr>
+-              <td colSpan={5} className="muted">No leads.</td>
++              <th>ID</th>
++              <th>Created</th>
++              <th>Lang</th>
++              <th>Contact</th>
++              <th>Info</th>
+             </tr>
+-          ) : null}
+-        </tbody>
+-      </table>
++          </thead>
++          <tbody>
++            {rows.map((r) => (
++              <tr key={r.id}>
++                <td><code>{r.id}</code></td>
++                <td className="muted">{r.createdAt || ""}</td>
++                <td className="muted">{r.lang || "-"}</td>
++                <td>
++                  <div style={{ fontWeight: 800 }}>
++                    {type === "book" ? (r.name || "-") : (r.contact || "-")}
++                  </div>
++                  <div className="muted">
++                    {type === "book" ? (r.phone || "-") : (r.topic || "-")}
++                  </div>
++                </td>
++                <td className="muted" style={{ whiteSpace: "pre-wrap" }}>
++                  {type === "book"
++                    ? `date=${r.date || "-"} time=${r.time || "-"}\nnote=${r.note || ""}`
++                    : `${r.message || ""}`}
++                </td>
++              </tr>
++            ))}
++            {rows.length === 0 ? (
++              <tr>
++                <td colSpan={5} className="muted">No leads.</td>
++              </tr>
++            ) : null}
++          </tbody>
++        </table>
++      </div>
+     </div>
+   );
  }
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/LoginPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/LoginPage.tsx
+index 8ef3f05e55ba52b835bd7bc8c312a845394f6a3a..5cc811fc29267959b02af08bbf327e8bfbdd12a8 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/LoginPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/LoginPage.tsx
+@@ -3,51 +3,51 @@ import { useLocation, useNavigate } from "react-router-dom";
+ import { login } from "../api/auth.api";
+ import { useAuth } from "../app/auth.store";
 
- model ProductTranslation {
-   productId         BigInt @map("product_id")
-   languageCode      String @map("language_code") @db.VarChar(10)
-   name              String @db.VarChar(255)
-   slug              String @db.VarChar(255)
-   shortDescription  String? @map("short_description") @db.VarChar(500)
-   description       String? @db.Text
-+  guideContent      Json?   @map("guide_content")
+ export function LoginPage() {
+   const { setToken } = useAuth();
 
-   product  CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-   language Language       @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+   const nav = useNavigate();
+   const loc = useLocation() as any;
 
-   @@id([productId, languageCode])
-   @@unique([languageCode, slug], map: "uq_product_slug_per_lang")
-   @@index([languageCode], map: "idx_product_translation_lang")
-   @@map("product_translations")
- }
+   const [email, setEmail] = useState("admin@ayanavita.vn");
+   const [password, setPassword] = useState("123456");
+   const [showPass, setShowPass] = useState(false);
+   const [remember, setRemember] = useState(true);
 
- model AttributeKey {
-   id        BigInt  @id @default(autoincrement())
-   code      String  @unique @db.VarChar(100)
-   valueType String  @default("text") @map("value_type") @db.VarChar(20)
-   isActive  Boolean @default(true) @map("is_active")
+   const [loading, setLoading] = useState(false);
+   const [err, setErr] = useState("");
 
-   translations AttributeKeyTranslation[]
-   products     ProductAttribute[]
+   // Optional: nhớ email (UX tốt cho admin)
+   useEffect(() => {
+     try {
+       const saved = localStorage.getItem("aya_admin_email");
+       if (saved) setEmail(saved);
+     } catch {}
+   }, []);
 
-   @@map("attribute_keys")
- }
+-  const redirectTo = useMemo(() => loc?.state?.from || "/cms/pages", [loc]);
++  const redirectTo = useMemo(() => loc?.state?.from || "/", [loc]);
 
- model AttributeKeyTranslation {
-   attributeKeyId BigInt @map("attribute_key_id")
-   languageCode   String @map("language_code") @db.VarChar(10)
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
-index c08c96e133163aa3ab7c2acaef65ba9d9c0b5fae..9fba626ce7b2110c7009d62504c1f80d266f0a8a 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
-@@ -1,60 +1,88 @@
- import { Type } from 'class-transformer'
+   async function onSubmit(e: React.FormEvent) {
+     e.preventDefault();
+     setErr("");
+     setLoading(true);
+
+     try {
+       const cleanEmail = email.trim();
+       const res = await login(cleanEmail, password);
+
+       // DEBUG: xác nhận token có thật
+       console.log("[LOGIN] got accessToken len=", res.accessToken?.length);
+       console.log("[LOGIN] accessToken head=", (res.accessToken || "").slice(0, 18) + "...");
+
+       setToken(res.accessToken);
+
+       // DEBUG: confirm đã gọi setToken
+       console.log("[LOGIN] setToken called");
+
+       if (remember) {
+         try {
+           localStorage.setItem("aya_admin_email", cleanEmail);
+         } catch {}
+       } else {
+         try {
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
+index 1c9c8a7d66f28d11ca9d25c9de14d88cbb16a818..d936fe2ef363011150878d9f26c032ee78129344 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
+@@ -1,37 +1,38 @@
+ import { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate } from "react-router-dom";
  import {
-   IsArray,
-   IsInt,
-   IsNotEmpty,
-   IsNumber,
-   IsOptional,
-   IsString,
-   MaxLength,
-+  Min,
-   ValidateNested,
- } from 'class-validator'
+   createAdminCategory,
+   createAdminProduct,
+   deleteAdminCategory,
+   fetchAdminCategories,
+   fetchAdminProducts,
+   fetchCatalogLanguages,
+   updateAdminCategory,
+ } from "../api/productAdmin.api";
+ import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
++import { AppAlert } from "../components/AppAlert";
 
-+export class ProductGuideStepDto {
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  order!: number
+ function CategoryRow({
+   category,
+   languages,
+   activeLang,
+   onSave,
+   onDelete,
+ }: {
+   category: ProductCategory;
+   languages: AdminLanguage[];
+   activeLang: string;
+   onSave: (item: ProductCategory) => void;
+   onDelete: (id: string) => void;
+ }) {
+   const [draft, setDraft] = useState(category);
+
+   useEffect(() => setDraft(category), [category]);
+
+   const activeTranslation = draft.translations.find((item) => item.lang === activeLang);
+
+   return (
+     <div className="card" style={{ padding: 10 }}>
+       <div className="grid" style={{ gap: 8 }}>
+         <input
+           className="input"
+@@ -108,69 +109,75 @@ export function ProductAdminListPage() {
+     setProducts(productList);
+     setCategories(categoryList);
+     setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
+     setNewCategory({
+       id: "new",
+       translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
+     });
+     setLoading(false);
+   };
+
+   useEffect(() => {
+     loadData();
+   }, []);
+
+   const onCreateProduct = async () => {
+     const created = await createAdminProduct();
+     navigate(`/catalog/products/${created.id}`);
+   };
+
+   const viOrActiveName = (product: ProductAdminItem) =>
+     product.translations.find((item) => item.lang === activeLang)?.name ||
+     product.translations.find((item) => item.lang === "vi")?.name ||
+     "(chưa đặt tên)";
+
+   return (
+-    <div>
+-      <div className="card" style={{ marginBottom: 16 }}>
++    <div className="grid" style={{ gap: 14 }}>
++      <div className="card hero-card" style={{ marginBottom: 0 }}>
+         <p className="muted" style={{ margin: 0 }}>Quản lý sản phẩm</p>
+         <h2 className="h1">Danh sách sản phẩm</h2>
+         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+           <button onClick={onCreateProduct} className="btn btn-primary">+ Thêm sản phẩm</button>
+           <button onClick={() => setOpenCategoryModal(true)} className="btn">Quản lý category</button>
+           {languages.map((lang) => (
+             <button
+               key={lang.code}
+               className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
+               onClick={() => setActiveLang(lang.code)}
+             >
+               {lang.label}
+             </button>
+           ))}
+         </div>
+       </div>
+
++      <AppAlert
++        kind="warning"
++        title="Lưu ý dữ liệu"
++        message="Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn."
++      />
 +
-+  @IsString()
-+  @IsNotEmpty()
-+  content!: string
+       <div className="card">
+         {loading ? (
+           <div className="muted">Đang tải dữ liệu...</div>
+         ) : (
+           <table className="table">
+             <thead>
+               <tr>
+                 <th>SKU</th>
+                 <th>Tên ({activeLang.toUpperCase()})</th>
+                 <th>Category</th>
+                 <th>Giá</th>
+                 <th>Trạng thái</th>
+                 <th>Hành động</th>
+               </tr>
+             </thead>
+             <tbody>
+               {products.map((product) => (
+                 <tr key={product.id}>
+                   <td>{product.sku}</td>
+                   <td>{viOrActiveName(product)}</td>
+                   <td>{categoryMap[product.categoryId] || "-"}</td>
+                   <td>{product.price.toLocaleString("vi-VN")} đ</td>
+                   <td>{product.status}</td>
+                   <td>
+                     <Link className="btn" to={`/catalog/products/${product.id}`}>Chỉnh sửa</Link>
+diff --git a/backend/ayanavitabackend/app/admin/src/styles.css b/backend/ayanavitabackend/app/admin/src/styles.css
+index 0a39a3c5a6de8c322fc98046d4fd61faf64c3de9..bf031b993334f87b1ba4359f001bc6346a5b2174 100644
+--- a/backend/ayanavitabackend/app/admin/src/styles.css
++++ b/backend/ayanavitabackend/app/admin/src/styles.css
+@@ -1,184 +1,91 @@
+ :root{
+-  --bg:#0b1220;
+-  --panel:#0f172a;
+-  --card:rgba(255,255,255,.06);
+-  --stroke:rgba(148,163,184,.18);
+-  --text:#e5e7eb;
+-  --muted:rgba(229,231,235,.72);
+-  --brand1:#14B8A6;
+-  --brand2:#38BDF8;
+-  --brand3:#4F46E5;
+-  --brand4:#FDBA74;
+-}
+-
+-*{ box-sizing:border-box; }
+-
++  --text:#1e293b;
++  --muted:#64748b;
++  --bg:#f8fafc;
++  --panel:#ffffff;
++  --stroke:#e2e8f0;
++  --brand:#4f46e5;
++  --brand-soft:#eef2ff;
++  --success:#10b981;
++  --warning:#f59e0b;
++  --danger:#ef4444;
 +}
 +
-+export class ProductGuideContentDto {
-+  @IsString()
-+  @IsNotEmpty()
-+  intro!: string
-+
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => ProductGuideStepDto)
-+  steps!: ProductGuideStepDto[]
-+}
-+
- export class ProductTranslationDto {
-   @IsString()
-   @MaxLength(10)
-   languageCode!: string
-
-   @IsString()
-   @IsNotEmpty()
-   @MaxLength(255)
-   name!: string
-
-   @IsString()
-   @IsNotEmpty()
-   @MaxLength(255)
-   slug!: string
-
-   @IsOptional()
-   @IsString()
-   @MaxLength(500)
-   shortDescription?: string
-
-   @IsOptional()
-   @IsString()
-   description?: string
-+
-+  @IsOptional()
-+  @ValidateNested()
-+  @Type(() => ProductGuideContentDto)
-+  guideContent?: ProductGuideContentDto
++*{box-sizing:border-box}
+ body{
+   margin:0;
+-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+-  background:
+-    radial-gradient(900px 520px at 12% 12%, rgba(20,184,166,.18), transparent 62%),
+-    radial-gradient(820px 520px at 88% 18%, rgba(56,189,248,.14), transparent 62%),
+-    radial-gradient(900px 520px at 50% 92%, rgba(253,186,116,.12), transparent 62%),
+-    radial-gradient(820px 520px at 55% 28%, rgba(79,70,229,.12), transparent 60%),
+-    linear-gradient(180deg, #0b1220, #070b14);
++  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
++  background: linear-gradient(180deg,#ffffff,#f8fafc 40%);
+   color:var(--text);
  }
-
- export class CreateProductDto {
-   @IsString()
-   @MaxLength(64)
-   sku!: string
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   categoryId?: number
-
-   @Type(() => Number)
-   @IsNumber()
-   price!: number
-
-   @IsOptional()
-   @IsString()
-   @MaxLength(20)
-   status?: string
-
-   @IsArray()
-   @ValidateNested({ each: true })
-   @Type(() => ProductTranslationDto)
-   translations!: ProductTranslationDto[]
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-index 2f99c029b1578dcdb243d5e1582c72d10bc270aa..8a49553a923a34479ff30fedf789fa27e0fcb010 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-@@ -1,81 +1,105 @@
- import { Injectable, NotFoundException } from '@nestjs/common'
- import { PrismaService } from '../prisma/prisma.service'
- import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
- import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
- import { normalizeBigInt } from './utils'
-
-+const toProductTranslationCreateManyData = (
-+  productId: number,
-+  translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
-+) =>
-+  (translations ?? []).map((translation) => ({
-+    productId: BigInt(productId),
-+    languageCode: translation.languageCode,
-+    name: translation.name,
-+    slug: translation.slug,
-+    shortDescription: translation.shortDescription,
-+    description: translation.description,
-+    guideContent: translation.guideContent,
-+  }))
+-
+-a{ color:inherit; text-decoration:none; }
+-code, pre{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+-
+-.container{
+-  max-width: 1180px;
+-  margin: 0 auto;
+-  padding: 18px;
+-}
+-
+-.topbar{
+-  position: sticky;
+-  top: 0;
+-  z-index: 10;
+-  background: rgba(7,11,20,.78);
+-  backdrop-filter: blur(10px);
+-  border-bottom: 1px solid var(--stroke);
+-}
+-
+-.row{
+-  display:flex;
+-  align-items:center;
+-  justify-content:space-between;
+-  gap: 14px;
+-  padding: 12px 18px;
+-}
+-
+-.brand{
+-  display:flex; align-items:center; gap:12px;
+-  font-weight: 950;
+-  letter-spacing: .2px;
+-}
+-
+-.dot{
+-  width:10px; height:10px; border-radius:999px;
+-  background: linear-gradient(135deg, var(--brand1), var(--brand2));
+-  box-shadow: 0 0 0 6px rgba(56,189,248,.10);
+-}
+-
+-.g-text{
+-  background: linear-gradient(135deg, var(--brand1), var(--brand2), var(--brand3), var(--brand4));
+-  -webkit-background-clip:text;
+-  background-clip:text;
+-  color:transparent;
+-}
+-
+-.nav{
+-  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+-}
+-
+-.pill{
+-  display:inline-flex; align-items:center; gap:8px;
+-  padding: 8px 10px;
+-  border-radius: 999px;
+-  background: rgba(255,255,255,.06);
+-  border: 1px solid var(--stroke);
+-  color: var(--muted);
+-  font-size: 12px;
+-  font-weight: 900;
+-}
+-
+-.btn{
+-  display:inline-flex; align-items:center; justify-content:center;
+-  gap: 8px;
+-  padding: 10px 12px;
+-  border-radius: 14px;
+-  border: 1px solid var(--stroke);
+-  background: rgba(255,255,255,.06);
+-  color: var(--text);
+-  cursor:pointer;
+-  user-select:none;
+-  font-weight: 900;
+-}
+-.btn:hover{ background: rgba(255,255,255,.09); }
+-.btn:disabled{ opacity:.55; cursor:not-allowed; }
+-
+-.btn-primary{
+-  border-color: rgba(79,70,229,.35);
+-  background: linear-gradient(135deg, rgba(79,70,229,.85), rgba(124,58,237,.80));
+-}
+-.btn-danger{
+-  border-color: rgba(239,68,68,.45);
+-  background: rgba(239,68,68,.18);
+-}
+-
+-.grid{
+-  display:grid;
+-  grid-template-columns: 1fr;
+-  gap: 14px;
+-}
+-
+-@media (min-width: 980px){
+-  .grid-2{ grid-template-columns: 1fr 1fr; }
+-  .grid-3{ grid-template-columns: 1fr 1fr 1fr; }
+-}
+-
+-.card{
+-  background: rgba(255,255,255,.06);
+-  border: 1px solid var(--stroke);
+-  border-radius: 18px;
+-  padding: 14px;
+-}
+-
+-.h1{ font-size: 22px; font-weight: 950; margin: 0; }
+-.h2{ font-size: 16px; font-weight: 950; margin: 0; }
+-.muted{ color: var(--muted); }
+-.sep{ height:1px; background: var(--stroke); margin: 12px 0; }
+-
+-.input, .select, .textarea{
+-  width: 100%;
+-  padding: 10px 12px;
+-  border-radius: 14px;
+-  border: 1px solid var(--stroke);
+-  background: rgba(0,0,0,.20);
+-  color: var(--text);
+-  outline: none;
+-}
+-.textarea{ min-height: 220px; resize: vertical; }
+-
+-.table{
+-  width: 100%;
+-  border-collapse: collapse;
+-  overflow: hidden;
+-  border-radius: 14px;
+-  border: 1px solid var(--stroke);
+-}
+-.table th, .table td{
+-  text-align:left;
+-  padding: 10px 10px;
+-  border-bottom: 1px solid rgba(148,163,184,.12);
+-}
+-.table th{
+-  font-size: 12px;
+-  color: rgba(229,231,235,.75);
+-  font-weight: 900;
+-  background: rgba(0,0,0,.20);
+-}
+-.table tr:hover td{ background: rgba(255,255,255,.04); }
+-
+-.toast{
+-  position: fixed;
+-  right: 14px;
+-  bottom: 14px;
+-  z-index: 200;
+-  display:flex;
+-  flex-direction:column;
+-  gap: 10px;
+-}
+-.toast-item{
+-  min-width: 280px;
+-  max-width: 420px;
+-  padding: 12px 12px;
+-  border-radius: 16px;
+-  border: 1px solid var(--stroke);
+-  background: rgba(15,23,42,.90);
++a{text-decoration:none;color:inherit}
 +
- @Injectable()
- export class ProductsService {
-   constructor(private readonly prisma: PrismaService) {}
-
-   async findAll() {
-     const rows = await this.prisma.catalogProduct.findMany({
-       include: { translations: true, category: true },
-       orderBy: { id: 'desc' },
-     })
-     return normalizeBigInt(rows)
-   }
-
-   async findOne(id: number) {
-     const row = await this.prisma.catalogProduct.findUnique({
-       where: { id: BigInt(id) },
-       include: { translations: true, category: true, attributes: true, ingredients: true },
-     })
-     if (!row) throw new NotFoundException('Product not found')
-     return normalizeBigInt(row)
-   }
-
-   async create(dto: CreateProductDto) {
--    const row = await this.prisma.catalogProduct.create({
--      data: {
--        sku: dto.sku,
--        categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
--        price: dto.price,
--        status: dto.status ?? 'active',
--        translations: { create: dto.translations },
--      },
--      include: { translations: true, category: true },
-+    const row = await this.prisma.$transaction(async (tx) => {
-+      const createdProduct = await tx.catalogProduct.create({
-+        data: {
-+          sku: dto.sku,
-+          categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
-+          price: dto.price,
-+          status: dto.status ?? 'active',
-+        },
-+      })
++.app-shell{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
++.side-nav{
++  border-right:1px solid var(--stroke);
++  background: linear-gradient(180deg,#fff,#f8fafc);
++  padding:18px 14px;
++  display:flex;flex-direction:column;gap:18px;
++  position:sticky;top:0;height:100vh;
++}
++.main-content{padding:18px}
++.container{max-width:1320px;margin:0 auto}
 +
-+      await tx.productTranslation.createMany({
-+        data: toProductTranslationCreateManyData(Number(createdProduct.id), dto.translations),
-+      })
++.brand{display:flex;align-items:center;gap:10px;font-weight:900}
++.dot{width:10px;height:10px;border-radius:999px;background:var(--brand);box-shadow:0 0 0 6px rgba(79,70,229,.16)}
++.g-text{font-weight:900;letter-spacing:.2px}
 +
-+      return tx.catalogProduct.findUniqueOrThrow({
-+        where: { id: createdProduct.id },
-+        include: { translations: true, category: true },
-+      })
-     })
++.nav-list{display:grid;gap:8px}
++.nav-link{
++  padding:11px 12px;border-radius:12px;color:var(--muted);font-weight:800;border:1px solid transparent;
++}
++.nav-link:hover{background:#f1f5f9;color:var(--text)}
++.nav-link.active{background:var(--brand-soft);border-color:#c7d2fe;color:#312e81}
++.side-footer{margin-top:auto;display:grid;gap:10px}
 +
-     return normalizeBigInt(row)
-   }
-
-   async update(id: number, dto: UpdateProductDto) {
-     await this.findOne(id)
-     const row = await this.prisma.$transaction(async (tx) => {
-       if (dto.translations) {
-         await tx.productTranslation.deleteMany({ where: { productId: BigInt(id) } })
-+        await tx.productTranslation.createMany({ data: toProductTranslationCreateManyData(id, dto.translations) })
-       }
-
-       return tx.catalogProduct.update({
-         where: { id: BigInt(id) },
-         data: {
-           sku: dto.sku,
-           categoryId: dto.categoryId === undefined ? undefined : dto.categoryId === null ? null : BigInt(dto.categoryId),
-           price: dto.price,
-           status: dto.status,
--          translations: dto.translations ? { create: dto.translations } : undefined,
-         },
-         include: { translations: true, category: true },
-       })
-     })
-     return normalizeBigInt(row)
-   }
-
-   async replaceAttributes(id: number, dto: UpsertProductAttributesDto) {
-     await this.findOne(id)
-     const rows = await this.prisma.$transaction(async (tx) => {
-       await tx.productAttribute.deleteMany({ where: { productId: BigInt(id) } })
-       if (dto.items.length) {
-         await tx.productAttribute.createMany({
-           data: dto.items.map((item) => ({
-             productId: BigInt(id),
-             attributeKeyId: BigInt(item.attributeKeyId),
-             valueText: item.valueText,
-             valueNumber: item.valueNumber,
-             valueBoolean: item.valueBoolean,
-             valueJson: item.valueJson,
-           })),
-         })
-       }
-       return tx.productAttribute.findMany({ where: { productId: BigInt(id) } })
-     })
++.pill{display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;background:#f1f5f9;border:1px solid var(--stroke);color:var(--muted);font-size:12px;font-weight:800}
++.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);cursor:pointer;font-weight:800}
++.btn:hover{background:#f8fafc}
++.btn-primary{background:linear-gradient(135deg,#4f46e5,#6366f1);border-color:#4f46e5;color:#fff}
++.btn-danger{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
++.btn:disabled{opacity:.55;cursor:not-allowed}
++
++.grid{display:grid;gap:14px;grid-template-columns:1fr}
++@media (min-width:980px){.grid-2{grid-template-columns:1fr 1fr}.grid-3{grid-template-columns:1fr 1fr 1fr}}
++
++.card{background:var(--panel);border:1px solid var(--stroke);border-radius:18px;padding:16px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
++.hero-card{background:linear-gradient(135deg,#fff,#eef2ff)}
++.menu-card{display:grid;gap:8px}
++.menu-icon{font-size:20px;color:#6366f1}
++
++.h1{margin:0;font-size:26px;font-weight:900}
++.h2{margin:0;font-size:18px;font-weight:850}
++.muted{color:var(--muted)}
++.sep{height:1px;background:var(--stroke);margin:12px 0}
++
++.input,.select,.textarea{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);outline:none}
++.input:focus,.select:focus,.textarea:focus{border-color:#a5b4fc;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
++.textarea{min-height:180px;resize:vertical}
++
++.table{width:100%;border-collapse:collapse;border:1px solid var(--stroke);border-radius:14px;overflow:hidden;background:#fff}
++.table th,.table td{text-align:left;padding:11px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
++.table th{background:#f8fafc;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
++
++.app-alert{border-radius:14px;padding:12px 14px;border:1px solid var(--stroke);background:#fff;display:grid;gap:4px}
++.app-alert-title{font-weight:900}
++.app-alert-message{color:var(--muted)}
++.app-alert-info{background:#eef2ff;border-color:#c7d2fe}
++.app-alert-success{background:#ecfdf5;border-color:#a7f3d0}
++.app-alert-warning{background:#fffbeb;border-color:#fde68a}
++.app-alert-error{background:#fef2f2;border-color:#fecaca}
++
++.toast{position:fixed;right:14px;bottom:14px;z-index:200;display:flex;flex-direction:column;gap:10px}
++.toast-item{min-width:280px;max-width:420px;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.08)}
++.toast-item.ok{border-color:#a7f3d0}
++.toast-item.err{border-color:#fecaca}
++
++@media (max-width:960px){
++  .app-shell{grid-template-columns:1fr}
++  .side-nav{position:static;height:auto;border-right:none;border-bottom:1px solid var(--stroke)}
++  .main-content{padding:14px}
+ }
+-.toast-item.ok{ border-color: rgba(34,197,94,.35); }
+-.toast-item.err{ border-color: rgba(239,68,68,.35); }

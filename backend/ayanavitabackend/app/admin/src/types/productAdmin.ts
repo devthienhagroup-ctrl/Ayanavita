@@ -37,6 +37,13 @@ export type ProductAttribute = {
   value: string;
 };
 
+export type ProductImage = {
+  id: string;
+  imageUrl: string;
+  isPrimary: boolean;
+  sortOrder: number;
+};
+
 export type CategoryTranslation = {
   lang: LanguageCode;
   name: string;
@@ -58,5 +65,6 @@ export type ProductAdminItem = {
   translations: ProductTranslation[];
   ingredients: ProductIngredient[];
   attributes: ProductAttribute[];
+  images: ProductImage[];
   updatedAt: string;
 };

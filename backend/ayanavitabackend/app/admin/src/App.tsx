@@ -13,6 +13,7 @@ import { NotFound } from "./pages/NotFound";
 import { ProductAdminListPage } from "./pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "./pages/ProductAdminDetailPage";
 import { CatalogCrudPage } from "./pages/CatalogCrudPage";
+import { HomePage } from "./pages/HomePage";
 
 export default function App() {
   return (
@@ -28,7 +29,7 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/cms/pages" replace />} />
+          <Route index element={<HomePage />} />
           <Route path="cms/pages" element={<CmsPagesPage />} />
           <Route path="cms/pages/:slug" element={<CmsEditPage />} />
           <Route path="leads" element={<LeadsPage />} />
