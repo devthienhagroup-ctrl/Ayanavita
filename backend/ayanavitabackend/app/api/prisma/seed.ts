@@ -211,6 +211,119 @@ async function main() {
     }
   }
 
+
+
+  const branchTranslations = [
+    { code: 'HCM_Q1', locale: 'en-US', name: 'AYANAVITA • District 1 (HCMC)', address: '12 Nguyen Hue, District 1, Ho Chi Minh City' },
+    { code: 'HCM_Q1', locale: 'de', name: 'AYANAVITA • Bezirk 1 (HCMC)', address: '12 Nguyen Hue, Bezirk 1, Ho-Chi-Minh-Stadt' },
+    { code: 'HN_CG', locale: 'en-US', name: 'AYANAVITA • Cau Giay (Hanoi)', address: '88 Tran Thai Tong, Cau Giay, Hanoi' },
+    { code: 'HN_CG', locale: 'de', name: 'AYANAVITA • Cau Giay (Hanoi)', address: '88 Tran Thai Tong, Cau Giay, Hanoi' },
+    { code: 'DN_HC', locale: 'en-US', name: 'AYANAVITA • Hai Chau (Da Nang)', address: '25 Bach Dang, Hai Chau, Da Nang' },
+    { code: 'DN_HC', locale: 'de', name: 'AYANAVITA • Hai Chau (Da Nang)', address: '25 Bach Dang, Hai Chau, Da Nang' },
+  ] as const
+
+  for (const row of branchTranslations) {
+    const branchId = branchByCode.get(row.code)
+    if (!branchId) continue
+    await prisma.branchTranslation.upsert({
+      where: { branchId_locale: { branchId, locale: row.locale } },
+      update: { name: row.name, address: row.address },
+      create: { branchId, locale: row.locale, name: row.name, address: row.address },
+    })
+  }
+
+  const categoriesWithId = await prisma.serviceCategory.findMany({ select: { id: true, name: true } })
+  const categoryByName = new Map(categoriesWithId.map((c) => [c.name, c.id]))
+  const categoryTranslations = [
+    { name: 'Chăm sóc da', locale: 'en-US', value: 'Skin care' },
+    { name: 'Chăm sóc da', locale: 'de', value: 'Hautpflege' },
+    { name: 'Chăm sóc cơ thể', locale: 'en-US', value: 'Body care' },
+    { name: 'Chăm sóc cơ thể', locale: 'de', value: 'Körperpflege' },
+    { name: 'Dưỡng sinh', locale: 'en-US', value: 'Wellness therapy' },
+    { name: 'Dưỡng sinh', locale: 'de', value: 'Wellness-Therapie' },
+    { name: 'Combo liệu trình', locale: 'en-US', value: 'Treatment combo' },
+    { name: 'Combo liệu trình', locale: 'de', value: 'Behandlungskombination' },
+  ] as const
+
+  for (const row of categoryTranslations) {
+    const categoryId = categoryByName.get(row.name)
+    if (!categoryId) continue
+    await prisma.serviceCategoryTranslation.upsert({
+      where: { categoryId_locale: { categoryId, locale: row.locale } },
+      update: { name: row.value },
+      create: { categoryId, locale: row.locale, name: row.value },
+    })
+  }
+
+  const serviceTranslationSeeds = [
+    {
+      sourceName: 'Chăm sóc da chuyên sâu 👏',
+      locale: 'en-US',
+      name: 'Deep skin treatment',
+      description: 'Deep cleansing and skin recovery therapy.',
+      goals: ['restore', 'bright'],
+      suitableFor: ['Dull skin', 'Dry skin'],
+      process: ['Skin analysis', 'Deep cleansing', 'Recovery mask'],
+      tag: 'Best seller',
+    },
+    {
+      sourceName: 'Chăm sóc da chuyên sâu 👏',
+      locale: 'de',
+      name: 'Intensive Hautpflege',
+      description: 'Intensive Reinigung und Regeneration der Haut.',
+      goals: ['Regeneration', 'Aufhellung'],
+      suitableFor: ['Fahle Haut', 'Trockene Haut'],
+      process: ['Hautanalyse', 'Tiefenreinigung', 'Regenerationsmaske'],
+      tag: 'Bestseller',
+    },
+    {
+      sourceName: 'Massage thư giãn toàn thân 🤗',
+      locale: 'en-US',
+      name: 'Full body relaxing massage',
+      description: 'Massage to relax body and reduce muscle tension.',
+      goals: ['relax'],
+      suitableFor: ['Stress', 'Insomnia'],
+      process: ['Warm-up', 'Deep pressure massage', 'Recovery stretch'],
+      tag: 'Relax',
+    },
+    {
+      sourceName: 'Massage thư giãn toàn thân 🤗',
+      locale: 'de',
+      name: 'Ganzkörper-Entspannungsmassage',
+      description: 'Massage zur Entspannung und Muskelentlastung.',
+      goals: ['Entspannung'],
+      suitableFor: ['Stress', 'Schlafprobleme'],
+      process: ['Aufwärmen', 'Tiefenmassage', 'Dehnung'],
+      tag: 'Relax',
+    },
+  ] as const
+
+  const servicesByName = await prisma.service.findMany({ select: { id: true, name: true } })
+  const serviceByName = new Map(servicesByName.map((item) => [item.name, item.id]))
+  for (const row of serviceTranslationSeeds) {
+    const serviceId = serviceByName.get(row.sourceName)
+    if (!serviceId) continue
+    await prisma.serviceTranslation.upsert({
+      where: { serviceId_locale: { serviceId, locale: row.locale } },
+      update: { name: row.name, description: row.description, goals: row.goals, suitableFor: row.suitableFor, process: row.process, tag: row.tag },
+      create: { serviceId, locale: row.locale, name: row.name, description: row.description, goals: row.goals, suitableFor: row.suitableFor, process: row.process, tag: row.tag },
+    })
+  }
+
+  const specialistsForTranslation = await prisma.specialist.findMany({ select: { id: true, name: true } })
+  for (const specialist of specialistsForTranslation) {
+    await prisma.specialistTranslation.upsert({
+      where: { specialistId_locale: { specialistId: specialist.id, locale: 'en-US' } },
+      update: { name: specialist.name.replace('Chuyên viên', 'Specialist'), bio: 'Experienced specialist at AYANAVITA.' },
+      create: { specialistId: specialist.id, locale: 'en-US', name: specialist.name.replace('Chuyên viên', 'Specialist'), bio: 'Experienced specialist at AYANAVITA.' },
+    })
+    await prisma.specialistTranslation.upsert({
+      where: { specialistId_locale: { specialistId: specialist.id, locale: 'de' } },
+      update: { name: specialist.name.replace('Chuyên viên', 'Spezialist'), bio: 'Erfahrener Spezialist bei AYANAVITA.' },
+      create: { specialistId: specialist.id, locale: 'de', name: specialist.name.replace('Chuyên viên', 'Spezialist'), bio: 'Erfahrener Spezialist bei AYANAVITA.' },
+    })
+  }
+
   const now = new Date()
   const sampleAppointments = [
     {

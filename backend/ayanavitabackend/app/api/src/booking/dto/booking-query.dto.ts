@@ -34,6 +34,10 @@ export class BookingFilterQueryDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   includeInactive?: boolean
+
+  @IsOptional()
+  @IsString()
+  lang?: string
 }
 export class AppointmentStatsQueryDto {
   @IsOptional()

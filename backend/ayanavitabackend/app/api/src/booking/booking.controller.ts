@@ -86,7 +86,7 @@ export class BookingController {
   }
 
   @Get('branches')
-  branches(@Query('includeInactive') includeInactive?: string, @Query('serviceId') serviceId?: string) {
+  branches(@Query('includeInactive') includeInactive?: string, @Query('serviceId') serviceId?: string, @Query('lang') lang?: string) {
     let parsedServiceId: number | undefined
     if (serviceId !== undefined) {
       parsedServiceId = Number(serviceId)
@@ -94,7 +94,7 @@ export class BookingController {
         throw new BadRequestException('serviceId must be a positive integer')
       }
     }
-    return this.booking.listBranches(includeInactive === 'true', parsedServiceId)
+    return this.booking.listBranches(includeInactive === 'true', parsedServiceId, lang)
   }
 
   @Post('branches')
@@ -120,12 +120,13 @@ export class BookingController {
       page: query.page,
       pageSize: query.pageSize,
       includeInactive: query.includeInactive,
+      lang: query.lang,
     })
   }
 
   @Get('services/:id')
-  serviceDetail(@Param('id', ParseIntPipe) id: number) {
-    return this.booking.getServiceDetail(id)
+  serviceDetail(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+    return this.booking.getServiceDetail(id, lang)
   }
 
   @Post('services')
@@ -156,8 +157,8 @@ export class BookingController {
   }
 
   @Get('service-categories')
-  serviceCategories() {
-    return this.booking.listServiceCategories()
+  serviceCategories(@Query('lang') lang?: string) {
+    return this.booking.listServiceCategories(lang)
   }
 
   @Post('service-categories')
@@ -177,7 +178,7 @@ export class BookingController {
 
   @Get('specialists')
   specialists(@Query() query: BookingFilterQueryDto) {
-    return this.booking.listSpecialists(query.branchId, query.serviceId)
+    return this.booking.listSpecialists(query.branchId, query.serviceId, query.lang)
   }
 
   @Post('specialists')

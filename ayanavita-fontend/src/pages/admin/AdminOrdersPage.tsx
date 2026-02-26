@@ -18,6 +18,7 @@ function StatusPill({ status }: { status: OrderStatus }) {
 }
 
 export function AdminOrdersPage() {
+  const lang = (window.localStorage.getItem('lang-admin') as "en-US"|"vi"|"de"|null) || "en-US";
   const { user } = useAuth();
   const [items, setItems] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,7 @@ export function AdminOrdersPage() {
       const data = await ordersApi.list({
         status: next?.status ?? status,
         q: (next?.q ?? q).trim() || undefined,
+        lang,
       });
       setItems(data);
     } catch (e: any) {

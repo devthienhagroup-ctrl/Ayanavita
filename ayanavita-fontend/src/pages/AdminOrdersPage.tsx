@@ -137,6 +137,7 @@ function StatusHintAdmin({ status }: { status: OrderStatus }) {
 }
 
 export function AdminOrdersPage() {
+  const lang = (window.localStorage.getItem('lang-admin') as "en-US"|"vi"|"de"|null) || "en-US";
   const [items, setItems] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -173,6 +174,7 @@ export function AdminOrdersPage() {
       const data = await ordersApi.list({
         status,
         q: qCommitted.trim() || undefined,
+        lang,
       });
       setItems([...data].sort((a, b) => b.id - a.id));
     } catch (e: any) {

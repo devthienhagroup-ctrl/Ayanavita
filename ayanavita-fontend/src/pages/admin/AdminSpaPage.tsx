@@ -75,10 +75,10 @@ const uiText: Record<AdminLang, Record<string, string>> = {
   },
 }
 
-const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true }
-const defaultCategoryForm: CategoryForm = { name: '' }
-const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [] }
-const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
+const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true, translations: { 'en-US': { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, vi: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, de: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' } } }
+const defaultCategoryForm: CategoryForm = { name: '', translations: { 'en-US': { name: '' }, vi: { name: '' }, de: { name: '' } } }
+const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [], translations: { 'en-US': { name: '', bio: '' }, vi: { name: '', bio: '' }, de: { name: '', bio: '' } } }
+const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true, translations: { 'en-US': { name: '', address: '' }, vi: { name: '', address: '' }, de: { name: '', address: '' } } }
 
 const normalizeBranchCode = (name: string) => {
   const base = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
@@ -148,7 +148,7 @@ export default function AdminSpaPage() {
   }, [lang])
 
   const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
-    const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true })
+    const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true, lang })
     setServicePageItems(response.items)
     setServiceTotal(response.total)
     setServiceTotalPages(response.totalPages)
@@ -160,11 +160,11 @@ export default function AdminSpaPage() {
     setLoading(true)
     try {
       const [b, c, sAll, s, sp, a] = await Promise.all([
-        spaAdminApi.branches(true),
-        spaAdminApi.serviceCategories(),
-        spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true }),
-        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true }),
-        spaAdminApi.specialists(),
+        spaAdminApi.branches({ includeInactive: true, lang }),
+        spaAdminApi.serviceCategories(lang),
+        spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true, lang }),
+        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true, lang }),
+        spaAdminApi.specialists({ lang }),
         spaAdminApi.appointments(),
       ])
       setBranches(b)
@@ -266,8 +266,8 @@ export default function AdminSpaPage() {
 
       {!isStaff && tab === 'categories' && <CategoriesTab lang={lang} loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
         if (!categoryForm.name.trim()) return AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
-        try { if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryForm); else await spaAdminApi.createServiceCategory(categoryForm); setEditingCategory(null); setCategoryForm(defaultCategoryForm); await loadAll(); await AlertJs.success('Đã lưu danh mục dịch vụ') } catch (error) { await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.')) }
-      }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name }) }} onDeleteCategory={async (category) => {
+        try { const categoryPayload = { ...categoryForm, translations: categoryForm.translations }; if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryPayload); else await spaAdminApi.createServiceCategory(categoryPayload); setEditingCategory(null); setCategoryForm(defaultCategoryForm); await loadAll(); await AlertJs.success('Đã lưu danh mục dịch vụ') } catch (error) { await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.')) }
+      }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name, translations: { 'en-US': { name: category.name }, vi: { name: category.name }, de: { name: category.name } } }) }} onDeleteCategory={async (category) => {
         if (category.serviceCount > 0) return AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
         try { await spaAdminApi.deleteServiceCategory(category.id); await loadAll(); await AlertJs.success('Đã xóa danh mục') } catch (error) { await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.')) }
       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
@@ -278,15 +278,15 @@ export default function AdminSpaPage() {
         const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
         const duplicatedService = services.find((service) => service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName)
         if (duplicatedService) return AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
-        const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean), suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean), process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean), branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0) }
+        const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean), suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean), process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean), branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0), translations: Object.fromEntries(Object.entries(serviceForm.translations || {}).map(([code, value]) => [code, { ...value, goals: (value?.goals || '').split(',').map((item) => item.trim()).filter(Boolean), suitableFor: (value?.suitableFor || '').split(',').map((item) => item.trim()).filter(Boolean), process: (value?.process || '').split(',').map((item) => item.trim()).filter(Boolean) }])) }
         try { if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage); else await spaAdminApi.createService(payload, selectedImage); setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null); await loadAll(); await AlertJs.success('Đã lưu dịch vụ') } catch (error) { await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.')) }
-      }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
+      }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true, translations: service.translations || defaultServiceForm.translations }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
 
       {!isStaff && tab === 'specialists' && <SpecialistsTab lang={lang} loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
         if (!specialistForm.branchId) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
         if (!specialistForm.email.trim()) return AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
-        try { if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm); else await spaAdminApi.createSpecialist(specialistForm); setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm); await loadAll(); await AlertJs.success('Đã lưu chuyên viên') } catch (error) { await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.')) }
-      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [] }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
+        try { const specialistPayload = { ...specialistForm, translations: specialistForm.translations }; if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistPayload); else await spaAdminApi.createSpecialist(specialistPayload); setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm); await loadAll(); await AlertJs.success('Đã lưu chuyên viên') } catch (error) { await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.')) }
+      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [], translations: specialist.translations || defaultSpecialistForm.translations }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
 
       {(isStaff || tab === 'appointments') && <AppointmentsTab lang={lang} loading={loading} appointments={appointments} specialists={specialists} branches={branches} services={services} isStaff={isStaff} onAssignSpecialist={async (appointment, specialistId) => {
         if (isStaff) return

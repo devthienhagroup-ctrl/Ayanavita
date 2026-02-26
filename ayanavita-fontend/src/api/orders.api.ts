@@ -50,10 +50,11 @@ export const ordersApi = {
   /**
    * ADMIN: GET /orders?status=&q=
    */
-  list(params?: { status?: OrderStatus | "ALL"; q?: string }) {
+  list(params?: { status?: OrderStatus | "ALL"; q?: string; lang?: 'en-US'|'vi'|'de' }) {
     const qs = new URLSearchParams();
     if (params?.status && params.status !== "ALL") qs.set("status", params.status);
     if (params?.q) qs.set("q", params.q);
+    if (params?.lang) qs.set("lang", params.lang);
 
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return get<Order[]>(`/orders${suffix}`, { auth: true });

@@ -25,6 +25,20 @@ import {
 export class BookingService {
   private readonly logger = new Logger(BookingService.name)
 
+
+  private readonly supportedLocales = ['en-US', 'vi', 'de'] as const
+
+  private normalizeLocale(locale?: string) {
+    if (!locale) return 'en-US'
+    return this.supportedLocales.includes(locale as any) ? locale as 'en-US' | 'vi' | 'de' : 'en-US'
+  }
+
+  private pickTranslation<T extends { locale: string }>(translations: T[] | undefined, locale: string) {
+    if (!translations?.length) return undefined
+    return translations.find((item) => item.locale === locale)
+      ?? translations.find((item) => item.locale === 'en-US')
+      ?? translations[0]
+  }
   constructor(private readonly prisma: PrismaService) {}
 
   private toPositiveIntArray(value: unknown): number[] {
@@ -183,7 +197,7 @@ export class BookingService {
       where: { isActive: true },
       select: {
         id: true,
-        name: true,
+          name: true,
         category: { select: { name: true } },
         goals: true,
         suitableFor: true,
@@ -200,7 +214,7 @@ export class BookingService {
     return rows.map((s) => ({
       id: String(s.id),
       dbId: s.id,
-      name: s.name,
+        name: s.name,
       cat: (s.category?.name ?? 'health').toLowerCase().replace(/\s+/g, '-'),
       goal: this.toStringArray(s.goals),
       duration: s.durationMin,
@@ -212,31 +226,36 @@ export class BookingService {
     }))
   }
 
-  async listBranches(includeInactive = false, serviceId?: number): Promise<BranchResponseDto[]> {
+  async listBranches(includeInactive = false, serviceId?: number, locale?: string): Promise<BranchResponseDto[]> {
     const rows = await this.prisma.branch.findMany({
       where: {
         ...(includeInactive ? {} : { isActive: true }),
         ...(serviceId ? { services: { some: { serviceId } } } : {}),
       },
-      select: { id: true, code: true, name: true, address: true, phone: true, isActive: true },
+      select: { id: true, code: true, name: true, address: true, phone: true, isActive: true, translations: { select: { locale: true, name: true, address: true } } },
       orderBy: { id: 'asc' },
     })
 
-    return rows.map((b) => ({
-      id: b.id,
-      code: b.code,
-      name: b.name,
-      address: b.address,
-      phone: b.phone,
-      isActive: b.isActive,
-    }))
+    const lang = this.normalizeLocale(locale)
+    return rows.map((b) => {
+      const trans = this.pickTranslation(b.translations, lang)
+      return {
+        id: b.id,
+        code: b.code,
+        name: trans?.name || b.name,
+        address: trans?.address || b.address,
+        phone: b.phone,
+        isActive: b.isActive,
+      }
+    })
   }
 
-  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number; includeInactive?: boolean }): Promise<ServiceListResponseDto> {
+  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number; includeInactive?: boolean; lang?: string }): Promise<ServiceListResponseDto> {
     const page = params.page && params.page > 0 ? params.page : 1
     const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(params.pageSize, 100) : 10
     const skip = (page - 1) * pageSize
     const query = params.q?.trim()
+    const locale = this.normalizeLocale(params.lang)
 
     const where = {
       ...(params.includeInactive ? {} : { isActive: true }),
@@ -249,7 +268,7 @@ export class BookingService {
         where,
         select: {
           id: true,
-          name: true,
+            name: true,
           description: true,
           categoryId: true,
           category: { select: { name: true } },
@@ -262,8 +281,9 @@ export class BookingService {
           bookedCount: true,
           tag: true,
           imageUrl: true,
-          isActive: true,
+            isActive: true,
           branches: { select: { branchId: true } },
+          translations: { select: { locale: true, name: true, description: true, goals: true, suitableFor: true, process: true, tag: true } },
         },
         orderBy: { id: 'asc' },
         skip,
@@ -272,24 +292,27 @@ export class BookingService {
       this.prisma.service.count({ where }),
     ])
 
-    const items: ServiceResponseDto[] = rows.map((s) => ({
-      id: s.id,
-      name: s.name,
-      description: s.description,
+    const items: ServiceResponseDto[] = rows.map((s) => {
+      const trans = this.pickTranslation(s.translations, locale)
+      return {
+        id: s.id,
+        name: trans?.name || s.name,
+      description: trans?.description || s.description,
       categoryId: s.categoryId,
       category: s.category?.name,
-      goals: this.toStringArray(s.goals),
-      suitableFor: this.toStringArray(s.suitableFor),
-      process: this.toStringArray(s.process),
+      goals: this.toStringArray(trans?.goals ?? s.goals),
+      suitableFor: this.toStringArray(trans?.suitableFor ?? s.suitableFor),
+      process: this.toStringArray(trans?.process ?? s.process),
       durationMin: s.durationMin,
       price: s.price,
       ratingAvg: s.ratingAvg,
       bookedCount: s.bookedCount,
-      tag: s.tag,
+      tag: trans?.tag || s.tag,
       imageUrl: s.imageUrl,
       branchIds: s.branches.map((b) => b.branchId),
-      isActive: s.isActive,
-    }))
+        isActive: s.isActive,
+      }
+    })
 
     return {
       items,
@@ -301,12 +324,12 @@ export class BookingService {
   }
 
 
-  async getServiceDetail(id: number): Promise<ServiceDetailResponseDto> {
+  async getServiceDetail(id: number, locale?: string): Promise<ServiceDetailResponseDto> {
     const row = await this.prisma.service.findUnique({
       where: { id },
       select: {
         id: true,
-        name: true,
+          name: true,
         description: true,
         categoryId: true,
         category: { select: { name: true } },
@@ -319,8 +342,9 @@ export class BookingService {
         bookedCount: true,
         tag: true,
         imageUrl: true,
-        isActive: true,
+          isActive: true,
         branches: { select: { branchId: true } },
+        translations: { select: { locale: true, name: true, description: true, goals: true, suitableFor: true, process: true, tag: true } },
         reviews: {
           select: {
             id: true,
@@ -338,55 +362,62 @@ export class BookingService {
 
     if (!row) throw new NotFoundException('Service not found')
 
+    const lang = this.normalizeLocale(locale)
+    const trans = this.pickTranslation(row.translations, lang)
     return {
       id: row.id,
-      name: row.name,
-      description: row.description,
+        name: trans?.name || row.name,
+      description: trans?.description || row.description,
       categoryId: row.categoryId,
       category: row.category?.name,
-      goals: this.toStringArray(row.goals),
-      suitableFor: this.toStringArray(row.suitableFor),
-      process: this.toStringArray(row.process),
+      goals: this.toStringArray(trans?.goals ?? row.goals),
+      suitableFor: this.toStringArray(trans?.suitableFor ?? row.suitableFor),
+      process: this.toStringArray(trans?.process ?? row.process),
       durationMin: row.durationMin,
       price: row.price,
       ratingAvg: row.ratingAvg,
       bookedCount: row.bookedCount,
-      tag: row.tag,
+      tag: trans?.tag || row.tag,
       imageUrl: row.imageUrl,
       branchIds: row.branches.map((b) => b.branchId),
-      isActive: row.isActive,
+        isActive: row.isActive,
       reviews: row.reviews,
     }
   }
 
-  async listSpecialists(branchId?: number, serviceId?: number): Promise<SpecialistResponseDto[]> {
+  async listSpecialists(branchId?: number, serviceId?: number, locale?: string): Promise<SpecialistResponseDto[]> {
     const rows = await this.prisma.specialist.findMany({
       where: {
-        isActive: true,
+          isActive: true,
         ...(branchId ? { branchId } : {}),
         ...(serviceId ? { serviceLinks: { some: { serviceId } } } : {}),
       },
       select: {
         id: true,
-        name: true,
+          name: true,
         level: true,
         bio: true,
         branchId: true,
         user: { select: { email: true } },
         serviceLinks: { select: { serviceId: true } },
+        translations: { select: { locale: true, name: true, bio: true } },
       },
       orderBy: { id: 'asc' },
     })
 
-    return rows.map((s) => ({
-      id: s.id,
-      name: s.name,
+    const lang = this.normalizeLocale(locale)
+    return rows.map((s) => {
+      const trans = this.pickTranslation(s.translations, lang)
+      return {
+        id: s.id,
+        name: trans?.name || s.name,
       email: s.user.email,
       level: s.level,
-      bio: s.bio,
+      bio: trans?.bio || s.bio,
       branchId: s.branchId,
       serviceIds: [...new Set(s.serviceLinks.map((srv) => srv.serviceId))],
-    }))
+      }
+    })
   }
 
 
@@ -724,7 +755,7 @@ export class BookingService {
 
     const created = await this.prisma.appointment.create({
       data: {
-        code: `APM-${Date.now()}`,
+          code: `APM-${Date.now()}`,
         customerName: dto.customerName,
         customerPhone: dto.customerPhone,
         customerEmail: dto.customerEmail,
@@ -833,7 +864,7 @@ export class BookingService {
     const processInput = Array.isArray(data.process) ? data.process : []
     const branchIds = this.toPositiveIntArray(data.branchIds)
     const serviceData: Prisma.ServiceUncheckedCreateInput = {
-      name: String(data.name ?? '').trim(),
+        name: String(data.name ?? '').trim(),
       description: data.description,
       categoryId: data.categoryId ? Number(data.categoryId) : null,
       goals: goalsInput,
@@ -842,7 +873,7 @@ export class BookingService {
       durationMin: Number(data.durationMin ?? 60),
       price: Number(data.price ?? 0),
       tag: data.tag,
-      isActive: data.isActive !== undefined ? data.isActive === true || data.isActive === 'true' : true,
+        isActive: data.isActive !== undefined ? data.isActive === true || data.isActive === 'true' : true,
     }
 
     return {
@@ -874,6 +905,7 @@ export class BookingService {
 
     return this.prisma.$transaction(async (tx) => {
       const created = await tx.service.create({ data: { ...serviceData, imageUrl } })
+      await this.upsertServiceTranslations(tx, created.id, data.translations)
       await tx.branchService.createMany({
         data: branchIds.map((branchId) => ({ branchId, serviceId: created.id })),
         skipDuplicates: true,
@@ -909,6 +941,7 @@ export class BookingService {
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.service.update({ where: { id }, data: { ...serviceData, imageUrl } })
+      await this.upsertServiceTranslations(tx, id, data.translations)
       await tx.specialistBranchService.deleteMany({
         where: {
           serviceId: id,
@@ -940,38 +973,47 @@ export class BookingService {
     return { ok: true, softDeleted: false }
   }
 
-  async listServiceCategories(): Promise<ServiceCategoryResponseDto[]> {
+  async listServiceCategories(locale?: string): Promise<ServiceCategoryResponseDto[]> {
     const rows = await this.prisma.serviceCategory.findMany({
       select: {
         id: true,
-        name: true,
+          name: true,
         _count: { select: { services: true } },
+        translations: { select: { locale: true, name: true } },
       },
       orderBy: { id: 'asc' },
     })
 
-    return rows.map((item) => ({
-      id: item.id,
-      name: item.name,
+    const lang = this.normalizeLocale(locale)
+    return rows.map((item) => {
+      const trans = this.pickTranslation(item.translations, lang)
+      return {
+        id: item.id,
+        name: trans?.name || item.name,
       serviceCount: item._count.services,
-    }))
+      }
+    })
   }
 
   async createServiceCategory(data: any) {
-    return this.prisma.serviceCategory.create({
+    const created = await this.prisma.serviceCategory.create({
       data: {
         name: String(data.name || '').trim(),
       },
     })
+    await this.upsertCategoryTranslations(this.prisma, created.id, data.translations)
+    return created
   }
 
   async updateServiceCategory(id: number, data: any) {
-    return this.prisma.serviceCategory.update({
+    const updated = await this.prisma.serviceCategory.update({
       where: { id },
       data: {
         ...(data.name !== undefined ? { name: String(data.name).trim() } : {}),
       },
     })
+    await this.upsertCategoryTranslations(this.prisma, id, data.translations)
+    return updated
   }
 
   async deleteServiceCategory(id: number) {
@@ -985,11 +1027,19 @@ export class BookingService {
   }
 
   async createBranch(data: any) {
-    return this.prisma.branch.create({ data })
+    const payload = { ...data }
+    delete payload.translations
+    const created = await this.prisma.branch.create({ data: payload })
+    await this.upsertBranchTranslations(this.prisma, created.id, data.translations)
+    return created
   }
 
   async updateBranch(id: number, data: any) {
-    return this.prisma.branch.update({ where: { id }, data })
+    const payload = { ...data }
+    delete payload.translations
+    const updated = await this.prisma.branch.update({ where: { id }, data: payload })
+    await this.upsertBranchTranslations(this.prisma, id, data.translations)
+    return updated
   }
 
   async deleteBranch(id: number) {
@@ -1033,19 +1083,21 @@ export class BookingService {
           email,
           password: passwordHash,
           role: Role.STAFF,
-          name: String(data.name || '').trim() || null,
+            name: String(data.name || '').trim() || null,
         },
       })
 
       const specialist = await tx.specialist.create({
         data: {
-          name: String(data.name || '').trim(),
+            name: String(data.name || '').trim(),
           level: data.level,
           bio: data.bio,
           branchId,
           userId: user.id,
         },
       })
+
+      await this.upsertSpecialistTranslations(tx, specialist.id, data.translations)
 
       if (serviceIds.length > 0) {
         await tx.specialistBranchService.createMany({
@@ -1109,8 +1161,11 @@ export class BookingService {
       await tx.user.update({ where: { id: specialist.userId }, data: userData })
 
       const updated = await tx.specialist.update({ where: { id }, data: payload })
+      await this.upsertSpecialistTranslations(tx, id, data.translations)
 
       await tx.specialistBranchService.deleteMany({ where: { specialistId: id } })
+      await this.upsertSpecialistTranslations(tx, specialist.id, data.translations)
+
       if (serviceIds.length > 0) {
         await tx.specialistBranchService.createMany({
           data: serviceIds.map((serviceId) => ({ specialistId: id, branchId, serviceId })),
@@ -1126,6 +1181,86 @@ export class BookingService {
 
       return updated
     })
+  }
+
+
+  private normalizeTranslations(input: any, fields: string[]): Array<{ locale: 'en-US' | 'vi' | 'de'; data: Record<string, any> }> {
+    if (!input || typeof input !== 'object') return []
+    return this.supportedLocales.reduce<Array<{ locale: 'en-US' | 'vi' | 'de'; data: Record<string, any> }>>((acc, locale) => {
+      const value = input[locale]
+      if (!value || typeof value !== 'object') return acc
+      const data: Record<string, any> = {}
+      fields.forEach((field) => {
+        if (value[field] !== undefined) data[field] = value[field]
+      })
+      acc.push({ locale, data })
+      return acc
+    }, [])
+  }
+
+  private async upsertBranchTranslations(tx: Prisma.TransactionClient | PrismaService, branchId: number, translations: any) {
+    const rows = this.normalizeTranslations(translations, ['name', 'address'])
+    for (const row of rows) {
+      if (!row.data.name || !row.data.address) continue
+      await tx.branchTranslation.upsert({
+        where: { branchId_locale: { branchId, locale: row.locale } },
+        create: { branchId, locale: row.locale, name: String(row.data.name), address: String(row.data.address) },
+        update: { name: String(row.data.name), address: String(row.data.address) },
+      })
+    }
+  }
+
+  private async upsertCategoryTranslations(tx: Prisma.TransactionClient | PrismaService, categoryId: number, translations: any) {
+    const rows = this.normalizeTranslations(translations, ['name'])
+    for (const row of rows) {
+      if (!row.data.name) continue
+      await tx.serviceCategoryTranslation.upsert({
+        where: { categoryId_locale: { categoryId, locale: row.locale } },
+        create: { categoryId, locale: row.locale, name: String(row.data.name) },
+        update: { name: String(row.data.name) },
+      })
+    }
+  }
+
+  private async upsertServiceTranslations(tx: Prisma.TransactionClient | PrismaService, serviceId: number, translations: any) {
+    const rows = this.normalizeTranslations(translations, ['name', 'description', 'goals', 'suitableFor', 'process', 'tag'])
+    for (const row of rows) {
+      const name = typeof row.data.name === 'string' ? row.data.name.trim() : ''
+      if (!name) continue
+      await tx.serviceTranslation.upsert({
+        where: { serviceId_locale: { serviceId, locale: row.locale } },
+        create: {
+          serviceId,
+          locale: row.locale,
+          name,
+          ...(row.data.description !== undefined ? { description: row.data.description } : {}),
+          ...(row.data.goals !== undefined ? { goals: row.data.goals } : {}),
+          ...(row.data.suitableFor !== undefined ? { suitableFor: row.data.suitableFor } : {}),
+          ...(row.data.process !== undefined ? { process: row.data.process } : {}),
+          ...(row.data.tag !== undefined ? { tag: row.data.tag } : {}),
+        },
+        update: {
+          name,
+          ...(row.data.description !== undefined ? { description: row.data.description } : {}),
+          ...(row.data.goals !== undefined ? { goals: row.data.goals } : {}),
+          ...(row.data.suitableFor !== undefined ? { suitableFor: row.data.suitableFor } : {}),
+          ...(row.data.process !== undefined ? { process: row.data.process } : {}),
+          ...(row.data.tag !== undefined ? { tag: row.data.tag } : {}),
+        },
+      })
+    }
+  }
+
+  private async upsertSpecialistTranslations(tx: Prisma.TransactionClient | PrismaService, specialistId: number, translations: any) {
+    const rows = this.normalizeTranslations(translations, ['name', 'bio'])
+    for (const row of rows) {
+      if (!row.data.name) continue
+      await tx.specialistTranslation.upsert({
+        where: { specialistId_locale: { specialistId, locale: row.locale } },
+        create: { specialistId, locale: row.locale, name: String(row.data.name), bio: row.data.bio ? String(row.data.bio) : null },
+        update: { name: String(row.data.name), bio: row.data.bio ? String(row.data.bio) : null },
+      })
+    }
   }
 
   async deleteSpecialist(id: number) {
