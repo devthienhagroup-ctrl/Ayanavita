@@ -147,7 +147,7 @@ export function ProductFilters(props: {
             </div>
           </div>
 
-          <div>
+{/*          <div>
             <div className="text-sm font-extrabold text-slate-700">{cms.concernLabel}</div>
             <select className="field mt-2" value={concern} onChange={(e) => onConcern(e.target.value as any)}>
               <option value="all">{cms.concernAllLabel}</option>
@@ -157,7 +157,7 @@ export function ProductFilters(props: {
                   </option>
               ))}
             </select>
-          </div>
+          </div>*/} {/*Phát triển sau*/}
 
           <div>
             <div className="text-sm font-extrabold text-slate-700">{cms.priceLabel}</div>
