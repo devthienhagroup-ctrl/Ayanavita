@@ -1,0 +1,224 @@
+.admin-courses-theme {
+  --ad-bg:
+    radial-gradient(1200px 700px at 0% 0%, rgba(20, 184, 166, 0.15), transparent 55%),
+    radial-gradient(900px 600px at 100% 10%, rgba(59, 130, 246, 0.14), transparent 55%),
+    linear-gradient(180deg, #f0fdfa 0%, #ecfeff 55%, #eff6ff 100%);
+  --ad-primary: #0f766e;
+  --ad-primary-soft: #ccfbf1;
+}
+
+.admin-courses-theme .admin-header {
+  background: linear-gradient(130deg, #0f766e, #0d9488 60%, #0284c7 120%);
+  box-shadow: 0 18px 44px rgba(13, 148, 136, 0.32);
+}
+
+.admin-courses-theme .admin-card-glow {
+  box-shadow: 0 14px 30px rgba(13, 148, 136, 0.18);
+}
+
+.admin-courses-theme .admin-tab:hover {
+  box-shadow: 0 8px 18px rgba(13, 148, 136, 0.2);
+}
+
+.admin-courses-theme .admin-tab.active {
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+  color: #083344;
+  box-shadow: 0 10px 20px rgba(20, 184, 166, 0.32);
+}
+
+.admin-courses-theme .admin-btn-primary {
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+}
+
+.admin-courses-theme .admin-btn-save {
+  background: linear-gradient(135deg, #14b8a6, #0284c7);
+  box-shadow: 0 8px 18px rgba(2, 132, 199, 0.26);
+}
+
+.admin-courses-grid {
+  grid-template-columns: minmax(320px, 1fr) minmax(640px, 1.8fr);
+}
+
+.admin-topic-form-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-topic-form-watermark {
+  position: absolute;
+  right: 18px;
+  bottom: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.admin-topic-form-watermark span {
+  display: inline-block;
+  font-size: 276px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: rgba(22, 163, 74, 0.18);
+  transform: skew(-8deg);
+  text-shadow: 0 2px 12px rgba(22, 163, 74, 0.12);
+}
+
+.admin-courses-theme .admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.admin-courses-theme-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.admin-courses-theme-switch-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #dffcff;
+}
+
+.admin-courses-theme-toggle {
+  width: 50px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.3);
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.admin-courses-theme-toggle-thumb {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.admin-courses-theme-toggle.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.admin-courses-theme-toggle.active .admin-courses-theme-toggle-thumb {
+  transform: translateX(22px);
+}
+
+.admin-courses-theme-dark {
+  height: 100vh !important;
+  --ad-bg:
+    radial-gradient(1200px 700px at 0% 0%, rgba(30, 64, 175, 0.24), transparent 55%),
+    radial-gradient(900px 600px at 100% 10%, rgba(20, 184, 166, 0.18), transparent 55%),
+    linear-gradient(180deg, #0b1220 0%, #111827 45%, #0f172a 100%);
+  --ad-card: rgba(15, 23, 42, 0.92);
+  --ad-text: #e2e8f0;
+  --ad-muted: #94a3b8;
+  --ad-border: rgba(51, 65, 85, 0.7);
+}
+
+.admin-courses-theme-dark .admin-header {
+  background: linear-gradient(130deg, #0f172a, #155e75 65%, #0f766e 120%);
+  box-shadow: 0 18px 44px rgba(2, 132, 199, 0.22);
+}
+
+.admin-courses-theme-dark .overview-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(30, 41, 59, 0.9);
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.4);
+}
+
+.admin-courses-theme-dark .overview-card strong {
+  color: #f8fafc;
+}
+
+.admin-courses-theme-dark .overview-card small {
+  color: #94a3b8;
+}
+
+.admin-courses-theme-dark .admin-card {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: rgba(51, 65, 85, 0.7);
+  box-shadow: 0 12px 26px rgba(2, 6, 23, 0.38);
+}
+
+.admin-courses-theme-dark .admin-card-title,
+.admin-courses-theme-dark .td-strong {
+  color: #f8fafc;
+}
+
+.admin-courses-theme-dark .admin-label,
+.admin-courses-theme-dark .admin-helper,
+.admin-courses-theme-dark .admin-subtitle {
+  color: #cbd5e1;
+}
+
+.admin-courses-theme-dark .admin-input {
+  background: linear-gradient(180deg, #0f172a, #111827);
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.admin-courses-theme-dark .admin-input::placeholder {
+  color: #94a3b8;
+}
+
+.admin-courses-theme-dark .admin-btn-ghost {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.admin-courses-theme-dark .admin-table-wrap {
+  border-color: #334155;
+}
+
+.admin-courses-theme-dark .admin-table {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+.admin-courses-theme-dark .admin-table thead tr {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+}
+
+.admin-courses-theme-dark .admin-table th {
+  color: #93c5fd;
+}
+
+.admin-courses-theme-dark .admin-table td {
+  border-top-color: #1e293b;
+}
+
+.admin-courses-theme-dark .admin-table tbody tr:hover {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.admin-courses-theme-dark .admin-tab {
+  background: #0f172a;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.admin-courses-theme-dark .admin-tab.active {
+  background: linear-gradient(135deg, #0ea5e9, #14b8a6);
+  color: #052f3a;
+}
+
+.admin-courses-theme-dark .admin-topic-form-watermark span {
+  color: rgba(74, 222, 128, 0.18);
+}

@@ -15,6 +15,7 @@ import { LessonDetailPage } from "../pages/LessonDetailPage";
 import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
 import AdminSpaPage from "../pages/admin/AdminSpaPage";
 import LoginPage from "../pages/LoginPage";
+import AdminCoursesPage from "../pages/admin/AdminCoursesPage";
 
 export function AppRoutes() {
   return (
@@ -97,6 +98,18 @@ export function AppRoutes() {
           <RequireAuth>
             <RequireRole roles={["ADMIN", "STAFF"]}>
               <AdminSpaPage />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+
+      <Route
+        path="/admin/cources"
+        element={
+          <RequireAuth>
+            <RequireRole roles={["ADMIN"]}>
+              <AdminCoursesPage />
             </RequireRole>
           </RequireAuth>
         }

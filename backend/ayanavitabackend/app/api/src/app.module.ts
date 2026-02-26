@@ -8,9 +8,7 @@ import { OrdersModule } from './orders/orders.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { ProgressModule } from './progress/progress.module'
 import { CmsModule } from './cms/cms.module'
-
-
-
+import { CourseTopicsModule } from './course-topics/course-topics.module'
 import { UsersModule } from './users/users.module'
 
 @Module({
@@ -24,8 +22,7 @@ import { UsersModule } from './users/users.module'
     ProgressModule,
     OrdersModule,
     CmsModule,
-
-
+    CourseTopicsModule,
     BookingModule,
   ],
 })

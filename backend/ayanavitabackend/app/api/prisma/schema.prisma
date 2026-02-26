@@ -244,6 +244,7 @@ model RegistrationOtp {
 
 model Course {
   id          Int      @id @default(autoincrement())
+  topicId     Int?
   title       String
   slug        String   @unique
   description String?
@@ -255,9 +256,22 @@ model Course {
 
   lessons     Lesson[]
   enrollments Enrollment[]
+  topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
 
   // ✅ ADD
   orderItems OrderItem[] // <— opposite for OrderItem.course
+
+  @@index([topicId])
+}
+
+model CourseTopic {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(120)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses Course[]
 }
 
 model Lesson {

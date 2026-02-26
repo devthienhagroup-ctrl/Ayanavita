@@ -33,6 +33,7 @@ export function CoursesPage() {
 
 
           {user?.role === "ADMIN" && <Link to="/admin/orders">Admin Orders</Link>}
+          {user?.role === "ADMIN" && <Link to="/admin/cources">Admin Courses</Link>}
 
           <button onClick={logout}>Logout</button>
         </div>

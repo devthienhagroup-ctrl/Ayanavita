@@ -52,6 +52,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
     return this.prisma.course.findMany({
       select: {
         id: true,
+        topicId: true,
         title: true,
         slug: true,
         description: true,
@@ -60,6 +61,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
         published: true,
         createdAt: true,
         updatedAt: true,
+        topic: { select: { id: true, name: true } },
         _count: { select: { lessons: true } },
       },
       orderBy: { id: "desc" },
@@ -71,6 +73,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
       where: { id },
       select: {
         id: true,
+        topicId: true,
         title: true,
         slug: true,
         description: true,
@@ -79,6 +82,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
         published: true,
         createdAt: true,
         updatedAt: true,
+        topic: { select: { id: true, name: true } },
         _count: { select: { lessons: true } },
       },
     });
@@ -95,6 +99,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
         data: dto,
         select: {
           id: true,
+          topicId: true,
           title: true,
           slug: true,
           description: true,
@@ -103,6 +108,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
           published: true,
           createdAt: true,
           updatedAt: true,
+          topic: { select: { id: true, name: true } },
         },
       });
     } catch (e) {
@@ -124,6 +130,7 @@ async lessonsOutline(user: JwtUser, courseId: number) {
       data: dto,
       select: {
         id: true,
+        topicId: true,
         title: true,
         slug: true,
         description: true,

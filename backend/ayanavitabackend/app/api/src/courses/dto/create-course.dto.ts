@@ -23,4 +23,9 @@ export class CreateCourseDto {
   @IsOptional()
   @IsBoolean()
   published?: boolean;
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  topicId?: number;
 }
+
