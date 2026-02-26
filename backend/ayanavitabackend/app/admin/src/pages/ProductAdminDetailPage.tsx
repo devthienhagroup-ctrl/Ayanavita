@@ -411,31 +411,44 @@ export function ProductAdminDetailPage() {
 
     setSaving(true);
     try {
+      let savedProduct = product;
+      let savedProductId = product.id;
+
       if (productId === "new") {
         const created = await createAdminProduct(product);
-        showNotice("Đã tạo sản phẩm mới");
-        navigate(`/catalog/products/${created.id}`);
-        return;
+        savedProduct = { ...product, id: created.id, updatedAt: created.updatedAt };
+        savedProductId = created.id;
+
+        // The create endpoint only persists core product fields,
+        // so we need to persist ingredients/attributes in a follow-up update.
+        await updateAdminProduct(savedProduct);
+      } else {
+        await updateAdminProduct(savedProduct);
       }
-      await updateAdminProduct(product);
 
       for (const imageId of deletedPersistedImageIds) {
-        await deleteProductImage(product.id, imageId);
+        await deleteProductImage(savedProductId, imageId);
       }
 
-      for (const image of product.images) {
+      for (const image of savedProduct.images) {
         if (isTempImageId(image.id)) {
           const file = pendingImageFiles[image.id];
           if (!file) continue;
-          await uploadProductImage(product.id, file, image.isPrimary, image.sortOrder);
+          await uploadProductImage(savedProductId, file, image.isPrimary, image.sortOrder);
           try {
             URL.revokeObjectURL(image.imageUrl);
           } catch {
             // ignore
           }
         } else {
-          await updateProductImage(product.id, image);
+          await updateProductImage(savedProductId, image);
         }
+      }
+
+      if (productId === "new") {
+        showNotice("Đã tạo sản phẩm mới");
+        navigate(`/catalog/products/${savedProductId}`);
+        return;
       }
 
       await load();
