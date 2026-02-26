@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { spaAdminApi, type Branch, type SpaService, type Specialist } from '../../../api/spaAdmin.api'
 import type { ServicesTabProps } from './types'
+import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
 const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass: string) => {
   if (!items?.length) return '-'
@@ -14,6 +15,37 @@ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass:
 }
 
 const pageSizeOptions = [5, 10, 20, 50]
+const locales: LocaleMode[] = ['vi', 'en-US', 'de']
+const emptyServiceLocale = { name: '', description: '', goals: '', suitableFor: '', process: '', tag: '' }
+const textMap = {
+  vi: {
+    title: 'Quản lý dịch vụ', add: 'Thêm dịch vụ', searchLabel: 'Tìm tên dịch vụ', searchPlaceholder: 'Nhập tên dịch vụ...', perPage: 'Số mục/trang', perPageSuffix: '/ trang',
+    noData: 'Không có dữ liệu', create: 'Tạo dịch vụ mới', edit: 'Chỉnh sửa dịch vụ', close: 'Đóng', requiredHint: 'là thông tin bắt buộc.',
+    localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.',
+    serviceName: 'Tên dịch vụ', category: 'Danh mục', chooseCategory: 'Chọn danh mục', duration: 'Thời lượng (phút)', price: 'Giá (VNĐ)', tag: 'Nhãn hiển thị', status: 'Trạng thái hoạt động',
+    active: 'Đang hoạt động', inactive: 'Đang tắt', branchApplied: 'Chi nhánh áp dụng', branchDisabledHint: 'Chi nhánh đang tắt sẽ không thể chọn.',
+    goals: 'Mục tiêu', suitableFor: 'Phù hợp với', process: 'Quy trình', description: 'Mô tả', uploadImage: 'Upload ảnh',
+    selectedImage: 'Đã chọn', save: 'Lưu thay đổi', addService: 'Thêm dịch vụ', cancel: 'Hủy',
+  },
+  'en-US': {
+    title: 'Service management', add: 'Add service', searchLabel: 'Search service name', searchPlaceholder: 'Enter service name...', perPage: 'Items/page', perPageSuffix: '/ page',
+    noData: 'No data', create: 'Create new service', edit: 'Edit service', close: 'Close', requiredHint: 'is required.',
+    localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.',
+    serviceName: 'Service name', category: 'Category', chooseCategory: 'Select category', duration: 'Duration (min)', price: 'Price (VND)', tag: 'Display tag', status: 'Status',
+    active: 'Active', inactive: 'Inactive', branchApplied: 'Applied branches', branchDisabledHint: 'Inactive branches cannot be selected.',
+    goals: 'Goals', suitableFor: 'Suitable for', process: 'Process', description: 'Description', uploadImage: 'Upload image',
+    selectedImage: 'Selected', save: 'Save changes', addService: 'Add service', cancel: 'Cancel',
+  },
+  de: {
+    title: 'Leistungsverwaltung', add: 'Leistung hinzufügen', searchLabel: 'Leistungsname suchen', searchPlaceholder: 'Leistungsname eingeben...', perPage: 'Einträge/Seite', perPageSuffix: '/ Seite',
+    noData: 'Keine Daten', create: 'Neue Leistung erstellen', edit: 'Leistung bearbeiten', close: 'Schließen', requiredHint: 'ist erforderlich.',
+    localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.',
+    serviceName: 'Leistungsname', category: 'Kategorie', chooseCategory: 'Kategorie wählen', duration: 'Dauer (Min.)', price: 'Preis (VND)', tag: 'Anzeigetag', status: 'Status',
+    active: 'Aktiv', inactive: 'Inaktiv', branchApplied: 'Angewendete Filialen', branchDisabledHint: 'Inaktive Filialen können nicht ausgewählt werden.',
+    goals: 'Ziele', suitableFor: 'Geeignet für', process: 'Ablauf', description: 'Beschreibung', uploadImage: 'Bild hochladen',
+    selectedImage: 'Ausgewählt', save: 'Änderungen speichern', addService: 'Leistung hinzufügen', cancel: 'Abbrechen',
+  },
+} as const
 
 const renderDetailLines = (items: string[]) => {
   if (!items.length) return <p className='service-detail-empty'>Không có dữ liệu</p>
@@ -30,6 +62,7 @@ const renderDetailLines = (items: string[]) => {
 }
 
 export function ServicesTab({
+  lang = 'vi',
   services,
   branches,
   categories,
@@ -48,12 +81,43 @@ export function ServicesTab({
   onDeleteService,
   onCancelEdit,
 }: ServicesTabProps) {
+  const t = textMap[lang]
+  const [mode, setMode] = useState<LocaleMode>('vi')
+  const translateReqRef = useRef(0)
   const [isEditModalOpen, setEditModalOpen] = useState(false)
   const [detailService, setDetailService] = useState<SpaService | null>(null)
   const [detailSpecialists, setDetailSpecialists] = useState<Specialist[]>([])
   const [detailBranches, setDetailBranches] = useState<Branch[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const serviceTranslations = serviceForm.translations || {}
+  const currentLocaleValue = serviceTranslations[mode] || emptyServiceLocale
+
+  const updateLocalizedField = (field: 'name' | 'description' | 'goals' | 'suitableFor' | 'process' | 'tag', value: string) => {
+    const nextTranslations = { ...serviceTranslations, [mode]: { ...currentLocaleValue, [field]: value } }
+    const nextForm = { ...serviceForm, translations: nextTranslations }
+
+    if (mode === 'vi') {
+      translateReqRef.current += 1
+      const reqId = translateReqRef.current
+      onServiceFormChange({ ...nextForm, [field]: value })
+
+      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+        if (reqId !== translateReqRef.current) return
+        onServiceFormChange({
+          ...nextForm,
+          translations: {
+            ...nextTranslations,
+            'en-US': { ...(nextTranslations['en-US'] || emptyServiceLocale), [field]: en },
+            de: { ...(nextTranslations.de || emptyServiceLocale), [field]: de },
+          },
+        })
+      })
+      return
+    }
+
+    onServiceFormChange(nextForm)
+  }
 
   const handleOpenCreate = () => {
     onCancelEdit()
@@ -71,11 +135,11 @@ export function ServicesTab({
   }
 
   const pageInfoLabel = useMemo(() => {
-    if (!pagination.total) return 'Không có dữ liệu'
+    if (!pagination.total) return t.noData
     const start = (pagination.page - 1) * pagination.pageSize + 1
     const end = Math.min(pagination.page * pagination.pageSize, pagination.total)
     return `${start}-${end} / ${pagination.total}`
-  }, [pagination.page, pagination.pageSize, pagination.total])
+  }, [pagination.page, pagination.pageSize, pagination.total, t.noData])
 
   useEffect(() => {
     if (!detailService) {
@@ -116,25 +180,25 @@ export function ServicesTab({
   return (
     <section className='admin-card admin-card-full'>
       <div className='admin-row admin-row-space'>
-        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Quản lý dịch vụ</h3>
-        <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> Thêm dịch vụ</button>
+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.title}</h3>
+        <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> {t.add}</button>
       </div>
 
       <div className='admin-row services-toolbar'>
         <label className='admin-field services-search-field'>
-          <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên dịch vụ</span>
+          <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchLabel}</span>
           <input
             className='admin-input'
-            placeholder='Nhập tên dịch vụ...'
+            placeholder={t.searchPlaceholder}
             value={searchKeyword}
             onChange={(e) => onSearchKeywordChange(e.target.value)}
           />
         </label>
         <label className='admin-field services-size-field'>
-          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Số mục/trang</span>
+          <span className='admin-label'><i className='fa-solid fa-list-ol' /> {t.perPage}</span>
           <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
             {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>{size} / trang</option>
+              <option key={size} value={size}>{size} {t.perPageSuffix}</option>
             ))}
           </select>
         </label>
@@ -235,46 +299,48 @@ export function ServicesTab({
         <div className='admin-modal-overlay' onClick={handleCloseEdit}>
           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
             <div className='admin-row admin-row-space'>
-              <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Chỉnh sửa dịch vụ' : 'Tạo dịch vụ mới'}</h3>
-              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> Đóng</button>
+              <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? t.edit : t.create}</h3>
+              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> {t.close}</button>
             </div>
-            <p className='admin-helper'><b className='admin-required'>*</b> là thông tin bắt buộc.</p>
+            <p className='admin-helper'><b className='admin-required'>*</b> {t.requiredHint}</p>
+            <div className='admin-row'>{locales.map((l) => <button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={() => setMode(l)}>{l}</button>)}</div>
+            <p className='admin-helper'>{t.localeHint}</p>
             <div className='admin-form-grid services-edit-grid'>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ <b className='admin-required'>*</b></span>
-                <input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} />
+                <span className='admin-label'><i className='fa-solid fa-sparkles' /> {t.serviceName} ({mode}) <b className='admin-required'>*</b></span>
+                <input className='admin-input' value={currentLocaleValue.name} onChange={(e) => updateLocalizedField('name', e.target.value)} />
               </label>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục <b className='admin-required'>*</b></span>
+                <span className='admin-label'><i className='fa-solid fa-layer-group' /> {t.category} <b className='admin-required'>*</b></span>
                 <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
-                  <option value={0}>Chọn danh mục</option>
+                  <option value={0}>{t.chooseCategory}</option>
                   {categories.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
               </label>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút) <b className='admin-required'>*</b></span>
+                <span className='admin-label'><i className='fa-solid fa-clock' /> {t.duration} <b className='admin-required'>*</b></span>
                 <input className='admin-input' type='number' min={1} value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} />
               </label>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-coins' /> Giá (VNĐ) <b className='admin-required'>*</b></span>
+                <span className='admin-label'><i className='fa-solid fa-coins' /> {t.price} <b className='admin-required'>*</b></span>
                 <input className='admin-input' type='number' min={0} value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} />
               </label>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-tag' /> Nhãn hiển thị</span>
-                <input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} />
+                <span className='admin-label'><i className='fa-solid fa-tag' /> {t.tag} ({mode})</span>
+                <input className='admin-input' value={currentLocaleValue.tag} onChange={(e) => updateLocalizedField('tag', e.target.value)} />
               </label>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-power-off' /> Trạng thái hoạt động</span>
+                <span className='admin-label'><i className='fa-solid fa-power-off' /> {t.status}</span>
                 <span className='admin-checkbox'>
                   <input type='checkbox' checked={Boolean(serviceForm.isActive)} onChange={(e) => onServiceFormChange({ ...serviceForm, isActive: e.target.checked })} />
                   <span className='admin-checkbox-slider' />
-                  <span className='admin-checkbox-label'>{serviceForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
+                  <span className='admin-checkbox-label'>{serviceForm.isActive ? t.active : t.inactive}</span>
                 </span>
               </label>
               <label className='admin-field admin-field-full'>
-                <span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh áp dụng <b className='admin-required'>*</b></span>
+                <span className='admin-label'><i className='fa-solid fa-building' /> {t.branchApplied} <b className='admin-required'>*</b></span>
                 <div className='services-branch-checklist'>
                   {branches.map((branch) => {
                     const checked = serviceForm.branchIds.includes(branch.id)
@@ -296,27 +362,27 @@ export function ServicesTab({
                     )
                   })}
                 </div>
-                <span className='admin-helper'>Chi nhánh đang tắt sẽ không thể chọn.</span>
+                <span className='admin-helper'>{t.branchDisabledHint}</span>
               </label>
               <label className='admin-field admin-field-full'>
-                <span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu (phân tách bằng dấu phẩy ",")</span>
-                <input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} />
+                <span className='admin-label'><i className='fa-solid fa-bullseye' /> {t.goals} ({mode}) (phân tách bằng dấu phẩy ",")</span>
+                <input className='admin-input' placeholder='Relax, Detox' value={currentLocaleValue.goals} onChange={(e) => updateLocalizedField('goals', e.target.value)} />
               </label>
               <label className='admin-field admin-field-full'>
-                <span className='admin-label'><i className='fa-solid fa-users' /> Phù hợp với (phân tách bằng dấu phẩy ",")</span>
-                <input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} />
+                <span className='admin-label'><i className='fa-solid fa-users' /> {t.suitableFor} ({mode}) (phân tách bằng dấu phẩy ",")</span>
+                <input className='admin-input' placeholder='Người stress, Mất ngủ' value={currentLocaleValue.suitableFor} onChange={(e) => updateLocalizedField('suitableFor', e.target.value)} />
               </label>
               <label className='admin-field admin-field-full'>
-                <span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (phân tách bằng dấu phẩy ",")</span>
-                <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} />
+                <span className='admin-label'><i className='fa-solid fa-list-check' /> {t.process} ({mode}) (phân tách bằng dấu phẩy ",")</span>
+                <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={currentLocaleValue.process} onChange={(e) => updateLocalizedField('process', e.target.value)} />
               </label>
-              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
-              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
-              {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
+              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> {t.description} ({mode})</span><textarea className='admin-input' value={currentLocaleValue.description} onChange={(e) => updateLocalizedField('description', e.target.value)} /></label>
+              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> {t.uploadImage}</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
+              {selectedImageName && <span className='admin-helper'>{t.selectedImage}: {selectedImageName}</span>}
             </div>
             <div className='admin-row'>
-              <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
-              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>Hủy</button>
+              <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? t.save : t.addService}</button>
+              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>{t.cancel}</button>
             </div>
           </div>
         </div>
