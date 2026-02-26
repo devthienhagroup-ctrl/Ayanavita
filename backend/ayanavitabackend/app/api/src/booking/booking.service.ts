@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Prisma, Role } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
 import { promises as fs } from 'fs'
@@ -6,6 +6,7 @@ import { createHash, createHmac, randomBytes } from 'crypto'
 import { extname, join } from 'path'
 import * as tls from 'tls'
 import { PrismaService } from '../prisma/prisma.service'
+import type { JwtUser } from '../auth/decorators/current-user.decorator'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
 import {
   BranchResponseDto,
@@ -388,8 +389,10 @@ export class BookingService {
   }
 
 
-  listAppointments() {
+  async listAppointments(user: JwtUser) {
+    const where = await this.resolveAppointmentScope(user)
     return this.prisma.appointment.findMany({
+      where,
       include: {
         branch: { select: { id: true, name: true } },
         service: { select: { id: true, name: true, durationMin: true, price: true } },
@@ -414,6 +417,83 @@ export class BookingService {
 
   private overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
     return startA < endB && endA > startB
+  }
+
+  private async resolveAppointmentScope(user: JwtUser): Promise<Prisma.AppointmentWhereInput> {
+    if (user.role === Role.ADMIN) return {}
+
+    if (user.role === Role.STAFF) {
+      const specialist = await this.prisma.specialist.findFirst({
+        where: { userId: user.sub, isActive: true },
+        select: { id: true },
+      })
+      if (!specialist) {
+        throw new ForbiddenException('Specialist profile is not active')
+      }
+      return { specialistId: specialist.id }
+    }
+
+    throw new ForbiddenException('Bạn không có quyền xem lịch hẹn')
+  }
+
+  private async validateSpecialistForAppointment(params: {
+    specialistId: number
+    branchId: number
+    serviceId: number
+    appointmentAt: Date
+    serviceDurationMin: number
+    ignoreAppointmentId?: number
+  }) {
+    const specialist = await this.prisma.specialist.findUnique({
+      where: { id: params.specialistId },
+      select: { id: true, name: true, branchId: true, isActive: true, user: { select: { email: true } } },
+    })
+
+    if (!specialist || !specialist.isActive) {
+      throw new NotFoundException('Specialist not found')
+    }
+
+    if (specialist.branchId !== params.branchId) {
+      throw new BadRequestException('Specialist does not belong to this branch')
+    }
+
+    const specialistBranchService = await this.prisma.specialistBranchService.findUnique({
+      where: {
+        specialistId_branchId_serviceId: {
+          specialistId: params.specialistId,
+          branchId: params.branchId,
+          serviceId: params.serviceId,
+        },
+      },
+    })
+    if (!specialistBranchService) {
+      throw new BadRequestException('Specialist is not available for this service in selected branch')
+    }
+
+    const specialistAppointments = await this.prisma.appointment.findMany({
+      where: {
+        specialistId: params.specialistId,
+        status: { not: 'CANCELED' },
+        appointmentAt: {
+          gte: new Date(params.appointmentAt.getTime() - 12 * 60 * 60 * 1000),
+          lte: new Date(params.appointmentAt.getTime() + 12 * 60 * 60 * 1000),
+        },
+        ...(params.ignoreAppointmentId ? { id: { not: params.ignoreAppointmentId } } : {}),
+      },
+      select: { appointmentAt: true, service: { select: { durationMin: true } } },
+    })
+
+    const specialistConflict = specialistAppointments.some((row) => {
+      const start = new Date(row.appointmentAt)
+      const end = new Date(start.getTime() + row.service.durationMin * 60000)
+      return this.overlaps(params.appointmentAt, new Date(params.appointmentAt.getTime() + params.serviceDurationMin * 60000), start, end)
+    })
+
+    if (specialistConflict) {
+      throw new BadRequestException('Specialist is already occupied at this time')
+    }
+
+    return specialist
   }
 
   private async getServiceCapacity(branchId: number, serviceId: number) {
@@ -531,40 +611,13 @@ export class BookingService {
     }
 
     if (dto.specialistId) {
-      const specialist = await this.prisma.specialist.findUnique({ where: { id: dto.specialistId } })
-      if (!specialist) throw new NotFoundException('Specialist not found')
-
-      if (specialist.branchId !== dto.branchId) {
-        throw new BadRequestException('Specialist does not belong to this branch')
-      }
-
-      const specialistBranchService = await this.prisma.specialistBranchService.findUnique({
-        where: { specialistId_branchId_serviceId: { specialistId: dto.specialistId, branchId: dto.branchId, serviceId: dto.serviceId } },
+      await this.validateSpecialistForAppointment({
+        specialistId: dto.specialistId,
+        branchId: dto.branchId,
+        serviceId: dto.serviceId,
+        appointmentAt,
+        serviceDurationMin: service.durationMin,
       })
-
-      if (!specialistBranchService) {
-        throw new BadRequestException('Specialist is not available for this service in selected branch')
-      }
-
-      const specialistAppointments = await this.prisma.appointment.findMany({
-        where: {
-          specialistId: dto.specialistId,
-          status: { not: 'CANCELED' },
-          appointmentAt: {
-            gte: new Date(appointmentAt.getTime() - 12 * 60 * 60 * 1000),
-            lte: new Date(appointmentAt.getTime() + 12 * 60 * 60 * 1000),
-          },
-        },
-        select: { appointmentAt: true, service: { select: { durationMin: true } } },
-      })
-      const specialistConflict = specialistAppointments.some((row) => {
-        const start = new Date(row.appointmentAt)
-        const end = new Date(start.getTime() + row.service.durationMin * 60000)
-        return this.overlaps(appointmentAt, new Date(appointmentAt.getTime() + service.durationMin * 60000), start, end)
-      })
-      if (specialistConflict) {
-        throw new BadRequestException('Specialist is already occupied at this time')
-      }
     }
 
     const capacity = await this.getServiceCapacity(dto.branchId, dto.serviceId)
@@ -601,8 +654,81 @@ export class BookingService {
     return created
   }
 
-  async updateAppointment(id: number, data: any) {
-    return this.prisma.appointment.update({ where: { id }, data })
+  async updateAppointment(id: number, data: any, user: JwtUser) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        branch: { select: { name: true } },
+        service: { select: { name: true, durationMin: true } },
+        specialist: { select: { id: true, name: true } },
+      },
+    })
+    if (!appointment) throw new NotFoundException('Appointment not found')
+
+    const payload: Prisma.AppointmentUpdateInput = {}
+
+    if (user.role === Role.STAFF) {
+      const specialist = await this.prisma.specialist.findFirst({ where: { userId: user.sub, isActive: true }, select: { id: true } })
+      if (!specialist || appointment.specialistId !== specialist.id) {
+        throw new ForbiddenException('Bạn chỉ có thể cập nhật lịch hẹn được phân công')
+      }
+      const nextStatus = String(data.status || '').toUpperCase()
+      if (!['DONE', 'CANCELED'].includes(nextStatus)) {
+        throw new BadRequestException('Staff only can set status DONE or CANCELED')
+      }
+      payload.status = nextStatus as any
+      return this.prisma.appointment.update({ where: { id }, data: payload })
+    }
+
+    if (user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Bạn không có quyền cập nhật lịch hẹn')
+    }
+
+    if (data.status !== undefined) {
+      const nextStatus = String(data.status || '').toUpperCase()
+      if (!['PENDING', 'CONFIRMED', 'DONE', 'CANCELED'].includes(nextStatus)) {
+        throw new BadRequestException('Invalid appointment status')
+      }
+      payload.status = nextStatus as any
+    }
+
+    if (data.specialistId !== undefined) {
+      const specialistId = data.specialistId === null || data.specialistId === '' ? null : Number(data.specialistId)
+      if (specialistId !== null && (!Number.isInteger(specialistId) || specialistId < 1)) {
+        throw new BadRequestException('specialistId must be a positive integer or null')
+      }
+
+      if (specialistId) {
+        const specialist = await this.validateSpecialistForAppointment({
+          specialistId,
+          branchId: appointment.branchId,
+          serviceId: appointment.serviceId,
+          appointmentAt: appointment.appointmentAt,
+          serviceDurationMin: appointment.service.durationMin,
+          ignoreAppointmentId: appointment.id,
+        })
+        payload.specialist = { connect: { id: specialist.id } }
+
+        const isChanged = appointment.specialistId !== specialist.id
+        if (isChanged) {
+          void this.sendAppointmentAssignmentMail({
+            to: specialist.user.email,
+            specialistName: specialist.name,
+            appointmentCode: appointment.code,
+            customerName: appointment.customerName,
+            serviceName: appointment.service.name,
+            branchName: appointment.branch.name,
+            appointmentAt: appointment.appointmentAt,
+          }).catch((error) => {
+            this.logger.error(`Không gửi được email phân công lịch hẹn tới ${specialist.user.email}`, error?.stack ?? String(error))
+          })
+        }
+      } else {
+        payload.specialist = { disconnect: true }
+      }
+    }
+
+    return this.prisma.appointment.update({ where: { id }, data: payload })
   }
 
   async deleteAppointment(id: number) {
@@ -934,6 +1060,23 @@ export class BookingService {
     const body = `Xin chào ${name},\n\nBạn đã được cấp tài khoản chuyên viên (STAFF) tại hệ thống AYANAVITA.\nEmail: ${email}\nMật khẩu mới: ${password}\n\nVui lòng đăng nhập và đổi mật khẩu để bảo mật tài khoản.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
 
     await this.sendSmtpViaGmail({ user, pass, to: email, subject, body })
+  }
+
+  private async sendAppointmentAssignmentMail(params: {
+    to: string
+    specialistName: string
+    appointmentCode: string
+    customerName: string
+    serviceName: string
+    branchName: string
+    appointmentAt: Date
+  }) {
+    const user = process.env.MAIL_USER ?? 'manage.ayanavita@gmail.com'
+    const pass = process.env.MAIL_PASS ?? 'xetp fhph luse qydj'
+    const subject = `Phân công lịch hẹn ${params.appointmentCode} - AYANAVITA`
+    const body = `Xin chào ${params.specialistName},\n\nBạn vừa được phân công lịch hẹn mới.\nMã lịch hẹn: ${params.appointmentCode}\nKhách hàng: ${params.customerName}\nDịch vụ: ${params.serviceName}\nChi nhánh: ${params.branchName}\nThời gian: ${params.appointmentAt.toLocaleString('vi-VN')}\n\nVui lòng đăng nhập hệ thống để xác nhận khách có đến hay không sau khi phục vụ.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
+
+    await this.sendSmtpViaGmail({ user, pass, to: params.to, subject, body })
   }
 
   private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string }) {

@@ -52,6 +52,7 @@ export type ServiceReview = {
 }
 export type Appointment = {
   id: number
+  code?: string
   customerName: string
   customerPhone: string
   customerEmail?: string
@@ -92,7 +93,7 @@ export const spaAdminApi = {
     return get<Specialist[]>(`/booking/specialists${queryString ? `?${queryString}` : ''}`, { auth: false })
   },
   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
-  appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
+  appointments: () => get<Appointment[]>('/booking/appointments'),
 
   createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
@@ -127,6 +128,6 @@ export const spaAdminApi = {
   createReview: (data: any) => post('/booking/service-reviews', data, { auth: false }),
   deleteReview: (id: number) => del(`/booking/service-reviews/${id}`, { auth: false }),
 
-  updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data, { auth: false }),
-  deleteAppointment: (id: number) => del(`/booking/appointments/${id}`, { auth: false }),
+  updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data),
+  deleteAppointment: (id: number) => del(`/booking/appointments/${id}`),
 }

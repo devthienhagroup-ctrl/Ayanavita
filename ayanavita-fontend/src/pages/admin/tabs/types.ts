@@ -80,15 +80,14 @@ export type SpecialistsTabProps = CommonTabProps & {
   onCancelEdit: () => void
 }
 
-export type ReviewsTabProps = CommonTabProps & {
-  services: SpaService[]
+
+export type AppointmentsTabProps = CommonTabProps & {
   appointments: Appointment[]
-  selectedServiceReviews: ServiceReview[]
-  reviewForm: ReviewForm
-  onReviewFormChange: (next: ReviewForm) => void
-  onCreateReview: () => Promise<void>
-  onDeleteReview: (review: ServiceReview) => Promise<void>
-  onToggleAppointmentStatus: (appointment: Appointment) => Promise<void>
-  onShowAppointmentDetail: (appointment: Appointment) => void
+  specialists: Specialist[]
+  branches: Branch[]
+  services: SpaService[]
+  isStaff: boolean
+  onAssignSpecialist: (appointment: Appointment, specialistId: number | null) => Promise<void>
+  onUpdateStatus: (appointment: Appointment, status: 'PENDING' | 'CONFIRMED' | 'DONE' | 'CANCELED') => Promise<void>
   onDeleteAppointment: (appointment: Appointment) => Promise<void>
 }

@@ -10,10 +10,15 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
+import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+import { RolesGuard } from '../auth/guards/roles.guard'
+import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator'
+import { Roles } from '../auth/decorators/roles.decorator'
 import { BookingService } from './booking.service'
 import { BookingFilterQueryDto } from './dto/booking-query.dto'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
@@ -212,16 +217,22 @@ export class BookingController {
     return this.booking.getSlotSuggestions(parsedBranchId, parsedServiceId, date)
   }
 
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN', 'STAFF')
   @Get('appointments')
-  appointments() {
-    return this.booking.listAppointments()
+  appointments(@CurrentUser() user: JwtUser) {
+    return this.booking.listAppointments(user)
   }
 
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN', 'STAFF')
   @Patch('appointments/:id')
-  updateAppointment(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
-    return this.booking.updateAppointment(id, data)
+  updateAppointment(@Param('id', ParseIntPipe) id: number, @Body() data: any, @CurrentUser() user: JwtUser) {
+    return this.booking.updateAppointment(id, data, user)
   }
 
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN')
   @Delete('appointments/:id')
   deleteAppointment(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteAppointment(id)

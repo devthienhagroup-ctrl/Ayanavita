@@ -1,36 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
-import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
+import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type SpaService, type Specialist } from '../../api/spaAdmin.api'
 import { AlertJs } from '../../utils/alertJs'
 import './AdminSpaPage.css'
 import { BranchesTab } from './tabs/BranchesTab'
 import { CategoriesTab } from './tabs/CategoriesTab'
-import { ReviewsTab } from './tabs/ReviewsTab'
 import { ServicesTab } from './tabs/ServicesTab'
 import { SpecialistsTab } from './tabs/SpecialistsTab'
-import type { BranchForm, CategoryForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
+import { AppointmentsTab } from './tabs/AppointmentsTab'
+import type { BranchForm, CategoryForm, ServiceForm, SpecialistForm } from './tabs/types'
 import { useAuth } from '../../state/auth.store'
 
-type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
+type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'appointments'
 
 const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true }
 const defaultCategoryForm: CategoryForm = { name: '' }
 const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [] }
-const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
 
-
 const normalizeBranchCode = (name: string) => {
-  const base = name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/gi, 'd')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-
+  const base = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
   return base || 'BRANCH'
 }
-
 
 const isValidPhoneNumber = (phone: string) => {
   const cleaned = phone.trim()
@@ -51,7 +41,8 @@ const getVietnameseError = (error: unknown, fallback: string) => {
 
 export default function AdminSpaPage() {
   const { user } = useAuth()
-  const [tab, setTab] = useState<TabKey>('branches')
+  const isStaff = user?.role === 'STAFF'
+  const [tab, setTab] = useState<TabKey>(isStaff ? 'appointments' : 'branches')
   const [loading, setLoading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [services, setServices] = useState<SpaService[]>([])
@@ -63,7 +54,6 @@ export default function AdminSpaPage() {
   const [serviceTotalPages, setServiceTotalPages] = useState(1)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [specialists, setSpecialists] = useState<Specialist[]>([])
-  const [reviews, setReviews] = useState<ServiceReview[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
 
@@ -75,28 +65,18 @@ export default function AdminSpaPage() {
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
-  const [reviewForm, setReviewForm] = useState<ReviewForm>(defaultReviewForm)
 
   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
-  const selectedServiceReviews = useMemo(() => {
-    if (!reviewForm.serviceId) return reviews
-    return reviews.filter((item) => item.serviceId === Number(reviewForm.serviceId))
-  }, [reviewForm.serviceId, reviews])
   const displayName = useMemo(() => {
     if (!user?.email) return 'Admin User'
     const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
     return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
   }, [user?.email])
-  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
+  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'STAFF' ? 'Chuyên viên' : user?.role ?? 'User'
   const avatarLetter = (displayName[0] || 'A').toUpperCase()
 
   const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
-    const response = await spaAdminApi.services({
-      q: params?.q ?? serviceSearchKeyword,
-      page: params?.page ?? servicePage,
-      pageSize: params?.pageSize ?? servicePageSize,
-      includeInactive: true,
-    })
+    const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true })
     setServicePageItems(response.items)
     setServiceTotal(response.total)
     setServiceTotalPages(response.totalPages)
@@ -107,13 +87,12 @@ export default function AdminSpaPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [b, c, sAll, s, sp, r, a] = await Promise.all([
+      const [b, c, sAll, s, sp, a] = await Promise.all([
         spaAdminApi.branches(true),
         spaAdminApi.serviceCategories(),
         spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true }),
         spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true }),
         spaAdminApi.specialists(),
-        spaAdminApi.reviews(),
         spaAdminApi.appointments(),
       ])
       setBranches(b)
@@ -125,7 +104,6 @@ export default function AdminSpaPage() {
       setServicePageSize(s.pageSize)
       setServiceTotalPages(s.totalPages)
       setSpecialists(sp)
-      setReviews(r)
       setAppointments(a)
     } catch (error) {
       await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
@@ -134,52 +112,23 @@ export default function AdminSpaPage() {
     }
   }
 
+  useEffect(() => { void loadAll() }, [])
   useEffect(() => {
-    loadAll()
-  }, [])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadServices({ page: 1 })
-    }, 300)
-
+    if (isStaff) return
+    const timer = window.setTimeout(() => { void loadServices({ page: 1 }) }, 300)
     return () => window.clearTimeout(timer)
-  }, [serviceSearchKeyword, servicePageSize])
+  }, [serviceSearchKeyword, servicePageSize, isStaff])
 
   const saveBranch = async () => {
     const normalizedName = (branchForm.name || '').trim()
     const normalizedAddress = (branchForm.address || '').trim()
     const normalizedPhone = (branchForm.phone || '').trim()
     const generatedCode = normalizeBranchCode(normalizedName)
+    if (!normalizedName || normalizedName.length < 2) return AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
+    if (!normalizedAddress) return AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
+    if (!isValidPhoneNumber(normalizedPhone)) return AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
 
-    if (!normalizedName) {
-      await AlertJs.error('Thiếu tên chi nhánh', 'Vui lòng nhập tên chi nhánh trước khi lưu.')
-      return
-    }
-
-    if (normalizedName.length < 2) {
-      await AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
-      return
-    }
-
-    if (!normalizedAddress) {
-      await AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
-      return
-    }
-
-    if (!isValidPhoneNumber(normalizedPhone)) {
-      await AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
-      return
-    }
-
-    const payload: BranchForm = {
-      ...branchForm,
-      code: generatedCode,
-      name: normalizedName,
-      address: normalizedAddress,
-      phone: normalizedPhone,
-    }
-
+    const payload: BranchForm = { ...branchForm, code: generatedCode, name: normalizedName, address: normalizedAddress, phone: normalizedPhone }
     try {
       if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
       else await spaAdminApi.createBranch(payload)
@@ -192,235 +141,76 @@ export default function AdminSpaPage() {
     }
   }
 
-  const deleteBranch = async (branch: Branch) => {
-    const accepted = await AlertJs.confirm(`Bạn muốn xóa hoặc tắt active cho chi nhánh ${branch.name}?`)
-    if (!accepted) return
-
-    try {
-      const response = await spaAdminApi.deleteBranch(branch.id)
-      await loadAll()
-      if (response?.softDeleted) {
-        await AlertJs.success('Không thể xóa cứng', 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.')
-      } else {
-        await AlertJs.success('Đã xóa chi nhánh')
-      }
-    } catch (error) {
-      await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.'))
-    }
-  }
-
   return (
     <main className='admin-page'>
       <header className='admin-header'>
         <div>
           <p className='admin-header-kicker'>SPA OPERATIONS HUB</p>
-          <h1>Spa Admin Dashboard</h1>
-          <p>Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.</p>
+          <h1>{isStaff ? 'Lịch hẹn chuyên viên' : 'Spa Admin Dashboard'}</h1>
+          <p>{isStaff ? 'Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.' : 'Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.'}</p>
         </div>
         <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
           <div className='admin-user-avatar'>{avatarLetter}</div>
-          <div className='admin-user-meta'>
-            <strong>{displayName}</strong>
-            <span>{roleLabel}</span>
-          </div>
+          <div className='admin-user-meta'><strong>{displayName}</strong><span>{roleLabel}</span></div>
         </div>
       </header>
 
-      <section className='admin-overview'>
-        <article className='overview-card'>
-          <span>Chi nhánh</span>
-          <strong>{branches.length}</strong>
-          <small>Đang active: {activeBranches.length}</small>
-          <i className='overview-icon fa-solid fa-building' />
-        </article>
-        <article className='overview-card'>
-          <span>Dịch vụ</span>
-          <strong>{services.length}</strong>
-          <small>Spa catalog</small>
-          <i className='overview-icon fa-solid fa-spa' />
-        </article>
-        <article className='overview-card'>
-          <span>Chuyên viên</span>
-          <strong>{specialists.length}</strong>
-          <small>Đủ năng lực vận hành</small>
-          <i className='overview-icon fa-solid fa-user-nurse' />
-        </article>
-        <article className='overview-card'>
-          <span>Lịch hẹn</span>
-          <strong>{appointments.length}</strong>
-          <small>Reviews: {reviews.length}</small>
-          <i className='overview-icon fa-solid fa-calendar-check' />
-        </article>
-      </section>
+      {!isStaff && (
+        <>
+          <section className='admin-overview'>
+            <article className='overview-card'><span>Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small><i className='overview-icon fa-solid fa-building' /></article>
+            <article className='overview-card'><span>Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small><i className='overview-icon fa-solid fa-spa' /></article>
+            <article className='overview-card'><span>Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small><i className='overview-icon fa-solid fa-user-nurse' /></article>
+            <article className='overview-card'><span>Lịch hẹn</span><strong>{appointments.length}</strong><small>Đã đồng bộ hệ thống</small><i className='overview-icon fa-solid fa-calendar-check' /></article>
+          </section>
 
-      <nav className='admin-tabs'>
-        <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
-        <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
-        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({serviceTotal})</button>
-        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên</button>
-        <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
-      </nav>
+          <nav className='admin-tabs'>
+            <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
+            <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
+            <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({serviceTotal})</button>
+            <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên</button>
+            <button className={`admin-tab ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}><i className='fa-solid fa-calendar-days' />Lịch hẹn</button>
+          </nav>
+        </>
+      )}
 
+      {isStaff && <nav className='admin-tabs'><button className='admin-tab active'><i className='fa-solid fa-calendar-days' />Lịch hẹn phụ trách</button></nav>}
       {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
 
-      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => {
-        const nextName = next.name ?? branchForm.name ?? ''
-        setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
-      }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
+      {!isStaff && tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => { const nextName = next.name ?? branchForm.name ?? ''; setBranchForm({ ...next, code: normalizeBranchCode(nextName) }) }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={async (branch) => { try { const response = await spaAdminApi.deleteBranch(branch.id); await loadAll(); await AlertJs.success(response?.softDeleted ? 'Không thể xóa cứng' : 'Đã xóa chi nhánh', response?.softDeleted ? 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.' : '') } catch (error) { await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.')) } }} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
-      {tab === 'categories' && <CategoriesTab loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
-        if (!categoryForm.name.trim()) {
-          await AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
-          return
-        }
-        try {
-          if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryForm)
-          else await spaAdminApi.createServiceCategory(categoryForm)
-          setEditingCategory(null)
-          setCategoryForm(defaultCategoryForm)
-          await loadAll()
-          await AlertJs.success('Đã lưu danh mục dịch vụ')
-        } catch (error) {
-          await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.'))
-        }
-      }} onEditCategory={(category) => {
-        setEditingCategory(category)
-        setCategoryForm({ name: category.name })
-      }} onDeleteCategory={async (category) => {
-        if (category.serviceCount > 0) {
-          await AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
-          return
-        }
-        try {
-          await spaAdminApi.deleteServiceCategory(category.id)
-          await loadAll()
-          await AlertJs.success('Đã xóa danh mục')
-        } catch (error) {
-          await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.'))
-        }
+      {!isStaff && tab === 'categories' && <CategoriesTab loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
+        if (!categoryForm.name.trim()) return AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
+        try { if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryForm); else await spaAdminApi.createServiceCategory(categoryForm); setEditingCategory(null); setCategoryForm(defaultCategoryForm); await loadAll(); await AlertJs.success('Đã lưu danh mục dịch vụ') } catch (error) { await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.')) }
+      }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name }) }} onDeleteCategory={async (category) => {
+        if (category.serviceCount > 0) return AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
+        try { await spaAdminApi.deleteServiceCategory(category.id); await loadAll(); await AlertJs.success('Đã xóa danh mục') } catch (error) { await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.')) }
       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
 
-      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
-        if (!serviceForm.categoryId) {
-          await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
-          return
-        }
-        if (!serviceForm.branchIds.length) {
-          await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
-          return
-        }
+      {!isStaff && tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
+        if (!serviceForm.categoryId) return AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
+        if (!serviceForm.branchIds.length) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
         const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
-        const duplicatedService = services.find((service) => (
-          service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName
-        ))
+        const duplicatedService = services.find((service) => service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName)
+        if (duplicatedService) return AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
+        const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean), suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean), process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean), branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0) }
+        try { if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage); else await spaAdminApi.createService(payload, selectedImage); setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null); await loadAll(); await AlertJs.success('Đã lưu dịch vụ') } catch (error) { await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.')) }
+      }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
 
-        if (duplicatedService) {
-          await AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
-          return
-        }
-        const payload = {
-          ...serviceForm,
-          goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
-          suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean),
-          process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean),
-          branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0),
-        }
-        try {
-          if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage)
-          else await spaAdminApi.createService(payload, selectedImage)
-          setEditingService(null)
-          setServiceForm(defaultServiceForm)
-          setSelectedImage(null)
-          await loadAll()
-          await AlertJs.success('Đã lưu dịch vụ')
-        } catch (error) {
-          await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.'))
-        }
-      }} onEditService={(service) => {
-        setEditingService(service)
-        setSelectedImage(null)
-        setServiceForm({
-          ...defaultServiceForm,
-          ...service,
-          categoryId: service.categoryId || 0,
-          goals: service.goals?.join(', ') || '',
-          suitableFor: service.suitableFor?.join(', ') || '',
-          process: service.process?.join(', ') || '',
-          branchIds: service.branchIds || [],
-          isActive: service.isActive ?? true,
-        })
-      }} onDeleteService={async (service) => {
-        try {
-          await spaAdminApi.deleteService(service.id)
-          await loadAll()
-          await AlertJs.success('Đã xóa dịch vụ')
-        } catch (error) {
-          await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.'))
-        }
-      }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
+      {!isStaff && tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
+        if (!specialistForm.branchId) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
+        if (!specialistForm.email.trim()) return AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
+        try { if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm); else await spaAdminApi.createSpecialist(specialistForm); setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm); await loadAll(); await AlertJs.success('Đã lưu chuyên viên') } catch (error) { await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.')) }
+      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [] }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
 
-      {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
-        if (!specialistForm.branchId) {
-          await AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
-          return
-        }
-        if (!specialistForm.email.trim()) {
-          await AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
-          return
-        }
-        try {
-          if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm)
-          else await spaAdminApi.createSpecialist(specialistForm)
-          setEditingSpecialist(null)
-          setSpecialistForm(defaultSpecialistForm)
-          await loadAll()
-          await AlertJs.success('Đã lưu chuyên viên')
-        } catch (error) {
-          await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.'))
-        }
-      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [] }) }} onDeleteSpecialist={async (specialist) => {
-        try {
-          await spaAdminApi.deleteSpecialist(specialist.id)
-          await loadAll()
-          await AlertJs.success('Đã xóa chuyên viên')
-        } catch (error) {
-          await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.'))
-        }
-      }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
-
-      {tab === 'reviews' && <ReviewsTab loading={loading} services={services} appointments={appointments} selectedServiceReviews={selectedServiceReviews} reviewForm={reviewForm} onReviewFormChange={setReviewForm} onCreateReview={async () => {
-        try {
-          await spaAdminApi.createReview(reviewForm)
-          setReviewForm(defaultReviewForm)
-          await loadAll()
-          await AlertJs.success('Đã thêm review')
-        } catch (error) {
-          await AlertJs.error('Thêm review thất bại', getVietnameseError(error, 'Vui lòng kiểm tra nội dung review.'))
-        }
-      }} onDeleteReview={async (review) => {
-        try {
-          await spaAdminApi.deleteReview(review.id)
-          await loadAll()
-          await AlertJs.success('Đã xóa review')
-        } catch (error) {
-          await AlertJs.error('Xóa review thất bại', getVietnameseError(error, 'Không thể xóa review vào lúc này.'))
-        }
-      }} onToggleAppointmentStatus={async (appointment) => {
-        try {
-          await spaAdminApi.updateAppointment(appointment.id, { status: appointment.status === 'PENDING' ? 'CONFIRMED' : 'PENDING' })
-          await loadAll()
-          await AlertJs.success('Đã cập nhật trạng thái lịch hẹn')
-        } catch (error) {
-          await AlertJs.error('Cập nhật thất bại', getVietnameseError(error, 'Không thể cập nhật trạng thái lịch hẹn.'))
-        }
-      }} onShowAppointmentDetail={(appointment) => { void AlertJs.info(`Lịch hẹn #${appointment.id}`, `Khách: ${appointment.customerName}\nSĐT: ${appointment.customerPhone}\nGhi chú: ${appointment.note || '-'}`) }} onDeleteAppointment={async (appointment) => {
-        try {
-          await spaAdminApi.deleteAppointment(appointment.id)
-          await loadAll()
-          await AlertJs.success('Đã xóa lịch hẹn')
-        } catch (error) {
-          await AlertJs.error('Xóa lịch hẹn thất bại', getVietnameseError(error, 'Không thể xóa lịch hẹn vào lúc này.'))
-        }
+      {(isStaff || tab === 'appointments') && <AppointmentsTab loading={loading} appointments={appointments} specialists={specialists} branches={branches} services={services} isStaff={isStaff} onAssignSpecialist={async (appointment, specialistId) => {
+        if (isStaff) return
+        try { await spaAdminApi.updateAppointment(appointment.id, { specialistId }); await loadAll(); await AlertJs.success('Đã gán chuyên viên và gửi email thông báo') } catch (error) { await AlertJs.error('Gán chuyên viên thất bại', getVietnameseError(error, 'Không thể gán chuyên viên vào lịch hẹn này.')) }
+      }} onUpdateStatus={async (appointment, status) => {
+        try { await spaAdminApi.updateAppointment(appointment.id, { status }); await loadAll(); await AlertJs.success('Đã cập nhật trạng thái lịch hẹn') } catch (error) { await AlertJs.error('Cập nhật thất bại', getVietnameseError(error, 'Không thể cập nhật trạng thái lịch hẹn.')) }
+      }} onDeleteAppointment={async (appointment) => {
+        if (isStaff) return
+        try { await spaAdminApi.deleteAppointment(appointment.id); await loadAll(); await AlertJs.success('Đã xóa lịch hẹn') } catch (error) { await AlertJs.error('Xóa lịch hẹn thất bại', getVietnameseError(error, 'Không thể xóa lịch hẹn vào lúc này.')) }
       }} />}
     </main>
   )

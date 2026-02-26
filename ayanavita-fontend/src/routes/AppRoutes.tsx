@@ -32,7 +32,9 @@ export function AppRoutes() {
         path="/courses"
         element={
           <RequireAuth>
-            <CoursesPage />
+            <RequireRole roles={["ADMIN", "USER"]}>
+              <CoursesPage />
+            </RequireRole>
           </RequireAuth>
         }
       />
@@ -40,7 +42,9 @@ export function AppRoutes() {
         path="/courses/:id"
         element={
           <RequireAuth>
-            <CourseDetailPage />
+            <RequireRole roles={["ADMIN", "USER"]}>
+              <CourseDetailPage />
+            </RequireRole>
           </RequireAuth>
         }
       />
@@ -48,7 +52,9 @@ export function AppRoutes() {
         path="/lessons/:id"
         element={
           <RequireAuth>
-            <LessonPage />
+            <RequireRole roles={["ADMIN", "USER"]}>
+              <LessonPage />
+            </RequireRole>
           </RequireAuth>
         }
       />
@@ -56,7 +62,9 @@ export function AppRoutes() {
         path="/me/courses"
         element={
           <RequireAuth>
-            <MyCoursesPage />
+            <RequireRole roles={["ADMIN", "USER"]}>
+              <MyCoursesPage />
+            </RequireRole>
           </RequireAuth>
         }
       />
@@ -64,7 +72,9 @@ export function AppRoutes() {
         path="/me/orders"
         element={
           <RequireAuth>
-            <MyOrdersPage />
+            <RequireRole roles={["ADMIN", "USER"]}>
+              <MyOrdersPage />
+            </RequireRole>
           </RequireAuth>
         }
       />
@@ -74,7 +84,7 @@ export function AppRoutes() {
         path="/admin/orders"
         element={
           <RequireAuth>
-            <RequireRole role="ADMIN">
+            <RequireRole roles={["ADMIN"]}>
               <AdminOrdersPage />
             </RequireRole>
           </RequireAuth>
@@ -85,7 +95,7 @@ export function AppRoutes() {
         path="/admin/spa"
         element={
           <RequireAuth>
-            <RequireRole role="ADMIN">
+            <RequireRole roles={["ADMIN", "STAFF"]}>
               <AdminSpaPage />
             </RequireRole>
           </RequireAuth>
