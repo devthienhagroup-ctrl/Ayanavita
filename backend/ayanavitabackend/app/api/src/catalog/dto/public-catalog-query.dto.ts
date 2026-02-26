@@ -14,6 +14,11 @@ export class PublicCatalogQueryDto {
   categoryId?: number
 
   @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  categoryIds?: string
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

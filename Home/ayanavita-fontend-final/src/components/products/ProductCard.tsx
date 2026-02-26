@@ -46,10 +46,12 @@ export function ProductCard({
                                 p,
                                 detailTo,
                                 cmsData,
+                                onCompare,
                             }: {
     p: CategoryProduct;
     detailTo: string;
     cmsData?: Partial<ProductCardCmsData>;
+    onCompare?: (productId: string) => void;
 }) {
     const soldText = useMemo(
         () => new Intl.NumberFormat("vi-VN").format(p.sold),
@@ -121,7 +123,13 @@ export function ProductCard({
                 type="button"
                 className="px-3 py-1 text-xs rounded-md
                    ring-1 ring-slate-300 hover:bg-slate-100"
-                onClick={() => window.alert(cms.compareSuccessAlert)}
+                onClick={() => {
+                    if (onCompare) {
+                        onCompare(String(p.sku || p.id));
+                        return;
+                    }
+                    window.alert(cms.compareSuccessAlert);
+                }}
             >
                 <i className="fa-solid fa-scale-balanced mr-1" />
                 {cms.compareButtonText}

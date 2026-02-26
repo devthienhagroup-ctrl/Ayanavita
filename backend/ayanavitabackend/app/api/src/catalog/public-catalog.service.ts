@@ -77,9 +77,18 @@ export class PublicCatalogService {
     const pageSize = Math.min(query.pageSize ?? 12, 100)
     const skip = (page - 1) * pageSize
 
+    const parsedCategoryIds = String(query.categoryIds || '')
+      .split(',')
+      .map((x) => Number(x.trim()))
+      .filter((x) => Number.isInteger(x) && x > 0)
+
     const where: Prisma.CatalogProductWhereInput = {
       status: 'active',
-      ...(query.categoryId ? { categoryId: BigInt(query.categoryId) } : {}),
+      ...(parsedCategoryIds.length
+        ? { categoryId: { in: parsedCategoryIds.map((id) => BigInt(id)) } }
+        : query.categoryId
+          ? { categoryId: BigInt(query.categoryId) }
+          : {}),
       ...(query.minPrice !== undefined || query.maxPrice !== undefined
         ? {
             price: {
