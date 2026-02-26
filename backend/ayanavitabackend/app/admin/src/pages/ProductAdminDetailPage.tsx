@@ -2,17 +2,22 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createAttribute,
-  deleteProductImage,
   createIngredient,
+  deleteAdminProduct,
+  deleteProductImage,
   fetchAdminCategories,
   fetchAdminProductById,
   fetchCatalogLanguages,
+  updateAdminProduct,
   updateProductImage,
   uploadProductImage,
-  updateAdminProduct,
   upsertTranslation,
 } from "../api/productAdmin.api";
 import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
+
+type PendingImageFileMap = Record<string, File>;
+
+const isTempImageId = (id: string) => id.startsWith("temp-");
 
 export function ProductAdminDetailPage() {
   const { productId } = useParams();
@@ -22,61 +27,125 @@ export function ProductAdminDetailPage() {
   const [languages, setLanguages] = useState<AdminLanguage[]>([]);
   const [activeLang, setActiveLang] = useState("vi");
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingImageFiles, setPendingImageFiles] = useState<PendingImageFileMap>({});
+  const [deletedPersistedImageIds, setDeletedPersistedImageIds] = useState<string[]>([]);
+
+  const load = async () => {
+    if (!productId) return;
+    const langs = await fetchCatalogLanguages();
+    const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
+    setProduct(detail);
+    setCategories(categoryList);
+    setLanguages(langs);
+    setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
+    setPendingImageFiles({});
+    setDeletedPersistedImageIds([]);
+  };
 
   useEffect(() => {
-    const load = async () => {
-      if (!productId) return;
-      const langs = await fetchCatalogLanguages();
-      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
-      setProduct(detail);
-      setCategories(categoryList);
-      setLanguages(langs);
-      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
-    };
-    load();
+    void load();
   }, [productId]);
 
   const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
 
-  const onSave = async () => {
-    if (!product) return;
-    setSaving(true);
-    const next = await updateAdminProduct(product);
-    setProduct(next);
-    setSaving(false);
-  };
-
-  const onUploadImage = async (file?: File | null) => {
-    if (!product || !file) return;
-    setUploadingImage(true);
-    try {
-      const uploaded = await uploadProductImage(product.id, file, product.images.length === 0, product.images.length);
-      setProduct((prev) => (prev ? { ...prev, images: [...prev.images, uploaded] } : prev));
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const onPersistImage = async (imageId: string) => {
-    if (!product) return;
-    const found = product.images.find((img) => img.id === imageId);
-    if (!found) return;
-    const updated = await updateProductImage(product.id, found);
+  const updateImageDraft = (imageId: string, patch: Partial<ProductAdminItem["images"][number]>) => {
     setProduct((prev) =>
       prev
         ? {
             ...prev,
-            images: prev.images.map((img) => (img.id === imageId ? updated : img)),
+            images: prev.images.map((img) => (img.id === imageId ? { ...img, ...patch } : img)),
           }
         : prev,
     );
   };
 
-  const onDeleteImage = async (imageId: string) => {
+  const onAddImages = (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const selectedFiles = Array.from(files);
+    const draftImages = selectedFiles.map((file, index) => ({
+      id: `temp-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      imageUrl: URL.createObjectURL(file),
+      isPrimary: false,
+      sortOrder: index,
+      file,
+    }));
+
+    setProduct((prev) => {
+      if (!prev) return prev;
+      const startOrder = prev.images.length;
+      return {
+        ...prev,
+        images: [
+          ...prev.images,
+          ...draftImages.map((item, index) => ({
+            id: item.id,
+            imageUrl: item.imageUrl,
+            isPrimary: item.isPrimary,
+            sortOrder: startOrder + index,
+          })),
+        ],
+      };
+    });
+
+    setPendingImageFiles((prev) => ({
+      ...prev,
+      ...Object.fromEntries(draftImages.map((item) => [item.id, item.file])),
+    }));
+  };
+
+  const onDeleteImage = (imageId: string) => {
     if (!product) return;
-    await deleteProductImage(product.id, imageId);
-    setProduct((prev) => (prev ? { ...prev, images: prev.images.filter((img) => img.id !== imageId) } : prev));
+    if (!isTempImageId(imageId)) {
+      setDeletedPersistedImageIds((prev) => (prev.includes(imageId) ? prev : [...prev, imageId]));
+    } else {
+      setPendingImageFiles((prev) => {
+        const next = { ...prev };
+        delete next[imageId];
+        return next;
+      });
+    }
+
+    setProduct({ ...product, images: product.images.filter((img) => img.id !== imageId) });
+  };
+
+  const onSave = async () => {
+    if (!product) return;
+    setSaving(true);
+    try {
+      await updateAdminProduct(product);
+
+      for (const imageId of deletedPersistedImageIds) {
+        await deleteProductImage(product.id, imageId);
+      }
+
+      for (const image of product.images) {
+        if (isTempImageId(image.id)) {
+          const file = pendingImageFiles[image.id];
+          if (!file) continue;
+          await uploadProductImage(product.id, file, image.isPrimary, image.sortOrder);
+          URL.revokeObjectURL(image.imageUrl);
+        } else {
+          await updateProductImage(product.id, image);
+        }
+      }
+
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDeleteProduct = async () => {
+    if (!product) return;
+    if (!window.confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
+
+    try {
+      await deleteAdminProduct(product.id);
+      navigate("/catalog/products");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
+      window.alert(`${message}\n\nGợi ý: nếu sản phẩm đang được tham chiếu, hãy tắt trạng thái hoạt động trước.`);
+    }
   };
 
   if (!product) {
@@ -129,17 +198,19 @@ export function ProductAdminDetailPage() {
               onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
             />
           </label>
-          <label>
+          <div>
             <div className="muted">Trạng thái</div>
-            <select
-              className="select"
-              value={product.status}
-              onChange={(e) => setProduct((prev) => (prev ? { ...prev, status: e.target.value as "active" | "draft" } : prev))}
-            >
-              <option value="draft">draft</option>
-              <option value="active">active</option>
-            </select>
-          </label>
+            <label style={{ display: "inline-flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+              <input
+                type="checkbox"
+                checked={product.status === "active"}
+                onChange={(e) =>
+                  setProduct((prev) => (prev ? { ...prev, status: e.target.checked ? "active" : "draft" } : prev))
+                }
+              />
+              {product.status === "active" ? "Đang bật" : "Đang tắt"}
+            </label>
+          </div>
         </div>
       </div>
 
@@ -325,15 +396,14 @@ export function ProductAdminDetailPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <h3 className="h2" style={{ margin: 0 }}>Hình ảnh sản phẩm</h3>
           <label className="btn btn-primary" style={{ cursor: "pointer" }}>
-            {uploadingImage ? "Đang tải ảnh..." : "+ Tải ảnh"}
+            + Tải nhiều ảnh
             <input
               type="file"
+              multiple
               accept="image/*"
               style={{ display: "none" }}
-              disabled={uploadingImage}
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                void onUploadImage(file);
+                onAddImages(e.target.files);
                 e.currentTarget.value = "";
               }}
             />
@@ -351,20 +421,7 @@ export function ProductAdminDetailPage() {
                   <div className="grid" style={{ gap: 8 }}>
                     <label>
                       <div className="muted">URL ảnh</div>
-                      <input
-                        className="input"
-                        value={image.imageUrl}
-                        onChange={(e) =>
-                          setProduct((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  images: prev.images.map((row) => (row.id === image.id ? { ...row, imageUrl: e.target.value } : row)),
-                                }
-                              : prev,
-                          )
-                        }
-                      />
+                      <input className="input" value={image.imageUrl} onChange={(e) => updateImageDraft(image.id, { imageUrl: e.target.value })} />
                     </label>
                     <label>
                       <div className="muted">Thứ tự hiển thị</div>
@@ -373,18 +430,7 @@ export function ProductAdminDetailPage() {
                         min={0}
                         className="input"
                         value={image.sortOrder}
-                        onChange={(e) =>
-                          setProduct((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  images: prev.images.map((row) =>
-                                    row.id === image.id ? { ...row, sortOrder: Number(e.target.value) || 0 } : row,
-                                  ),
-                                }
-                              : prev,
-                          )
-                        }
+                        onChange={(e) => updateImageDraft(image.id, { sortOrder: Number(e.target.value) || 0 })}
                       />
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -396,10 +442,7 @@ export function ProductAdminDetailPage() {
                             prev
                               ? {
                                   ...prev,
-                                  images: prev.images.map((row) => ({
-                                    ...row,
-                                    isPrimary: row.id === image.id ? e.target.checked : false,
-                                  })),
+                                  images: prev.images.map((row) => ({ ...row, isPrimary: row.id === image.id ? e.target.checked : false })),
                                 }
                               : prev,
                           )
@@ -408,8 +451,7 @@ export function ProductAdminDetailPage() {
                       Ảnh chính
                     </label>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button className="btn" onClick={() => void onPersistImage(image.id)}>Lưu ảnh</button>
-                      <button className="btn btn-danger" onClick={() => void onDeleteImage(image.id)}>Xóa ảnh</button>
+                      <button className="btn btn-danger" onClick={() => onDeleteImage(image.id)}>Xóa ảnh</button>
                     </div>
                   </div>
                 </div>
@@ -535,8 +577,9 @@ export function ProductAdminDetailPage() {
         </div>
       </div>
 
-      <div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
         <Link to="/catalog/products" className="btn">← Về trang danh sách</Link>
+        <button className="btn btn-danger" onClick={() => void onDeleteProduct()}>Xóa sản phẩm</button>
       </div>
     </div>
   );

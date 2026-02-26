@@ -244,17 +244,17 @@ export async function fetchAdminProductById(id: string): Promise<ProductAdminIte
 
 export async function createAdminProduct(): Promise<ProductAdminItem> {
   const languages = await fetchCatalogLanguages();
+  const defaultName = "Sản phẩm mới";
   const payload = {
     sku: `AYA-${uid().toUpperCase()}`,
     price: 0,
     status: "draft",
     translations: languages.map((lang) => ({
       languageCode: lang.code,
-      name: "",
+      name: `${defaultName} (${lang.code.toUpperCase()})`,
       slug: `new-${lang.code}-${uid()}`,
       shortDescription: "",
       description: "",
-      guideContent: emptyGuideContent(),
     })),
   };
   const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
@@ -439,6 +439,10 @@ export async function updateAdminCategory(category: ProductCategory): Promise<Pr
 
 export async function deleteAdminCategory(categoryId: string): Promise<void> {
   await api(`/catalog/categories/${categoryId}`, { method: "DELETE" });
+}
+
+export async function deleteAdminProduct(productId: string): Promise<void> {
+  await api(`/catalog/products/${productId}`, { method: "DELETE" });
 }
 
 export function upsertTranslation(

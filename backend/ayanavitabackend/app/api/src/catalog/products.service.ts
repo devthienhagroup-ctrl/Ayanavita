@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
 import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
 import { normalizeBigInt } from './utils'
 import { Prisma } from '@prisma/client'
+import { ImageUploadService } from '../services/ImageUploadService'
 import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
 type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
 
@@ -26,7 +27,10 @@ const toProductTranslationCreateManyData = (
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly imageUploadService: ImageUploadService,
+  ) {}
 
   async findAll() {
     const rows = await this.prisma.catalogProduct.findMany({
@@ -140,8 +144,26 @@ export class ProductsService {
 
   async remove(id: number) {
     await this.findOne(id)
-    const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
-    return normalizeBigInt(row)
+
+    try {
+      const row = await this.prisma.$transaction(async (tx) => {
+        const images = await tx.productImage.findMany({ where: { productId: BigInt(id) } })
+
+        for (const image of images) {
+          await this.imageUploadService.deleteImage({ url: image.imageUrl })
+        }
+
+        await tx.productImage.deleteMany({ where: { productId: BigInt(id) } })
+        return tx.catalogProduct.delete({ where: { id: BigInt(id) } })
+      })
+
+      return normalizeBigInt(row)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException('Không thể xóa sản phẩm do đang được tham chiếu dữ liệu khác. Vui lòng tắt trạng thái hoạt động trước.')
+      }
+      throw error
+    }
   }
 
   async listImages(id: number) {

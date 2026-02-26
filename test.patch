@@ -1,498 +1,720 @@
-diff --git a/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx b/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx
-index de0ad771d70a982a22b55a020f3d0842bac2d872..39b78330ea6ccfc26d8be482a9951d3739882a30 100644
---- a/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/components/AppAlert.tsx
-@@ -1,20 +1,30 @@
- import React from "react";
-
- type AlertKind = "info" | "success" | "warning" | "error";
-
- export function AppAlert({
-   kind = "info",
-   title,
-   message,
- }: {
-   kind?: AlertKind;
-   title: string;
-   message: string;
- }) {
-+  const iconMap: Record<AlertKind, string> = {
-+    info: "ℹ️",
-+    success: "✅",
-+    warning: "⚠️",
-+    error: "⛔",
-+  };
-+
-   return (
-     <div className={`app-alert app-alert-${kind}`} role="alert">
--      <div className="app-alert-title">{title}</div>
--      <div className="app-alert-message">{message}</div>
-+      <div className="app-alert-icon" aria-hidden="true">{iconMap[kind]}</div>
-+      <div className="app-alert-content">
-+        <div className="app-alert-title">{title}</div>
-+        <div className="app-alert-message">{message}</div>
-+      </div>
-     </div>
-   );
+diff --git a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
+index 256115ed59ef37edb2f84794245ec8a58cfc1ef7..9457ecf64fced9afa2d8896ca7e64075b6b73cac 100644
+--- a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
++++ b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
+@@ -222,61 +222,61 @@ export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
+   const languages = await fetchCatalogLanguages();
+   const [products, ingredientKeys, attributeKeys] = await Promise.all([
+     api<ApiProduct[]>("/catalog/products"),
+     loadIngredientKeys(),
+     loadAttributeKeys(),
+   ]);
+   return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
  }
-diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
-index d936fe2ef363011150878d9f26c032ee78129344..dfcecf6aa2e0576254bd871364f170d0329cab13 100644
---- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
-@@ -10,51 +10,51 @@ import {
-   updateAdminCategory,
+
+ export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
+   const languages = await fetchCatalogLanguages();
+   try {
+     const [item, ingredientKeys, attributeKeys] = await Promise.all([
+       api<ApiProduct>(`/catalog/products/${id}`),
+       loadIngredientKeys(),
+       loadAttributeKeys(),
+     ]);
+     return mapProduct(item, languages, ingredientKeys, attributeKeys);
+   } catch {
+     return null;
+   }
+ }
+
+ export async function createAdminProduct(): Promise<ProductAdminItem> {
+   const languages = await fetchCatalogLanguages();
++  const defaultName = "Sản phẩm mới";
+   const payload = {
+     sku: `AYA-${uid().toUpperCase()}`,
+     price: 0,
+     status: "draft",
+     translations: languages.map((lang) => ({
+       languageCode: lang.code,
+-      name: "",
++      name: `${defaultName} (${lang.code.toUpperCase()})`,
+       slug: `new-${lang.code}-${uid()}`,
+       shortDescription: "",
+       description: "",
+-      guideContent: emptyGuideContent(),
+     })),
+   };
+   const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
+   return mapProduct(created, languages);
+ }
+
+ export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
+   const languages = await fetchCatalogLanguages();
+   const product = await api<ApiProduct>(`/catalog/products/${item.id}`, {
+     method: "PATCH",
+     body: JSON.stringify(toProductPayload(item)),
+   });
+
+   const ingredientKeysByCode = await api<ApiIngredientKey[]>("/catalog/ingredients");
+   const ingredientKeyMap = new Map(ingredientKeysByCode.map((k) => [k.code.toLowerCase(), k]));
+   const ingredientItems: Array<{ ingredientKeyId: number; note: string; value: string; sortOrder: number }> = [];
+   for (const [idx, ingredient] of item.ingredients.entries()) {
+     const viName = ingredient.nameByLang.vi || ingredient.nameByLang.en || Object.values(ingredient.nameByLang)[0] || "";
+     const code = slugify(viName || `ingredient-${idx}`);
+     let key = ingredientKeyMap.get(code);
+     if (!key) {
+       key = await api<ApiIngredientKey>("/catalog/ingredients", {
+         method: "POST",
+         body: JSON.stringify({
+           code,
+@@ -419,39 +419,43 @@ export async function createAdminCategory(category: ProductCategory): Promise<Pr
+   });
+   const languages = await fetchCatalogLanguages();
+   return mapCategory(created, languages);
+ }
+
+ export async function updateAdminCategory(category: ProductCategory): Promise<ProductCategory> {
+   const updated = await api<ApiCategory>(`/catalog/categories/${category.id}`, {
+     method: "PATCH",
+     body: JSON.stringify({
+       translations: category.translations.map((row) => ({
+         languageCode: row.lang,
+         name: row.name,
+         slug: slugify(`${row.name || "category"}-${row.lang}`),
+         description: row.description || "",
+       })),
+     }),
+   });
+   const languages = await fetchCatalogLanguages();
+   return mapCategory(updated, languages);
+ }
+
+ export async function deleteAdminCategory(categoryId: string): Promise<void> {
+   await api(`/catalog/categories/${categoryId}`, { method: "DELETE" });
+ }
+
++export async function deleteAdminProduct(productId: string): Promise<void> {
++  await api(`/catalog/products/${productId}`, { method: "DELETE" });
++}
++
+ export function upsertTranslation(
+   translations: ProductTranslation[],
+   lang: LanguageCode,
+   patch: Partial<ProductTranslation>,
+ ): ProductTranslation[] {
+   const existing = translations.find((item) => item.lang === lang);
+   if (!existing) {
+     return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
+   }
+   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
+ }
+
+ export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
+ export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
+index a5e1e24f1dbabc729e94e4be3e2ba665c0217bb5..942fd7855f5ea17f1e296acdf284d714c16bb5ad 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
+@@ -1,104 +1,173 @@
+ import { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate, useParams } from "react-router-dom";
+ import {
+   createAttribute,
+-  deleteProductImage,
+   createIngredient,
++  deleteAdminProduct,
++  deleteProductImage,
+   fetchAdminCategories,
+   fetchAdminProductById,
+   fetchCatalogLanguages,
++  updateAdminProduct,
+   updateProductImage,
+   uploadProductImage,
+-  updateAdminProduct,
+   upsertTranslation,
  } from "../api/productAdmin.api";
  import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
- import { AppAlert } from "../components/AppAlert";
 
- function CategoryRow({
-   category,
-   languages,
-   activeLang,
-   onSave,
-   onDelete,
- }: {
-   category: ProductCategory;
-   languages: AdminLanguage[];
-   activeLang: string;
-   onSave: (item: ProductCategory) => void;
-   onDelete: (id: string) => void;
- }) {
-   const [draft, setDraft] = useState(category);
-
-   useEffect(() => setDraft(category), [category]);
-
-   const activeTranslation = draft.translations.find((item) => item.lang === activeLang);
-
-   return (
--    <div className="card" style={{ padding: 10 }}>
-+    <div className="card" style={{ padding: 12 }}>
-       <div className="grid" style={{ gap: 8 }}>
-         <input
-           className="input"
-           placeholder={`Tên danh mục (${activeLang})`}
-           value={activeTranslation?.name || ""}
-           onChange={(e) =>
-             setDraft((prev) => ({
-               ...prev,
-               translations: prev.translations.map((row) =>
-                 row.lang === activeLang ? { ...row, name: e.target.value } : row,
-               ),
-             }))
-           }
-         />
-         <input
-           className="input"
-           placeholder={`Mô tả (${activeLang})`}
-           value={activeTranslation?.description || ""}
-           onChange={(e) =>
-             setDraft((prev) => ({
-               ...prev,
-               translations: prev.translations.map((row) =>
-                 row.lang === activeLang ? { ...row, description: e.target.value } : row,
-               ),
-             }))
-@@ -108,169 +108,195 @@ export function ProductAdminListPage() {
-     setLanguages(langs);
-     setProducts(productList);
-     setCategories(categoryList);
-     setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
-     setNewCategory({
-       id: "new",
-       translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-     });
-     setLoading(false);
-   };
++type PendingImageFileMap = Record<string, File>;
++
++const isTempImageId = (id: string) => id.startsWith("temp-");
++
+ export function ProductAdminDetailPage() {
+   const { productId } = useParams();
+   const navigate = useNavigate();
+   const [product, setProduct] = useState<ProductAdminItem | null>(null);
+   const [categories, setCategories] = useState<ProductCategory[]>([]);
+   const [languages, setLanguages] = useState<AdminLanguage[]>([]);
+   const [activeLang, setActiveLang] = useState("vi");
+   const [saving, setSaving] = useState(false);
+-  const [uploadingImage, setUploadingImage] = useState(false);
++  const [pendingImageFiles, setPendingImageFiles] = useState<PendingImageFileMap>({});
++  const [deletedPersistedImageIds, setDeletedPersistedImageIds] = useState<string[]>([]);
++
++  const load = async () => {
++    if (!productId) return;
++    const langs = await fetchCatalogLanguages();
++    const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
++    setProduct(detail);
++    setCategories(categoryList);
++    setLanguages(langs);
++    setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
++    setPendingImageFiles({});
++    setDeletedPersistedImageIds([]);
++  };
 
    useEffect(() => {
-     loadData();
-   }, []);
+-    const load = async () => {
+-      if (!productId) return;
+-      const langs = await fetchCatalogLanguages();
+-      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
+-      setProduct(detail);
+-      setCategories(categoryList);
+-      setLanguages(langs);
+-      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
+-    };
+-    load();
++    void load();
+   }, [productId]);
 
-   const onCreateProduct = async () => {
-     const created = await createAdminProduct();
-     navigate(`/catalog/products/${created.id}`);
+   const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
+
+-  const onSave = async () => {
+-    if (!product) return;
+-    setSaving(true);
+-    const next = await updateAdminProduct(product);
+-    setProduct(next);
+-    setSaving(false);
+-  };
+-
+-  const onUploadImage = async (file?: File | null) => {
+-    if (!product || !file) return;
+-    setUploadingImage(true);
+-    try {
+-      const uploaded = await uploadProductImage(product.id, file, product.images.length === 0, product.images.length);
+-      setProduct((prev) => (prev ? { ...prev, images: [...prev.images, uploaded] } : prev));
+-    } finally {
+-      setUploadingImage(false);
+-    }
+-  };
+-
+-  const onPersistImage = async (imageId: string) => {
+-    if (!product) return;
+-    const found = product.images.find((img) => img.id === imageId);
+-    if (!found) return;
+-    const updated = await updateProductImage(product.id, found);
++  const updateImageDraft = (imageId: string, patch: Partial<ProductAdminItem["images"][number]>) => {
+     setProduct((prev) =>
+       prev
+         ? {
+             ...prev,
+-            images: prev.images.map((img) => (img.id === imageId ? updated : img)),
++            images: prev.images.map((img) => (img.id === imageId ? { ...img, ...patch } : img)),
+           }
+         : prev,
+     );
    };
 
-   const viOrActiveName = (product: ProductAdminItem) =>
-     product.translations.find((item) => item.lang === activeLang)?.name ||
-     product.translations.find((item) => item.lang === "vi")?.name ||
-     "(chưa đặt tên)";
-
-+  const hasAnyCategoryName = newCategory.translations.some((row) => row.name.trim());
+-  const onDeleteImage = async (imageId: string) => {
++  const onAddImages = (files: FileList | null) => {
++    if (!files || !files.length) return;
++    const selectedFiles = Array.from(files);
++    const draftImages = selectedFiles.map((file, index) => ({
++      id: `temp-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
++      imageUrl: URL.createObjectURL(file),
++      isPrimary: false,
++      sortOrder: index,
++      file,
++    }));
 +
++    setProduct((prev) => {
++      if (!prev) return prev;
++      const startOrder = prev.images.length;
++      return {
++        ...prev,
++        images: [
++          ...prev.images,
++          ...draftImages.map((item, index) => ({
++            id: item.id,
++            imageUrl: item.imageUrl,
++            isPrimary: item.isPrimary,
++            sortOrder: startOrder + index,
++          })),
++        ],
++      };
++    });
++
++    setPendingImageFiles((prev) => ({
++      ...prev,
++      ...Object.fromEntries(draftImages.map((item) => [item.id, item.file])),
++    }));
++  };
++
++  const onDeleteImage = (imageId: string) => {
++    if (!product) return;
++    if (!isTempImageId(imageId)) {
++      setDeletedPersistedImageIds((prev) => (prev.includes(imageId) ? prev : [...prev, imageId]));
++    } else {
++      setPendingImageFiles((prev) => {
++        const next = { ...prev };
++        delete next[imageId];
++        return next;
++      });
++    }
++
++    setProduct({ ...product, images: product.images.filter((img) => img.id !== imageId) });
++  };
++
++  const onSave = async () => {
++    if (!product) return;
++    setSaving(true);
++    try {
++      await updateAdminProduct(product);
++
++      for (const imageId of deletedPersistedImageIds) {
++        await deleteProductImage(product.id, imageId);
++      }
++
++      for (const image of product.images) {
++        if (isTempImageId(image.id)) {
++          const file = pendingImageFiles[image.id];
++          if (!file) continue;
++          await uploadProductImage(product.id, file, image.isPrimary, image.sortOrder);
++          URL.revokeObjectURL(image.imageUrl);
++        } else {
++          await updateProductImage(product.id, image);
++        }
++      }
++
++      await load();
++    } finally {
++      setSaving(false);
++    }
++  };
++
++  const onDeleteProduct = async () => {
+     if (!product) return;
+-    await deleteProductImage(product.id, imageId);
+-    setProduct((prev) => (prev ? { ...prev, images: prev.images.filter((img) => img.id !== imageId) } : prev));
++    if (!window.confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
++
++    try {
++      await deleteAdminProduct(product.id);
++      navigate("/catalog/products");
++    } catch (error) {
++      const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
++      window.alert(`${message}\n\nGợi ý: nếu sản phẩm đang được tham chiếu, hãy tắt trạng thái hoạt động trước.`);
++    }
+   };
+
+   if (!product) {
+     return <div className="card">Không tìm thấy sản phẩm.</div>;
+   }
+
    return (
-     <div className="grid" style={{ gap: 14 }}>
-       <div className="card hero-card" style={{ marginBottom: 0 }}>
--        <p className="muted" style={{ margin: 0 }}>Quản lý sản phẩm</p>
-+        <p className="muted" style={{ margin: 0, fontSize: 14 }}>Quản lý sản phẩm</p>
-         <h2 className="h1">Danh sách sản phẩm</h2>
-         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-           <button onClick={onCreateProduct} className="btn btn-primary">+ Thêm sản phẩm</button>
-           <button onClick={() => setOpenCategoryModal(true)} className="btn">Quản lý category</button>
--          {languages.map((lang) => (
--            <button
--              key={lang.code}
--              className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
--              onClick={() => setActiveLang(lang.code)}
+     <div style={{ display: "grid", gap: 14 }}>
+       <div className="card">
+         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+           <div>
+             <p className="muted" style={{ margin: 0 }}>Chi tiết sản phẩm</p>
+             <h2 className="h1">{translation?.name || "Sản phẩm mới"}</h2>
+             <p className="muted" style={{ margin: 0 }}>{product.sku}</p>
+           </div>
+           <div style={{ display: "flex", gap: 8 }}>
+             <button onClick={() => navigate("/catalog/products")} className="btn">Quay lại danh sách</button>
+             <button onClick={onSave} className="btn btn-primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
+           </div>
+         </div>
+       </div>
+
+       <div className="card">
+         <div className="grid grid-2">
+           <label>
+@@ -107,61 +176,63 @@ export function ProductAdminDetailPage() {
+           </label>
+           <label>
+             <div className="muted">Category</div>
+             <select
+               className="select"
+               value={product.categoryId}
+               onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
+             >
+               <option value="">-- Chọn category --</option>
+               {categories.map((item) => (
+                 <option key={item.id} value={item.id}>
+                   {item.translations.find((x) => x.lang === activeLang)?.name || item.translations[0]?.name || item.id}
+                 </option>
+               ))}
+             </select>
+           </label>
+           <label>
+             <div className="muted">Giá</div>
+             <input
+               type="number"
+               className="input"
+               value={product.price}
+               onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
+             />
+           </label>
+-          <label>
++          <div>
+             <div className="muted">Trạng thái</div>
+-            <select
+-              className="select"
+-              value={product.status}
+-              onChange={(e) => setProduct((prev) => (prev ? { ...prev, status: e.target.value as "active" | "draft" } : prev))}
 -            >
--              {lang.label}
--            </button>
--          ))}
-+          <div style={{ display: "inline-flex", padding: 4, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", gap: 4 }}>
-+            {languages.map((lang) => (
-+              <button
-+                key={lang.code}
-+                className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
-+                style={{ minHeight: 34, padding: "6px 10px", borderRadius: 9 }}
-+                onClick={() => setActiveLang(lang.code)}
-+              >
-+                {lang.label}
-+              </button>
-+            ))}
+-              <option value="draft">draft</option>
+-              <option value="active">active</option>
+-            </select>
+-          </label>
++            <label style={{ display: "inline-flex", gap: 8, alignItems: "center", marginTop: 10 }}>
++              <input
++                type="checkbox"
++                checked={product.status === "active"}
++                onChange={(e) =>
++                  setProduct((prev) => (prev ? { ...prev, status: e.target.checked ? "active" : "draft" } : prev))
++                }
++              />
++              {product.status === "active" ? "Đang bật" : "Đang tắt"}
++            </label>
 +          </div>
          </div>
        </div>
 
-       <AppAlert
-         kind="warning"
-         title="Lưu ý dữ liệu"
-         message="Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn."
-       />
-
        <div className="card">
-         {loading ? (
-           <div className="muted">Đang tải dữ liệu...</div>
-         ) : (
-           <table className="table">
-             <thead>
-               <tr>
-                 <th>SKU</th>
-                 <th>Tên ({activeLang.toUpperCase()})</th>
-                 <th>Category</th>
-                 <th>Giá</th>
-                 <th>Trạng thái</th>
-                 <th>Hành động</th>
-               </tr>
-             </thead>
-             <tbody>
-               {products.map((product) => (
-                 <tr key={product.id}>
-                   <td>{product.sku}</td>
-                   <td>{viOrActiveName(product)}</td>
-                   <td>{categoryMap[product.categoryId] || "-"}</td>
-                   <td>{product.price.toLocaleString("vi-VN")} đ</td>
--                  <td>{product.status}</td>
-+                  <td>
-+                    <span className="pill" style={{ background: product.status === "active" ? "#ecfdf5" : "#f1f5f9", color: product.status === "active" ? "#047857" : "#475569", borderColor: product.status === "active" ? "#a7f3d0" : "#cbd5e1" }}>
-+                      {product.status}
-+                    </span>
-+                  </td>
-                   <td>
-                     <Link className="btn" to={`/catalog/products/${product.id}`}>Chỉnh sửa</Link>
-                   </td>
-                 </tr>
+         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+           {languages.map((lang) => (
+             <button key={lang.code} onClick={() => setActiveLang(lang.code)} className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}>
+               {lang.label}
+             </button>
+           ))}
+         </div>
+
+         <div className="grid" style={{ gap: 8 }}>
+           <label>
+             <div className="muted">Tên sản phẩm</div>
+             <input
+               className="input"
+               value={translation?.name || ""}
+               onChange={(e) =>
+                 setProduct((prev) =>
+                   prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) } : prev,
+                 )
+               }
+             />
+           </label>
+@@ -303,135 +374,106 @@ export function ProductAdminDetailPage() {
+                         const steps = (current?.steps || [])
+                           .filter((_, rowIdx) => rowIdx !== idx)
+                           .map((row, orderIdx) => ({ ...row, order: orderIdx + 1 }));
+                         return {
+                           ...prev,
+                           translations: upsertTranslation(prev.translations, activeLang, {
+                             guideContent: { intro: current?.intro || "", steps },
+                           }),
+                         };
+                       })
+                     }
+                   >
+                     Xóa bước
+                   </button>
+                 </div>
                ))}
-             </tbody>
-           </table>
-         )}
-       </div>
-
-       {openCategoryModal ? (
--        <div className="card" style={{ marginTop: 16 }}>
--          <h3 className="h2">Quản lý category đa ngôn ngữ</h3>
--          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
--            {languages.map((lang) => (
--              <button
--                key={lang.code}
--                className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
--                onClick={() => setActiveLang(lang.code)}
--              >
--                {lang.label}
--              </button>
--            ))}
--          </div>
--
--          <div style={{ display: "grid", gap: 8, margin: "10px 0" }}>
--            <input
--              className="input"
--              placeholder={`Tên category (${activeLang})`}
--              value={newCategory.translations.find((item) => item.lang === activeLang)?.name || ""}
--              onChange={(e) =>
--                setNewCategory((prev) => ({
--                  ...prev,
--                  translations: prev.translations.map((row) =>
--                    row.lang === activeLang ? { ...row, name: e.target.value } : row,
--                  ),
--                }))
--              }
--            />
--            <input
--              className="input"
--              placeholder={`Mô tả (${activeLang})`}
--              value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
--              onChange={(e) =>
--                setNewCategory((prev) => ({
--                  ...prev,
--                  translations: prev.translations.map((row) =>
--                    row.lang === activeLang ? { ...row, description: e.target.value } : row,
--                  ),
--                }))
--              }
--            />
--            <div style={{ display: "flex", gap: 8 }}>
--              <button
--                className="btn btn-primary"
--                onClick={async () => {
--                  const hasName = newCategory.translations.some((row) => row.name.trim());
--                  if (!hasName) return;
--                  await createAdminCategory(newCategory);
--                  setNewCategory({
--                    id: "new",
--                    translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
--                  });
--                  loadData();
--                }}
--              >
--                + Tạo
--              </button>
-+        <div
-+          style={{
-+            position: "fixed",
-+            inset: 0,
-+            background: "rgba(15, 23, 42, 0.45)",
-+            display: "grid",
-+            placeItems: "center",
-+            zIndex: 60,
-+            padding: 18,
-+          }}
-+          onClick={() => setOpenCategoryModal(false)}
-+        >
-+          <div className="card" style={{ width: "min(980px, 100%)", maxHeight: "90vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
-+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-+              <h3 className="h2">Quản lý category đa ngôn ngữ</h3>
-               <button className="btn" onClick={() => setOpenCategoryModal(false)}>Đóng</button>
              </div>
--          </div>
-
--          <div className="grid" style={{ gap: 8 }}>
--            {categories.map((category) => (
--              <CategoryRow
--                key={category.id}
--                category={category}
--                languages={languages}
--                activeLang={activeLang}
--                onSave={async (item) => {
--                  await updateAdminCategory(item);
--                  loadData();
--                }}
--                onDelete={async (id) => {
--                  await deleteAdminCategory(id);
--                  loadData();
--                }}
-+            <div style={{ display: "inline-flex", padding: 4, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", gap: 4, marginBottom: 10 }}>
-+              {languages.map((lang) => (
-+                <button
-+                  key={lang.code}
-+                  className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
-+                  style={{ minHeight: 34, padding: "6px 10px", borderRadius: 9 }}
-+                  onClick={() => setActiveLang(lang.code)}
-+                >
-+                  {lang.label}
-+                </button>
-+              ))}
-+            </div>
-+
-+            <div style={{ display: "grid", gap: 8, margin: "10px 0" }}>
-+              <input
-+                className="input"
-+                placeholder={`Tên category (${activeLang})`}
-+                value={newCategory.translations.find((item) => item.lang === activeLang)?.name || ""}
-+                onChange={(e) =>
-+                  setNewCategory((prev) => ({
-+                    ...prev,
-+                    translations: prev.translations.map((row) =>
-+                      row.lang === activeLang ? { ...row, name: e.target.value } : row,
-+                    ),
-+                  }))
-+                }
-               />
--            ))}
-+              <input
-+                className="input"
-+                placeholder={`Mô tả (${activeLang})`}
-+                value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
-+                onChange={(e) =>
-+                  setNewCategory((prev) => ({
-+                    ...prev,
-+                    translations: prev.translations.map((row) =>
-+                      row.lang === activeLang ? { ...row, description: e.target.value } : row,
-+                    ),
-+                  }))
-+                }
-+              />
-+              <div style={{ display: "flex", gap: 8 }}>
-+                <button
-+                  className="btn btn-primary"
-+                  disabled={!hasAnyCategoryName}
-+                  onClick={async () => {
-+                    if (!hasAnyCategoryName) return;
-+                    await createAdminCategory(newCategory);
-+                    setNewCategory({
-+                      id: "new",
-+                      translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-+                    });
-+                    loadData();
-+                  }}
-+                >
-+                  + Tạo
-+                </button>
-+              </div>
-+            </div>
-+
-+            <div className="grid" style={{ gap: 8 }}>
-+              {categories.map((category) => (
-+                <CategoryRow
-+                  key={category.id}
-+                  category={category}
-+                  languages={languages}
-+                  activeLang={activeLang}
-+                  onSave={async (item) => {
-+                    await updateAdminCategory(item);
-+                    loadData();
-+                  }}
-+                  onDelete={async (id) => {
-+                    await deleteAdminCategory(id);
-+                    loadData();
-+                  }}
-+                />
-+              ))}
-+            </div>
            </div>
          </div>
-       ) : null}
+       </div>
+
+       <div className="card">
+         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+           <h3 className="h2" style={{ margin: 0 }}>Hình ảnh sản phẩm</h3>
+           <label className="btn btn-primary" style={{ cursor: "pointer" }}>
+-            {uploadingImage ? "Đang tải ảnh..." : "+ Tải ảnh"}
++            + Tải nhiều ảnh
+             <input
+               type="file"
++              multiple
+               accept="image/*"
+               style={{ display: "none" }}
+-              disabled={uploadingImage}
+               onChange={(e) => {
+-                const file = e.target.files?.[0];
+-                void onUploadImage(file);
++                onAddImages(e.target.files);
+                 e.currentTarget.value = "";
+               }}
+             />
+           </label>
+         </div>
+
+         <div className="grid" style={{ gap: 10, marginTop: 10 }}>
+           {product.images.length === 0 ? (
+             <p className="muted" style={{ margin: 0 }}>Chưa có ảnh cho sản phẩm này.</p>
+           ) : (
+             product.images.map((image, idx) => (
+               <div key={image.id} className="card" style={{ padding: 10 }}>
+                 <div className="grid grid-2" style={{ alignItems: "start" }}>
+                   <img src={image.imageUrl} alt={`Product ${idx + 1}`} style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8 }} />
+                   <div className="grid" style={{ gap: 8 }}>
+                     <label>
+                       <div className="muted">URL ảnh</div>
+-                      <input
+-                        className="input"
+-                        value={image.imageUrl}
+-                        onChange={(e) =>
+-                          setProduct((prev) =>
+-                            prev
+-                              ? {
+-                                  ...prev,
+-                                  images: prev.images.map((row) => (row.id === image.id ? { ...row, imageUrl: e.target.value } : row)),
+-                                }
+-                              : prev,
+-                          )
+-                        }
+-                      />
++                      <input className="input" value={image.imageUrl} onChange={(e) => updateImageDraft(image.id, { imageUrl: e.target.value })} />
+                     </label>
+                     <label>
+                       <div className="muted">Thứ tự hiển thị</div>
+                       <input
+                         type="number"
+                         min={0}
+                         className="input"
+                         value={image.sortOrder}
+-                        onChange={(e) =>
+-                          setProduct((prev) =>
+-                            prev
+-                              ? {
+-                                  ...prev,
+-                                  images: prev.images.map((row) =>
+-                                    row.id === image.id ? { ...row, sortOrder: Number(e.target.value) || 0 } : row,
+-                                  ),
+-                                }
+-                              : prev,
+-                          )
+-                        }
++                        onChange={(e) => updateImageDraft(image.id, { sortOrder: Number(e.target.value) || 0 })}
+                       />
+                     </label>
+                     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                       <input
+                         type="checkbox"
+                         checked={image.isPrimary}
+                         onChange={(e) =>
+                           setProduct((prev) =>
+                             prev
+                               ? {
+                                   ...prev,
+-                                  images: prev.images.map((row) => ({
+-                                    ...row,
+-                                    isPrimary: row.id === image.id ? e.target.checked : false,
+-                                  })),
++                                  images: prev.images.map((row) => ({ ...row, isPrimary: row.id === image.id ? e.target.checked : false })),
+                                 }
+                               : prev,
+                           )
+                         }
+                       />
+                       Ảnh chính
+                     </label>
+                     <div style={{ display: "flex", gap: 8 }}>
+-                      <button className="btn" onClick={() => void onPersistImage(image.id)}>Lưu ảnh</button>
+-                      <button className="btn btn-danger" onClick={() => void onDeleteImage(image.id)}>Xóa ảnh</button>
++                      <button className="btn btn-danger" onClick={() => onDeleteImage(image.id)}>Xóa ảnh</button>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             ))
+           )}
+         </div>
+       </div>
+
+       <div className="grid grid-2">
+         <div className="card">
+           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+             <h3 className="h2">CRUD thành phần</h3>
+             <button className="btn" onClick={() => setProduct((prev) => (prev ? { ...prev, ingredients: [...prev.ingredients, createIngredient()] } : prev))}>+ Thêm</button>
+           </div>
+           <div className="grid" style={{ marginTop: 10 }}>
+             {product.ingredients.map((item) => (
+               <div key={item.id} className="card" style={{ padding: 10 }}>
+                 <input
+                   className="input"
+                   placeholder={`Tên thành phần (${activeLang})`}
+                   value={item.nameByLang[activeLang] || ""}
+                   onChange={(e) =>
+                     setProduct((prev) =>
+                       prev
+@@ -513,31 +555,32 @@ export function ProductAdminDetailPage() {
+                     setProduct((prev) =>
+                       prev
+                         ? {
+                             ...prev,
+                             attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, value: e.target.value } : row)),
+                           }
+                         : prev,
+                     )
+                   }
+                 />
+                 <button
+                   className="btn btn-danger"
+                   style={{ marginTop: 8 }}
+                   onClick={() =>
+                     setProduct((prev) => (prev ? { ...prev, attributes: prev.attributes.filter((row) => row.id !== item.id) } : prev))
+                   }
+                 >
+                   Xóa
+                 </button>
+               </div>
+             ))}
+           </div>
+         </div>
+       </div>
+
+-      <div>
++      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+         <Link to="/catalog/products" className="btn">← Về trang danh sách</Link>
++        <button className="btn btn-danger" onClick={() => void onDeleteProduct()}>Xóa sản phẩm</button>
+       </div>
      </div>
    );
  }
-diff --git a/backend/ayanavitabackend/app/admin/src/styles.css b/backend/ayanavitabackend/app/admin/src/styles.css
-index bf031b993334f87b1ba4359f001bc6346a5b2174..83e8cc1f088ab04b052c65d79c827e95bbac9f23 100644
---- a/backend/ayanavitabackend/app/admin/src/styles.css
-+++ b/backend/ayanavitabackend/app/admin/src/styles.css
-@@ -1,91 +1,102 @@
- :root{
--  --text:#1e293b;
--  --muted:#64748b;
-+  --text:#0f172a;
-+  --muted:#475569;
-+  --muted-2:#64748b;
-   --bg:#f8fafc;
-   --panel:#ffffff;
--  --stroke:#e2e8f0;
-+  --stroke:#cbd5e1;
-   --brand:#4f46e5;
-   --brand-soft:#eef2ff;
-   --success:#10b981;
-   --warning:#f59e0b;
-   --danger:#ef4444;
- }
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
+index 8a351a2c992cf7d81413a6eb2bb9889e04de1261..4e7c7367d410ae5026b5adfcc13d3993a5a3604c 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
+@@ -1,54 +1,58 @@
+-import { Injectable, NotFoundException } from '@nestjs/common'
++import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
+ import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
+ import { normalizeBigInt } from './utils'
+ import { Prisma } from '@prisma/client'
++import { ImageUploadService } from '../services/ImageUploadService'
+ import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
+ type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
 
- *{box-sizing:border-box}
- body{
-   margin:0;
-   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
--  background: linear-gradient(180deg,#ffffff,#f8fafc 40%);
-+  background: var(--bg);
-   color:var(--text);
- }
- a{text-decoration:none;color:inherit}
+ const toProductTranslationCreateManyData = (
+     productId: number,
+     translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
+ ) =>
+     (translations ?? []).map((translation) => ({
+       productId: BigInt(productId),
+       languageCode: translation.languageCode,
+       name: translation.name,
+       slug: translation.slug,
+       shortDescription: translation.shortDescription,
+       description: translation.description,
+       guideContent: translation.guideContent
+           ? (JSON.parse(JSON.stringify(translation.guideContent)) as JsonValue)
+           : null,
 
- .app-shell{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
- .side-nav{
-   border-right:1px solid var(--stroke);
--  background: linear-gradient(180deg,#fff,#f8fafc);
-+  background: #f8fafc;
-   padding:18px 14px;
-   display:flex;flex-direction:column;gap:18px;
-   position:sticky;top:0;height:100vh;
- }
- .main-content{padding:18px}
- .container{max-width:1320px;margin:0 auto}
+     }))
 
- .brand{display:flex;align-items:center;gap:10px;font-weight:900}
- .dot{width:10px;height:10px;border-radius:999px;background:var(--brand);box-shadow:0 0 0 6px rgba(79,70,229,.16)}
- .g-text{font-weight:900;letter-spacing:.2px}
+ @Injectable()
+ export class ProductsService {
+-  constructor(private readonly prisma: PrismaService) {}
++  constructor(
++    private readonly prisma: PrismaService,
++    private readonly imageUploadService: ImageUploadService,
++  ) {}
 
- .nav-list{display:grid;gap:8px}
- .nav-link{
--  padding:11px 12px;border-radius:12px;color:var(--muted);font-weight:800;border:1px solid transparent;
-+  position:relative;
-+  padding:11px 12px 11px 16px;border-radius:12px;color:var(--muted);font-weight:700;border:1px solid transparent;
- }
- .nav-link:hover{background:#f1f5f9;color:var(--text)}
--.nav-link.active{background:var(--brand-soft);border-color:#c7d2fe;color:#312e81}
-+.nav-link.active{background:var(--brand-soft);border-color:#c7d2fe;color:#1e1b4b;font-weight:800}
-+.nav-link.active::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:8px;background:var(--brand)}
- .side-footer{margin-top:auto;display:grid;gap:10px}
+   async findAll() {
+     const rows = await this.prisma.catalogProduct.findMany({
+       include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
+       orderBy: { id: 'desc' },
+     })
+     return normalizeBigInt(rows)
+   }
 
--.pill{display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;background:#f1f5f9;border:1px solid var(--stroke);color:var(--muted);font-size:12px;font-weight:800}
--.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);cursor:pointer;font-weight:800}
-+.pill{display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;background:#f1f5f9;border:1px solid var(--stroke);color:var(--muted);font-size:12px;font-weight:700}
-+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;min-height:42px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);cursor:pointer;font-weight:600;transition:all .15s ease}
- .btn:hover{background:#f8fafc}
--.btn-primary{background:linear-gradient(135deg,#4f46e5,#6366f1);border-color:#4f46e5;color:#fff}
-+.btn:focus-visible{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.18)}
-+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
-+.btn-primary:hover{background:#4338ca}
- .btn-danger{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
- .btn:disabled{opacity:.55;cursor:not-allowed}
+   async findOne(id: number) {
+     const row = await this.prisma.catalogProduct.findUnique({
+       where: { id: BigInt(id) },
+       include: {
+         translations: true,
+         category: true,
+         attributes: true,
+         ingredients: true,
+         images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
+       },
+     })
+     if (!row) throw new NotFoundException('Product not found')
+     return normalizeBigInt(row)
+   }
 
- .grid{display:grid;gap:14px;grid-template-columns:1fr}
- @media (min-width:980px){.grid-2{grid-template-columns:1fr 1fr}.grid-3{grid-template-columns:1fr 1fr 1fr}}
+   async create(dto: CreateProductDto) {
+@@ -118,52 +122,70 @@ export class ProductsService {
+     return normalizeBigInt(rows)
+   }
 
--.card{background:var(--panel);border:1px solid var(--stroke);border-radius:18px;padding:16px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
-+.card{background:var(--panel);border:1px solid var(--stroke);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(15,23,42,.08)}
- .hero-card{background:linear-gradient(135deg,#fff,#eef2ff)}
- .menu-card{display:grid;gap:8px}
- .menu-icon{font-size:20px;color:#6366f1}
+   async replaceIngredients(id: number, dto: UpsertProductIngredientsDto) {
+     await this.findOne(id)
+     const rows = await this.prisma.$transaction(async (tx) => {
+       await tx.productIngredient.deleteMany({ where: { productId: BigInt(id) } })
+       if (dto.items.length) {
+         await tx.productIngredient.createMany({
+           data: dto.items.map((item) => ({
+             productId: BigInt(id),
+             ingredientKeyId: BigInt(item.ingredientKeyId),
+             value: item.value,
+             note: item.note,
+             sortOrder: item.sortOrder ?? 0,
+           })),
+         })
+       }
+       return tx.productIngredient.findMany({ where: { productId: BigInt(id) }, orderBy: { sortOrder: 'asc' } })
+     })
+     return normalizeBigInt(rows)
+   }
 
- .h1{margin:0;font-size:26px;font-weight:900}
- .h2{margin:0;font-size:18px;font-weight:850}
- .muted{color:var(--muted)}
- .sep{height:1px;background:var(--stroke);margin:12px 0}
+   async remove(id: number) {
+     await this.findOne(id)
+-    const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
+-    return normalizeBigInt(row)
++
++    try {
++      const row = await this.prisma.$transaction(async (tx) => {
++        const images = await tx.productImage.findMany({ where: { productId: BigInt(id) } })
++
++        for (const image of images) {
++          await this.imageUploadService.deleteImage({ url: image.imageUrl })
++        }
++
++        await tx.productImage.deleteMany({ where: { productId: BigInt(id) } })
++        return tx.catalogProduct.delete({ where: { id: BigInt(id) } })
++      })
++
++      return normalizeBigInt(row)
++    } catch (error) {
++      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
++        throw new ConflictException('Không thể xóa sản phẩm do đang được tham chiếu dữ liệu khác. Vui lòng tắt trạng thái hoạt động trước.')
++      }
++      throw error
++    }
+   }
 
--.input,.select,.textarea{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);outline:none}
--.input:focus,.select:focus,.textarea:focus{border-color:#a5b4fc;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
-+.input,.select,.textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);outline:none;font-size:14px;line-height:1.5}
-+.input::placeholder,.textarea::placeholder{color:#94a3b8}
-+.input:hover,.select:hover,.textarea:hover{border-color:#94a3b8}
-+.input:focus,.select:focus,.textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.18)}
- .textarea{min-height:180px;resize:vertical}
+   async listImages(id: number) {
+     await this.findOne(id)
+     const rows = await this.prisma.productImage.findMany({
+       where: { productId: BigInt(id) },
+       orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }],
+     })
+     return normalizeBigInt(rows)
+   }
 
- .table{width:100%;border-collapse:collapse;border:1px solid var(--stroke);border-radius:14px;overflow:hidden;background:#fff}
--.table th,.table td{text-align:left;padding:11px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
--.table th{background:#f8fafc;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-+.table th,.table td{text-align:left;padding:11px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
-+.table th{background:#f1f5f9;color:#334155;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
-+.table tbody tr:nth-child(even){background:#f8fafc}
-+.table tbody tr:hover{background:#eef2ff}
+   async createImage(id: number, dto: CreateProductImageDto) {
+     await this.findOne(id)
+     const created = await this.prisma.productImage.create({
+       data: {
+         productId: BigInt(id),
+         imageUrl: dto.imageUrl,
+         isPrimary: dto.isPrimary ?? false,
+         sortOrder: dto.sortOrder ?? 0,
+       },
+     })
+     return normalizeBigInt(created)
+   }
 
--.app-alert{border-radius:14px;padding:12px 14px;border:1px solid var(--stroke);background:#fff;display:grid;gap:4px}
-+.app-alert{border-radius:14px;padding:12px 14px;border:1px solid var(--stroke);background:#fff;display:flex;gap:10px;align-items:flex-start}
-+.app-alert-icon{font-size:16px;line-height:1.4}
-+.app-alert-content{display:grid;gap:4px}
- .app-alert-title{font-weight:900}
- .app-alert-message{color:var(--muted)}
- .app-alert-info{background:#eef2ff;border-color:#c7d2fe}
- .app-alert-success{background:#ecfdf5;border-color:#a7f3d0}
- .app-alert-warning{background:#fffbeb;border-color:#fde68a}
- .app-alert-error{background:#fef2f2;border-color:#fecaca}
-
- .toast{position:fixed;right:14px;bottom:14px;z-index:200;display:flex;flex-direction:column;gap:10px}
- .toast-item{min-width:280px;max-width:420px;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.08)}
- .toast-item.ok{border-color:#a7f3d0}
- .toast-item.err{border-color:#fecaca}
-
- @media (max-width:960px){
-   .app-shell{grid-template-columns:1fr}
-   .side-nav{position:static;height:auto;border-right:none;border-bottom:1px solid var(--stroke)}
-   .main-content{padding:14px}
- }
+   async updateImage(id: number, imageId: number, dto: UpdateProductImageDto) {
