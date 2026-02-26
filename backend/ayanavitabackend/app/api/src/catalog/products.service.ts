@@ -4,6 +4,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
 import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
 import { normalizeBigInt } from './utils'
 import { Prisma } from '@prisma/client'
+import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
 type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
 
 const toProductTranslationCreateManyData = (
@@ -29,7 +30,7 @@ export class ProductsService {
 
   async findAll() {
     const rows = await this.prisma.catalogProduct.findMany({
-      include: { translations: true, category: true },
+      include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
       orderBy: { id: 'desc' },
     })
     return normalizeBigInt(rows)
@@ -38,7 +39,13 @@ export class ProductsService {
   async findOne(id: number) {
     const row = await this.prisma.catalogProduct.findUnique({
       where: { id: BigInt(id) },
-      include: { translations: true, category: true, attributes: true, ingredients: true },
+      include: {
+        translations: true,
+        category: true,
+        attributes: true,
+        ingredients: true,
+        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
+      },
     })
     if (!row) throw new NotFoundException('Product not found')
     return normalizeBigInt(row)
@@ -135,5 +142,57 @@ export class ProductsService {
     await this.findOne(id)
     const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
     return normalizeBigInt(row)
+  }
+
+  async listImages(id: number) {
+    await this.findOne(id)
+    const rows = await this.prisma.productImage.findMany({
+      where: { productId: BigInt(id) },
+      orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }],
+    })
+    return normalizeBigInt(rows)
+  }
+
+  async createImage(id: number, dto: CreateProductImageDto) {
+    await this.findOne(id)
+    const created = await this.prisma.productImage.create({
+      data: {
+        productId: BigInt(id),
+        imageUrl: dto.imageUrl,
+        isPrimary: dto.isPrimary ?? false,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    })
+    return normalizeBigInt(created)
+  }
+
+  async updateImage(id: number, imageId: number, dto: UpdateProductImageDto) {
+    await this.findOne(id)
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: BigInt(imageId), productId: BigInt(id) },
+    })
+    if (!existing) throw new NotFoundException('Product image not found')
+
+    const updated = await this.prisma.productImage.update({
+      where: { id: BigInt(imageId) },
+      data: {
+        imageUrl: dto.imageUrl,
+        isPrimary: dto.isPrimary,
+        sortOrder: dto.sortOrder,
+      },
+    })
+
+    return normalizeBigInt(updated)
+  }
+
+  async removeImage(id: number, imageId: number) {
+    await this.findOne(id)
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: BigInt(imageId), productId: BigInt(id) },
+    })
+    if (!existing) throw new NotFoundException('Product image not found')
+
+    const deleted = await this.prisma.productImage.delete({ where: { id: BigInt(imageId) } })
+    return normalizeBigInt(deleted)
   }
 }

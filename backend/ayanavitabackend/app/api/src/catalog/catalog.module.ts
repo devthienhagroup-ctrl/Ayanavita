@@ -12,6 +12,7 @@ import { IngredientsController } from './ingredients.controller'
 import { IngredientsService } from './ingredients.service'
 import { LanguagesController } from './languages.controller'
 import { LanguagesService } from './languages.service'
+import { ImageUploadService } from '../services/ImageUploadService'
 
 @Module({
   controllers: [
@@ -27,6 +28,7 @@ import { LanguagesService } from './languages.service'
     AttributesService,
     IngredientsService,
     LanguagesService,
+    ImageUploadService,
   ],
 })
 export class CatalogModule {}
