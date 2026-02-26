@@ -10,6 +10,8 @@ import {
   type ProductTranslation,
   type ProductGuideContent,
   type ProductImage,
+  type ProductListFilters,
+  type ProductListResponse,
 } from "../types/productAdmin";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -218,14 +220,28 @@ const toProductPayload = (item: ProductAdminItem) => ({
   })),
 });
 
-export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
+export async function fetchAdminProducts(filters: ProductListFilters = {}): Promise<ProductListResponse> {
   const languages = await fetchCatalogLanguages();
-  const [products, ingredientKeys, attributeKeys] = await Promise.all([
-    api<ApiProduct[]>("/catalog/products"),
+  const query = new URLSearchParams();
+
+  if (filters.search?.trim()) query.set("search", filters.search.trim());
+  if (filters.status && filters.status !== "all") query.set("status", filters.status);
+  if (filters.categoryId) query.set("categoryId", filters.categoryId);
+  if (filters.page) query.set("page", String(filters.page));
+  if (filters.pageSize) query.set("pageSize", String(filters.pageSize));
+
+  const endpoint = query.toString() ? `/catalog/products?${query.toString()}` : "/catalog/products";
+
+  const [response, ingredientKeys, attributeKeys] = await Promise.all([
+    api<{ items: ApiProduct[]; page: number; pageSize: number; total: number; totalPages: number }>(endpoint),
     loadIngredientKeys(),
     loadAttributeKeys(),
   ]);
-  return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
+
+  return {
+    ...response,
+    items: response.items.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys)),
+  };
 }
 
 export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {

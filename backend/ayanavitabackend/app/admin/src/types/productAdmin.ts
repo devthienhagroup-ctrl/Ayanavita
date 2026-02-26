@@ -68,3 +68,19 @@ export type ProductAdminItem = {
   images: ProductImage[];
   updatedAt: string;
 };
+
+export type ProductListFilters = {
+  search?: string;
+  status?: "active" | "draft" | "all";
+  categoryId?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ProductListResponse = {
+  items: ProductAdminItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};

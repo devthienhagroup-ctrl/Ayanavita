@@ -6,6 +6,7 @@ import { normalizeBigInt } from './utils'
 import { Prisma } from '@prisma/client'
 import { ImageUploadService } from '../services/ImageUploadService'
 import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
+import { ProductQueryDto } from './dto/product-query.dto'
 type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
 
 const toProductTranslationCreateManyData = (
@@ -32,12 +33,52 @@ export class ProductsService {
     private readonly imageUploadService: ImageUploadService,
   ) {}
 
-  async findAll() {
-    const rows = await this.prisma.catalogProduct.findMany({
-      include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
-      orderBy: { id: 'desc' },
+  async findAll(query: ProductQueryDto = {}) {
+    const page = query.page ?? 1
+    const pageSize = Math.min(query.pageSize ?? 10, 100)
+    const skip = (page - 1) * pageSize
+
+    const where: Prisma.CatalogProductWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.categoryId ? { categoryId: BigInt(query.categoryId) } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { sku: { contains: query.search } },
+              {
+                translations: {
+                  some: {
+                    OR: [
+                      { name: { contains: query.search } },
+                      { shortDescription: { contains: query.search } },
+                      { description: { contains: query.search } },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    }
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.catalogProduct.findMany({
+        where,
+        include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
+        orderBy: { id: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.catalogProduct.count({ where }),
+    ])
+
+    return normalizeBigInt({
+      items: rows,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
     })
-    return normalizeBigInt(rows)
   }
 
   async findOne(id: number) {
@@ -195,6 +236,10 @@ export class ProductsService {
     })
     if (!existing) throw new NotFoundException('Product image not found')
 
+    if (dto.imageUrl && dto.imageUrl !== existing.imageUrl) {
+      await this.imageUploadService.deleteImage({ url: existing.imageUrl })
+    }
+
     const updated = await this.prisma.productImage.update({
       where: { id: BigInt(imageId) },
       data: {
@@ -214,6 +259,7 @@ export class ProductsService {
     })
     if (!existing) throw new NotFoundException('Product image not found')
 
+    await this.imageUploadService.deleteImage({ url: existing.imageUrl })
     const deleted = await this.prisma.productImage.delete({ where: { id: BigInt(imageId) } })
     return normalizeBigInt(deleted)
   }

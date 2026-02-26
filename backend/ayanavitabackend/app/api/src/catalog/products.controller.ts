@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, ParseBoolPipe, ParseIntPipe, Patch, Post, UploadedFile, UseInterceptors } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, ParseBoolPipe, ParseIntPipe, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common'
 import { ProductsService } from './products.service'
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
+import { ProductQueryDto } from './dto/product-query.dto'
 import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
 import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
 import { FileInterceptor } from '@nestjs/platform-express'
@@ -14,8 +15,8 @@ export class ProductsController {
   ) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll()
+  findAll(@Query() query: ProductQueryDto) {
+    return this.service.findAll(query)
   }
 
   @Get(':id')

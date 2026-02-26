@@ -86,6 +86,14 @@ export function ProductAdminListPage() {
   const [languages, setLanguages] = useState<AdminLanguage[]>([]);
   const [activeLang, setActiveLang] = useState("vi");
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [openCategoryModal, setOpenCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState<ProductCategory>({ id: "new", translations: [] });
 
@@ -102,23 +110,37 @@ export function ProductAdminListPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const langs = await fetchCatalogLanguages();
-    const [productList, categoryList] = await Promise.all([fetchAdminProducts(), fetchAdminCategories()]);
+    try {
+      const langs = await fetchCatalogLanguages();
+      const [productResponse, categoryList] = await Promise.all([
+        fetchAdminProducts({
+          search,
+          status: statusFilter,
+          categoryId: categoryFilter,
+          page,
+          pageSize,
+        }),
+        fetchAdminCategories(),
+      ]);
 
-    setLanguages(langs);
-    setProducts(productList);
-    setCategories(categoryList);
-    setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
-    setNewCategory({
-      id: "new",
-      translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-    });
-    setLoading(false);
+      setLanguages(langs);
+      setProducts(productResponse.items);
+      setTotal(productResponse.total);
+      setTotalPages(productResponse.totalPages);
+      setCategories(categoryList);
+      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
+      setNewCategory({
+        id: "new",
+        translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+  }, [search, statusFilter, categoryFilter, page, pageSize]);
 
   const onCreateProduct = async () => {
     const created = await createAdminProduct();
@@ -161,6 +183,56 @@ export function ProductAdminListPage() {
         message="Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn."
       />
 
+      <div className="card" style={{ display: "grid", gap: 10 }}>
+        <div className="grid grid-2" style={{ gap: 10 }}>
+          <label>
+            <div className="muted">Tìm kiếm sản phẩm</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="input"
+                placeholder="Nhập SKU hoặc tên sản phẩm"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              <button
+                className="btn"
+                onClick={() => {
+                  setPage(1);
+                  setSearch(searchInput.trim());
+                }}
+              >
+                Tìm
+              </button>
+            </div>
+          </label>
+          <label>
+            <div className="muted">Category</div>
+            <select
+              className="select"
+              value={categoryFilter}
+              onChange={(e) => {
+                setPage(1);
+                setCategoryFilter(e.target.value);
+              }}
+            >
+              <option value="">Tất cả category</option>
+              {categories.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {categoryMap[item.id] || item.id}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span className="muted">Trạng thái:</span>
+          <button className={`btn ${statusFilter === "all" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("all"); }}>Tất cả</button>
+          <button className={`btn ${statusFilter === "active" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("active"); }}>Active</button>
+          <button className={`btn ${statusFilter === "draft" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("draft"); }}>Draft</button>
+          <span className="muted" style={{ marginLeft: "auto" }}>Tổng: {total}</span>
+        </div>
+      </div>
+
       <div className="card">
         {loading ? (
           <div className="muted">Đang tải dữ liệu...</div>
@@ -196,6 +268,25 @@ export function ProductAdminListPage() {
             </tbody>
           </table>
         )}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 10, flexWrap: "wrap" }}>
+          <div className="muted">Trang {page} / {totalPages}</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select
+              className="select"
+              value={pageSize}
+              onChange={(e) => {
+                setPage(1);
+                setPageSize(Number(e.target.value));
+              }}
+            >
+              {[10, 20, 50].map((size) => (
+                <option key={size} value={size}>{size}/trang</option>
+              ))}
+            </select>
+            <button className="btn" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>← Trước</button>
+            <button className="btn" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau →</button>
+          </div>
+        </div>
       </div>
 
       {openCategoryModal ? (
@@ -268,7 +359,7 @@ export function ProductAdminListPage() {
                       id: "new",
                       translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
                     });
-                    loadData();
+                    void loadData();
                   }}
                 >
                   + Tạo
@@ -285,11 +376,11 @@ export function ProductAdminListPage() {
                   activeLang={activeLang}
                   onSave={async (item) => {
                     await updateAdminCategory(item);
-                    loadData();
+                    void loadData();
                   }}
                   onDelete={async (id) => {
                     await deleteAdminCategory(id);
-                    loadData();
+                    void loadData();
                   }}
                 />
               ))}

@@ -1,15 +1,99 @@
 diff --git a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-index 256115ed59ef37edb2f84794245ec8a58cfc1ef7..9457ecf64fced9afa2d8896ca7e64075b6b73cac 100644
+index 9457ecf64fced9afa2d8896ca7e64075b6b73cac..79175761104767cdc8a53a9d1f72f9fc6c09ed51 100644
 --- a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
 +++ b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-@@ -222,61 +222,61 @@ export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
+@@ -1,37 +1,39 @@
+ import { api } from "../lib/http";
+ import { API_BASE } from "../env";
+ import {
+   type AdminLanguage,
+   type LanguageCode,
+   type ProductAdminItem,
+   type ProductAttribute,
+   type ProductCategory,
+   type ProductIngredient,
+   type ProductTranslation,
+   type ProductGuideContent,
+   type ProductImage,
++  type ProductListFilters,
++  type ProductListResponse,
+ } from "../types/productAdmin";
+
+ const uid = () => Math.random().toString(36).slice(2, 10);
+
+ const slugify = (text: string) =>
+   text
+     .toLowerCase()
+     .trim()
+     .normalize("NFD")
+     .replace(/[\u0300-\u036f]/g, "")
+     .replace(/[^a-z0-9\s-]/g, "")
+     .replace(/\s+/g, "-")
+     .replace(/-+/g, "-") || `item-${uid()}`;
+
+ const defaultLanguages: AdminLanguage[] = [
+   { code: "vi", label: "Tiếng Việt" },
+   { code: "en", label: "English" },
+   { code: "de", label: "Deutsch" },
+ ];
+
+ let languageCache: AdminLanguage[] | null = null;
+
+ const emptyGuideContent = (): ProductGuideContent => ({
+   intro: "",
+   steps: [],
+@@ -196,58 +198,72 @@ const mapProduct = (
+   }),
+   images: (item.images || []).map((row) => ({
+     id: String(row.id),
+     imageUrl: row.imageUrl,
+     isPrimary: Boolean(row.isPrimary),
+     sortOrder: Number(row.sortOrder || 0),
+   })),
+   updatedAt: item.updatedAt || new Date().toISOString(),
+ });
+
+ const toProductPayload = (item: ProductAdminItem) => ({
+   sku: item.sku,
+   categoryId: item.categoryId ? Number(item.categoryId) : null,
+   price: Number(item.price || 0),
+   status: item.status,
+   translations: item.translations.map((row) => ({
+     languageCode: row.lang,
+     name: row.name || "",
+     slug: slugify(row.name || `${item.sku}-${row.lang}`),
+     shortDescription: row.shortDescription || "",
+     description: row.description || "",
+     guideContent: row.guideContent,
+   })),
+ });
+
+-export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
++export async function fetchAdminProducts(filters: ProductListFilters = {}): Promise<ProductListResponse> {
    const languages = await fetchCatalogLanguages();
-   const [products, ingredientKeys, attributeKeys] = await Promise.all([
-     api<ApiProduct[]>("/catalog/products"),
+-  const [products, ingredientKeys, attributeKeys] = await Promise.all([
+-    api<ApiProduct[]>("/catalog/products"),
++  const query = new URLSearchParams();
++
++  if (filters.search?.trim()) query.set("search", filters.search.trim());
++  if (filters.status && filters.status !== "all") query.set("status", filters.status);
++  if (filters.categoryId) query.set("categoryId", filters.categoryId);
++  if (filters.page) query.set("page", String(filters.page));
++  if (filters.pageSize) query.set("pageSize", String(filters.pageSize));
++
++  const endpoint = query.toString() ? `/catalog/products?${query.toString()}` : "/catalog/products";
++
++  const [response, ingredientKeys, attributeKeys] = await Promise.all([
++    api<{ items: ApiProduct[]; page: number; pageSize: number; total: number; totalPages: number }>(endpoint),
      loadIngredientKeys(),
      loadAttributeKeys(),
    ]);
-   return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
+-  return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
++
++  return {
++    ...response,
++    items: response.items.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys)),
++  };
  }
 
  export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
@@ -28,572 +112,493 @@ index 256115ed59ef37edb2f84794245ec8a58cfc1ef7..9457ecf64fced9afa2d8896ca7e64075
 
  export async function createAdminProduct(): Promise<ProductAdminItem> {
    const languages = await fetchCatalogLanguages();
-+  const defaultName = "Sản phẩm mới";
+   const defaultName = "Sản phẩm mới";
    const payload = {
      sku: `AYA-${uid().toUpperCase()}`,
      price: 0,
      status: "draft",
      translations: languages.map((lang) => ({
        languageCode: lang.code,
--      name: "",
-+      name: `${defaultName} (${lang.code.toUpperCase()})`,
-       slug: `new-${lang.code}-${uid()}`,
-       shortDescription: "",
-       description: "",
--      guideContent: emptyGuideContent(),
-     })),
-   };
-   const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
-   return mapProduct(created, languages);
+diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
+index dfcecf6aa2e0576254bd871364f170d0329cab13..f14db1bfcca3646b539e8edeb62edc90b745eaf3 100644
+--- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
++++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
+@@ -64,160 +64,251 @@ function CategoryRow({
+           {languages.map((lang) => {
+             const t = draft.translations.find((item) => item.lang === lang.code);
+             return (
+               <span key={lang.code} className="muted" style={{ fontSize: 12 }}>
+                 {lang.code.toUpperCase()}: {t?.name || "-"}
+               </span>
+             );
+           })}
+         </div>
+         <div style={{ display: "flex", gap: 8 }}>
+           <button className="btn btn-primary" onClick={() => onSave(draft)}>Lưu</button>
+           <button className="btn btn-danger" onClick={() => onDelete(category.id)}>Xóa</button>
+         </div>
+       </div>
+     </div>
+   );
  }
 
- export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
-   const languages = await fetchCatalogLanguages();
-   const product = await api<ApiProduct>(`/catalog/products/${item.id}`, {
-     method: "PATCH",
-     body: JSON.stringify(toProductPayload(item)),
-   });
-
-   const ingredientKeysByCode = await api<ApiIngredientKey[]>("/catalog/ingredients");
-   const ingredientKeyMap = new Map(ingredientKeysByCode.map((k) => [k.code.toLowerCase(), k]));
-   const ingredientItems: Array<{ ingredientKeyId: number; note: string; value: string; sortOrder: number }> = [];
-   for (const [idx, ingredient] of item.ingredients.entries()) {
-     const viName = ingredient.nameByLang.vi || ingredient.nameByLang.en || Object.values(ingredient.nameByLang)[0] || "";
-     const code = slugify(viName || `ingredient-${idx}`);
-     let key = ingredientKeyMap.get(code);
-     if (!key) {
-       key = await api<ApiIngredientKey>("/catalog/ingredients", {
-         method: "POST",
-         body: JSON.stringify({
-           code,
-@@ -419,39 +419,43 @@ export async function createAdminCategory(category: ProductCategory): Promise<Pr
-   });
-   const languages = await fetchCatalogLanguages();
-   return mapCategory(created, languages);
- }
-
- export async function updateAdminCategory(category: ProductCategory): Promise<ProductCategory> {
-   const updated = await api<ApiCategory>(`/catalog/categories/${category.id}`, {
-     method: "PATCH",
-     body: JSON.stringify({
-       translations: category.translations.map((row) => ({
-         languageCode: row.lang,
-         name: row.name,
-         slug: slugify(`${row.name || "category"}-${row.lang}`),
-         description: row.description || "",
-       })),
-     }),
-   });
-   const languages = await fetchCatalogLanguages();
-   return mapCategory(updated, languages);
- }
-
- export async function deleteAdminCategory(categoryId: string): Promise<void> {
-   await api(`/catalog/categories/${categoryId}`, { method: "DELETE" });
- }
-
-+export async function deleteAdminProduct(productId: string): Promise<void> {
-+  await api(`/catalog/products/${productId}`, { method: "DELETE" });
-+}
-+
- export function upsertTranslation(
-   translations: ProductTranslation[],
-   lang: LanguageCode,
-   patch: Partial<ProductTranslation>,
- ): ProductTranslation[] {
-   const existing = translations.find((item) => item.lang === lang);
-   if (!existing) {
-     return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
-   }
-   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
- }
-
- export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
- export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });
-diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-index a5e1e24f1dbabc729e94e4be3e2ba665c0217bb5..942fd7855f5ea17f1e296acdf284d714c16bb5ad 100644
---- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-@@ -1,104 +1,173 @@
- import { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate, useParams } from "react-router-dom";
- import {
-   createAttribute,
--  deleteProductImage,
-   createIngredient,
-+  deleteAdminProduct,
-+  deleteProductImage,
-   fetchAdminCategories,
-   fetchAdminProductById,
-   fetchCatalogLanguages,
-+  updateAdminProduct,
-   updateProductImage,
-   uploadProductImage,
--  updateAdminProduct,
-   upsertTranslation,
- } from "../api/productAdmin.api";
- import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
-
-+type PendingImageFileMap = Record<string, File>;
-+
-+const isTempImageId = (id: string) => id.startsWith("temp-");
-+
- export function ProductAdminDetailPage() {
-   const { productId } = useParams();
+ export function ProductAdminListPage() {
    const navigate = useNavigate();
-   const [product, setProduct] = useState<ProductAdminItem | null>(null);
+   const [products, setProducts] = useState<ProductAdminItem[]>([]);
    const [categories, setCategories] = useState<ProductCategory[]>([]);
    const [languages, setLanguages] = useState<AdminLanguage[]>([]);
    const [activeLang, setActiveLang] = useState("vi");
-   const [saving, setSaving] = useState(false);
--  const [uploadingImage, setUploadingImage] = useState(false);
-+  const [pendingImageFiles, setPendingImageFiles] = useState<PendingImageFileMap>({});
-+  const [deletedPersistedImageIds, setDeletedPersistedImageIds] = useState<string[]>([]);
-+
-+  const load = async () => {
-+    if (!productId) return;
-+    const langs = await fetchCatalogLanguages();
-+    const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
-+    setProduct(detail);
-+    setCategories(categoryList);
-+    setLanguages(langs);
-+    setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
-+    setPendingImageFiles({});
-+    setDeletedPersistedImageIds([]);
-+  };
+   const [loading, setLoading] = useState(true);
++  const [search, setSearch] = useState("");
++  const [searchInput, setSearchInput] = useState("");
++  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
++  const [categoryFilter, setCategoryFilter] = useState("");
++  const [page, setPage] = useState(1);
++  const [pageSize, setPageSize] = useState(10);
++  const [total, setTotal] = useState(0);
++  const [totalPages, setTotalPages] = useState(1);
+   const [openCategoryModal, setOpenCategoryModal] = useState(false);
+   const [newCategory, setNewCategory] = useState<ProductCategory>({ id: "new", translations: [] });
+
+   const categoryMap = useMemo(
+     () =>
+       Object.fromEntries(
+         categories.map((item) => [
+           item.id,
+           item.translations.find((t) => t.lang === activeLang)?.name || item.translations[0]?.name || "",
+         ]),
+       ),
+     [categories, activeLang],
+   );
+
+   const loadData = async () => {
+     setLoading(true);
+-    const langs = await fetchCatalogLanguages();
+-    const [productList, categoryList] = await Promise.all([fetchAdminProducts(), fetchAdminCategories()]);
++    try {
++      const langs = await fetchCatalogLanguages();
++      const [productResponse, categoryList] = await Promise.all([
++        fetchAdminProducts({
++          search,
++          status: statusFilter,
++          categoryId: categoryFilter,
++          page,
++          pageSize,
++        }),
++        fetchAdminCategories(),
++      ]);
+
+-    setLanguages(langs);
+-    setProducts(productList);
+-    setCategories(categoryList);
+-    setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
+-    setNewCategory({
+-      id: "new",
+-      translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
+-    });
+-    setLoading(false);
++      setLanguages(langs);
++      setProducts(productResponse.items);
++      setTotal(productResponse.total);
++      setTotalPages(productResponse.totalPages);
++      setCategories(categoryList);
++      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
++      setNewCategory({
++        id: "new",
++        translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
++      });
++    } finally {
++      setLoading(false);
++    }
+   };
 
    useEffect(() => {
--    const load = async () => {
--      if (!productId) return;
--      const langs = await fetchCatalogLanguages();
--      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
--      setProduct(detail);
--      setCategories(categoryList);
--      setLanguages(langs);
--      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
--    };
--    load();
-+    void load();
-   }, [productId]);
+-    loadData();
+-  }, []);
++    void loadData();
++  }, [search, statusFilter, categoryFilter, page, pageSize]);
 
-   const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
-
--  const onSave = async () => {
--    if (!product) return;
--    setSaving(true);
--    const next = await updateAdminProduct(product);
--    setProduct(next);
--    setSaving(false);
--  };
--
--  const onUploadImage = async (file?: File | null) => {
--    if (!product || !file) return;
--    setUploadingImage(true);
--    try {
--      const uploaded = await uploadProductImage(product.id, file, product.images.length === 0, product.images.length);
--      setProduct((prev) => (prev ? { ...prev, images: [...prev.images, uploaded] } : prev));
--    } finally {
--      setUploadingImage(false);
--    }
--  };
--
--  const onPersistImage = async (imageId: string) => {
--    if (!product) return;
--    const found = product.images.find((img) => img.id === imageId);
--    if (!found) return;
--    const updated = await updateProductImage(product.id, found);
-+  const updateImageDraft = (imageId: string, patch: Partial<ProductAdminItem["images"][number]>) => {
-     setProduct((prev) =>
-       prev
-         ? {
-             ...prev,
--            images: prev.images.map((img) => (img.id === imageId ? updated : img)),
-+            images: prev.images.map((img) => (img.id === imageId ? { ...img, ...patch } : img)),
-           }
-         : prev,
-     );
+   const onCreateProduct = async () => {
+     const created = await createAdminProduct();
+     navigate(`/catalog/products/${created.id}`);
    };
 
--  const onDeleteImage = async (imageId: string) => {
-+  const onAddImages = (files: FileList | null) => {
-+    if (!files || !files.length) return;
-+    const selectedFiles = Array.from(files);
-+    const draftImages = selectedFiles.map((file, index) => ({
-+      id: `temp-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-+      imageUrl: URL.createObjectURL(file),
-+      isPrimary: false,
-+      sortOrder: index,
-+      file,
-+    }));
-+
-+    setProduct((prev) => {
-+      if (!prev) return prev;
-+      const startOrder = prev.images.length;
-+      return {
-+        ...prev,
-+        images: [
-+          ...prev.images,
-+          ...draftImages.map((item, index) => ({
-+            id: item.id,
-+            imageUrl: item.imageUrl,
-+            isPrimary: item.isPrimary,
-+            sortOrder: startOrder + index,
-+          })),
-+        ],
-+      };
-+    });
-+
-+    setPendingImageFiles((prev) => ({
-+      ...prev,
-+      ...Object.fromEntries(draftImages.map((item) => [item.id, item.file])),
-+    }));
-+  };
-+
-+  const onDeleteImage = (imageId: string) => {
-+    if (!product) return;
-+    if (!isTempImageId(imageId)) {
-+      setDeletedPersistedImageIds((prev) => (prev.includes(imageId) ? prev : [...prev, imageId]));
-+    } else {
-+      setPendingImageFiles((prev) => {
-+        const next = { ...prev };
-+        delete next[imageId];
-+        return next;
-+      });
-+    }
-+
-+    setProduct({ ...product, images: product.images.filter((img) => img.id !== imageId) });
-+  };
-+
-+  const onSave = async () => {
-+    if (!product) return;
-+    setSaving(true);
-+    try {
-+      await updateAdminProduct(product);
-+
-+      for (const imageId of deletedPersistedImageIds) {
-+        await deleteProductImage(product.id, imageId);
-+      }
-+
-+      for (const image of product.images) {
-+        if (isTempImageId(image.id)) {
-+          const file = pendingImageFiles[image.id];
-+          if (!file) continue;
-+          await uploadProductImage(product.id, file, image.isPrimary, image.sortOrder);
-+          URL.revokeObjectURL(image.imageUrl);
-+        } else {
-+          await updateProductImage(product.id, image);
-+        }
-+      }
-+
-+      await load();
-+    } finally {
-+      setSaving(false);
-+    }
-+  };
-+
-+  const onDeleteProduct = async () => {
-     if (!product) return;
--    await deleteProductImage(product.id, imageId);
--    setProduct((prev) => (prev ? { ...prev, images: prev.images.filter((img) => img.id !== imageId) } : prev));
-+    if (!window.confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
-+
-+    try {
-+      await deleteAdminProduct(product.id);
-+      navigate("/catalog/products");
-+    } catch (error) {
-+      const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
-+      window.alert(`${message}\n\nGợi ý: nếu sản phẩm đang được tham chiếu, hãy tắt trạng thái hoạt động trước.`);
-+    }
-   };
+   const viOrActiveName = (product: ProductAdminItem) =>
+     product.translations.find((item) => item.lang === activeLang)?.name ||
+     product.translations.find((item) => item.lang === "vi")?.name ||
+     "(chưa đặt tên)";
 
-   if (!product) {
-     return <div className="card">Không tìm thấy sản phẩm.</div>;
-   }
+   const hasAnyCategoryName = newCategory.translations.some((row) => row.name.trim());
 
    return (
-     <div style={{ display: "grid", gap: 14 }}>
-       <div className="card">
-         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-           <div>
-             <p className="muted" style={{ margin: 0 }}>Chi tiết sản phẩm</p>
-             <h2 className="h1">{translation?.name || "Sản phẩm mới"}</h2>
-             <p className="muted" style={{ margin: 0 }}>{product.sku}</p>
-           </div>
-           <div style={{ display: "flex", gap: 8 }}>
-             <button onClick={() => navigate("/catalog/products")} className="btn">Quay lại danh sách</button>
-             <button onClick={onSave} className="btn btn-primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
-           </div>
-         </div>
-       </div>
-
-       <div className="card">
-         <div className="grid grid-2">
-           <label>
-@@ -107,61 +176,63 @@ export function ProductAdminDetailPage() {
-           </label>
-           <label>
-             <div className="muted">Category</div>
-             <select
-               className="select"
-               value={product.categoryId}
-               onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
-             >
-               <option value="">-- Chọn category --</option>
-               {categories.map((item) => (
-                 <option key={item.id} value={item.id}>
-                   {item.translations.find((x) => x.lang === activeLang)?.name || item.translations[0]?.name || item.id}
-                 </option>
-               ))}
-             </select>
-           </label>
-           <label>
-             <div className="muted">Giá</div>
-             <input
-               type="number"
-               className="input"
-               value={product.price}
-               onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
-             />
-           </label>
--          <label>
-+          <div>
-             <div className="muted">Trạng thái</div>
--            <select
--              className="select"
--              value={product.status}
--              onChange={(e) => setProduct((prev) => (prev ? { ...prev, status: e.target.value as "active" | "draft" } : prev))}
--            >
--              <option value="draft">draft</option>
--              <option value="active">active</option>
--            </select>
--          </label>
-+            <label style={{ display: "inline-flex", gap: 8, alignItems: "center", marginTop: 10 }}>
-+              <input
-+                type="checkbox"
-+                checked={product.status === "active"}
-+                onChange={(e) =>
-+                  setProduct((prev) => (prev ? { ...prev, status: e.target.checked ? "active" : "draft" } : prev))
-+                }
-+              />
-+              {product.status === "active" ? "Đang bật" : "Đang tắt"}
-+            </label>
-+          </div>
-         </div>
-       </div>
-
-       <div className="card">
-         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-           {languages.map((lang) => (
-             <button key={lang.code} onClick={() => setActiveLang(lang.code)} className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}>
-               {lang.label}
-             </button>
-           ))}
-         </div>
-
-         <div className="grid" style={{ gap: 8 }}>
-           <label>
-             <div className="muted">Tên sản phẩm</div>
-             <input
-               className="input"
-               value={translation?.name || ""}
-               onChange={(e) =>
-                 setProduct((prev) =>
-                   prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) } : prev,
-                 )
-               }
-             />
-           </label>
-@@ -303,135 +374,106 @@ export function ProductAdminDetailPage() {
-                         const steps = (current?.steps || [])
-                           .filter((_, rowIdx) => rowIdx !== idx)
-                           .map((row, orderIdx) => ({ ...row, order: orderIdx + 1 }));
-                         return {
-                           ...prev,
-                           translations: upsertTranslation(prev.translations, activeLang, {
-                             guideContent: { intro: current?.intro || "", steps },
-                           }),
-                         };
-                       })
-                     }
-                   >
-                     Xóa bước
-                   </button>
-                 </div>
-               ))}
-             </div>
-           </div>
-         </div>
-       </div>
-
-       <div className="card">
-         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-           <h3 className="h2" style={{ margin: 0 }}>Hình ảnh sản phẩm</h3>
-           <label className="btn btn-primary" style={{ cursor: "pointer" }}>
--            {uploadingImage ? "Đang tải ảnh..." : "+ Tải ảnh"}
-+            + Tải nhiều ảnh
-             <input
-               type="file"
-+              multiple
-               accept="image/*"
-               style={{ display: "none" }}
--              disabled={uploadingImage}
-               onChange={(e) => {
--                const file = e.target.files?.[0];
--                void onUploadImage(file);
-+                onAddImages(e.target.files);
-                 e.currentTarget.value = "";
-               }}
-             />
-           </label>
-         </div>
-
-         <div className="grid" style={{ gap: 10, marginTop: 10 }}>
-           {product.images.length === 0 ? (
-             <p className="muted" style={{ margin: 0 }}>Chưa có ảnh cho sản phẩm này.</p>
-           ) : (
-             product.images.map((image, idx) => (
-               <div key={image.id} className="card" style={{ padding: 10 }}>
-                 <div className="grid grid-2" style={{ alignItems: "start" }}>
-                   <img src={image.imageUrl} alt={`Product ${idx + 1}`} style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8 }} />
-                   <div className="grid" style={{ gap: 8 }}>
-                     <label>
-                       <div className="muted">URL ảnh</div>
--                      <input
--                        className="input"
--                        value={image.imageUrl}
--                        onChange={(e) =>
--                          setProduct((prev) =>
--                            prev
--                              ? {
--                                  ...prev,
--                                  images: prev.images.map((row) => (row.id === image.id ? { ...row, imageUrl: e.target.value } : row)),
--                                }
--                              : prev,
--                          )
--                        }
--                      />
-+                      <input className="input" value={image.imageUrl} onChange={(e) => updateImageDraft(image.id, { imageUrl: e.target.value })} />
-                     </label>
-                     <label>
-                       <div className="muted">Thứ tự hiển thị</div>
-                       <input
-                         type="number"
-                         min={0}
-                         className="input"
-                         value={image.sortOrder}
--                        onChange={(e) =>
--                          setProduct((prev) =>
--                            prev
--                              ? {
--                                  ...prev,
--                                  images: prev.images.map((row) =>
--                                    row.id === image.id ? { ...row, sortOrder: Number(e.target.value) || 0 } : row,
--                                  ),
--                                }
--                              : prev,
--                          )
--                        }
-+                        onChange={(e) => updateImageDraft(image.id, { sortOrder: Number(e.target.value) || 0 })}
-                       />
-                     </label>
-                     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                       <input
-                         type="checkbox"
-                         checked={image.isPrimary}
-                         onChange={(e) =>
-                           setProduct((prev) =>
-                             prev
-                               ? {
-                                   ...prev,
--                                  images: prev.images.map((row) => ({
--                                    ...row,
--                                    isPrimary: row.id === image.id ? e.target.checked : false,
--                                  })),
-+                                  images: prev.images.map((row) => ({ ...row, isPrimary: row.id === image.id ? e.target.checked : false })),
-                                 }
-                               : prev,
-                           )
-                         }
-                       />
-                       Ảnh chính
-                     </label>
-                     <div style={{ display: "flex", gap: 8 }}>
--                      <button className="btn" onClick={() => void onPersistImage(image.id)}>Lưu ảnh</button>
--                      <button className="btn btn-danger" onClick={() => void onDeleteImage(image.id)}>Xóa ảnh</button>
-+                      <button className="btn btn-danger" onClick={() => onDeleteImage(image.id)}>Xóa ảnh</button>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             ))
-           )}
-         </div>
-       </div>
-
-       <div className="grid grid-2">
-         <div className="card">
-           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-             <h3 className="h2">CRUD thành phần</h3>
-             <button className="btn" onClick={() => setProduct((prev) => (prev ? { ...prev, ingredients: [...prev.ingredients, createIngredient()] } : prev))}>+ Thêm</button>
-           </div>
-           <div className="grid" style={{ marginTop: 10 }}>
-             {product.ingredients.map((item) => (
-               <div key={item.id} className="card" style={{ padding: 10 }}>
-                 <input
-                   className="input"
-                   placeholder={`Tên thành phần (${activeLang})`}
-                   value={item.nameByLang[activeLang] || ""}
-                   onChange={(e) =>
-                     setProduct((prev) =>
-                       prev
-@@ -513,31 +555,32 @@ export function ProductAdminDetailPage() {
-                     setProduct((prev) =>
-                       prev
-                         ? {
-                             ...prev,
-                             attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, value: e.target.value } : row)),
-                           }
-                         : prev,
-                     )
-                   }
-                 />
-                 <button
-                   className="btn btn-danger"
-                   style={{ marginTop: 8 }}
-                   onClick={() =>
-                     setProduct((prev) => (prev ? { ...prev, attributes: prev.attributes.filter((row) => row.id !== item.id) } : prev))
-                   }
-                 >
-                   Xóa
-                 </button>
-               </div>
+     <div className="grid" style={{ gap: 14 }}>
+       <div className="card hero-card" style={{ marginBottom: 0 }}>
+         <p className="muted" style={{ margin: 0, fontSize: 14 }}>Quản lý sản phẩm</p>
+         <h2 className="h1">Danh sách sản phẩm</h2>
+         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+           <button onClick={onCreateProduct} className="btn btn-primary">+ Thêm sản phẩm</button>
+           <button onClick={() => setOpenCategoryModal(true)} className="btn">Quản lý category</button>
+           <div style={{ display: "inline-flex", padding: 4, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", gap: 4 }}>
+             {languages.map((lang) => (
+               <button
+                 key={lang.code}
+                 className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
+                 style={{ minHeight: 34, padding: "6px 10px", borderRadius: 9 }}
+                 onClick={() => setActiveLang(lang.code)}
+               >
+                 {lang.label}
+               </button>
              ))}
            </div>
          </div>
        </div>
 
--      <div>
-+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-         <Link to="/catalog/products" className="btn">← Về trang danh sách</Link>
-+        <button className="btn btn-danger" onClick={() => void onDeleteProduct()}>Xóa sản phẩm</button>
+       <AppAlert
+         kind="warning"
+         title="Lưu ý dữ liệu"
+         message="Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn."
+       />
+
++      <div className="card" style={{ display: "grid", gap: 10 }}>
++        <div className="grid grid-2" style={{ gap: 10 }}>
++          <label>
++            <div className="muted">Tìm kiếm sản phẩm</div>
++            <div style={{ display: "flex", gap: 8 }}>
++              <input
++                className="input"
++                placeholder="Nhập SKU hoặc tên sản phẩm"
++                value={searchInput}
++                onChange={(e) => setSearchInput(e.target.value)}
++              />
++              <button
++                className="btn"
++                onClick={() => {
++                  setPage(1);
++                  setSearch(searchInput.trim());
++                }}
++              >
++                Tìm
++              </button>
++            </div>
++          </label>
++          <label>
++            <div className="muted">Category</div>
++            <select
++              className="select"
++              value={categoryFilter}
++              onChange={(e) => {
++                setPage(1);
++                setCategoryFilter(e.target.value);
++              }}
++            >
++              <option value="">Tất cả category</option>
++              {categories.map((item) => (
++                <option key={item.id} value={item.id}>
++                  {categoryMap[item.id] || item.id}
++                </option>
++              ))}
++            </select>
++          </label>
++        </div>
++        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
++          <span className="muted">Trạng thái:</span>
++          <button className={`btn ${statusFilter === "all" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("all"); }}>Tất cả</button>
++          <button className={`btn ${statusFilter === "active" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("active"); }}>Active</button>
++          <button className={`btn ${statusFilter === "draft" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("draft"); }}>Draft</button>
++          <span className="muted" style={{ marginLeft: "auto" }}>Tổng: {total}</span>
++        </div>
++      </div>
++
+       <div className="card">
+         {loading ? (
+           <div className="muted">Đang tải dữ liệu...</div>
+         ) : (
+           <table className="table">
+             <thead>
+               <tr>
+                 <th>SKU</th>
+                 <th>Tên ({activeLang.toUpperCase()})</th>
+                 <th>Category</th>
+                 <th>Giá</th>
+                 <th>Trạng thái</th>
+                 <th>Hành động</th>
+               </tr>
+             </thead>
+             <tbody>
+               {products.map((product) => (
+                 <tr key={product.id}>
+                   <td>{product.sku}</td>
+                   <td>{viOrActiveName(product)}</td>
+                   <td>{categoryMap[product.categoryId] || "-"}</td>
+                   <td>{product.price.toLocaleString("vi-VN")} đ</td>
+                   <td>
+                     <span className="pill" style={{ background: product.status === "active" ? "#ecfdf5" : "#f1f5f9", color: product.status === "active" ? "#047857" : "#475569", borderColor: product.status === "active" ? "#a7f3d0" : "#cbd5e1" }}>
+                       {product.status}
+                     </span>
+                   </td>
+                   <td>
+                     <Link className="btn" to={`/catalog/products/${product.id}`}>Chỉnh sửa</Link>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         )}
++        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 10, flexWrap: "wrap" }}>
++          <div className="muted">Trang {page} / {totalPages}</div>
++          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
++            <select
++              className="select"
++              value={pageSize}
++              onChange={(e) => {
++                setPage(1);
++                setPageSize(Number(e.target.value));
++              }}
++            >
++              {[10, 20, 50].map((size) => (
++                <option key={size} value={size}>{size}/trang</option>
++              ))}
++            </select>
++            <button className="btn" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>← Trước</button>
++            <button className="btn" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau →</button>
++          </div>
++        </div>
        </div>
+
+       {openCategoryModal ? (
+         <div
+           style={{
+             position: "fixed",
+             inset: 0,
+             background: "rgba(15, 23, 42, 0.45)",
+             display: "grid",
+             placeItems: "center",
+             zIndex: 60,
+             padding: 18,
+           }}
+           onClick={() => setOpenCategoryModal(false)}
+         >
+           <div className="card" style={{ width: "min(980px, 100%)", maxHeight: "90vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
+             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+               <h3 className="h2">Quản lý category đa ngôn ngữ</h3>
+               <button className="btn" onClick={() => setOpenCategoryModal(false)}>Đóng</button>
+             </div>
+
+             <div style={{ display: "inline-flex", padding: 4, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", gap: 4, marginBottom: 10 }}>
+               {languages.map((lang) => (
+                 <button
+                   key={lang.code}
+@@ -246,57 +337,57 @@ export function ProductAdminListPage() {
+               />
+               <input
+                 className="input"
+                 placeholder={`Mô tả (${activeLang})`}
+                 value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
+                 onChange={(e) =>
+                   setNewCategory((prev) => ({
+                     ...prev,
+                     translations: prev.translations.map((row) =>
+                       row.lang === activeLang ? { ...row, description: e.target.value } : row,
+                     ),
+                   }))
+                 }
+               />
+               <div style={{ display: "flex", gap: 8 }}>
+                 <button
+                   className="btn btn-primary"
+                   disabled={!hasAnyCategoryName}
+                   onClick={async () => {
+                     if (!hasAnyCategoryName) return;
+                     await createAdminCategory(newCategory);
+                     setNewCategory({
+                       id: "new",
+                       translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
+                     });
+-                    loadData();
++                    void loadData();
+                   }}
+                 >
+                   + Tạo
+                 </button>
+               </div>
+             </div>
+
+             <div className="grid" style={{ gap: 8 }}>
+               {categories.map((category) => (
+                 <CategoryRow
+                   key={category.id}
+                   category={category}
+                   languages={languages}
+                   activeLang={activeLang}
+                   onSave={async (item) => {
+                     await updateAdminCategory(item);
+-                    loadData();
++                    void loadData();
+                   }}
+                   onDelete={async (id) => {
+                     await deleteAdminCategory(id);
+-                    loadData();
++                    void loadData();
+                   }}
+                 />
+               ))}
+             </div>
+           </div>
+         </div>
+       ) : null}
      </div>
    );
  }
+diff --git a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
+index 0f1f86dfc6dd16a0e1ba11e70fbb36cb44ee5ac1..a30185a30b69f80c35d70375dbe0c8a137569760 100644
+--- a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
++++ b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
+@@ -46,25 +46,41 @@ export type ProductImage = {
+
+ export type CategoryTranslation = {
+   lang: LanguageCode;
+   name: string;
+   description: string;
+ };
+
+ export type ProductCategory = {
+   id: string;
+   translations: CategoryTranslation[];
+ };
+
+ export type ProductAdminItem = {
+   id: string;
+   sku: string;
+   categoryId: string;
+   price: number;
+   stock: number;
+   status: "active" | "draft";
+   translations: ProductTranslation[];
+   ingredients: ProductIngredient[];
+   attributes: ProductAttribute[];
+   images: ProductImage[];
+   updatedAt: string;
+ };
++
++export type ProductListFilters = {
++  search?: string;
++  status?: "active" | "draft" | "all";
++  categoryId?: string;
++  page?: number;
++  pageSize?: number;
++};
++
++export type ProductListResponse = {
++  items: ProductAdminItem[];
++  page: number;
++  pageSize: number;
++  total: number;
++  totalPages: number;
++};
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/product-query.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/product-query.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..d698618705687ca460eacdd2f717f40d5fb2ccb7
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/catalog/dto/product-query.dto.ts
+@@ -0,0 +1,32 @@
++import { Type } from 'class-transformer'
++import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
++
++export class ProductQueryDto {
++  @IsOptional()
++  @IsString()
++  @MaxLength(255)
++  search?: string
++
++  @IsOptional()
++  @IsString()
++  @IsIn(['active', 'draft'])
++  status?: 'active' | 'draft'
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  categoryId?: number
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  page?: number
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  pageSize?: number
++}
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
+index 7c71ebf4fea9717739806eda3fed0dd842373be6..52c0b674a88d3f0dd5fd396714c1180b2e39b4cc 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
+@@ -1,43 +1,44 @@
+-import { Body, Controller, Delete, Get, Param, ParseBoolPipe, ParseIntPipe, Patch, Post, UploadedFile, UseInterceptors } from '@nestjs/common'
++import { Body, Controller, Delete, Get, Param, ParseBoolPipe, ParseIntPipe, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common'
+ import { ProductsService } from './products.service'
+ import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
++import { ProductQueryDto } from './dto/product-query.dto'
+ import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
+ import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
+ import { FileInterceptor } from '@nestjs/platform-express'
+ import { ImageUploadService } from '../services/ImageUploadService'
+
+ @Controller('catalog/products')
+ export class ProductsController {
+   constructor(
+     private readonly service: ProductsService,
+     private readonly imageUploadService: ImageUploadService,
+   ) {}
+
+   @Get()
+-  findAll() {
+-    return this.service.findAll()
++  findAll(@Query() query: ProductQueryDto) {
++    return this.service.findAll(query)
+   }
+
+   @Get(':id')
+   findOne(@Param('id', ParseIntPipe) id: number) {
+     return this.service.findOne(id)
+   }
+
+   @Post()
+   create(@Body() dto: CreateProductDto) {
+     return this.service.create(dto)
+   }
+
+   @Patch(':id')
+   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProductDto) {
+     return this.service.update(id, dto)
+   }
+
+
+   @Patch(':id/attributes')
+   replaceAttributes(
+     @Param('id', ParseIntPipe) id: number,
+     @Body() dto: UpsertProductAttributesDto,
+   ) {
+     return this.service.replaceAttributes(id, dto)
+   }
 diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-index 8a351a2c992cf7d81413a6eb2bb9889e04de1261..4e7c7367d410ae5026b5adfcc13d3993a5a3604c 100644
+index 4e7c7367d410ae5026b5adfcc13d3993a5a3604c..30b3efaec8d46d29918ab1c85f5c9c0784314842 100644
 --- a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-@@ -1,54 +1,58 @@
--import { Injectable, NotFoundException } from '@nestjs/common'
-+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+@@ -1,65 +1,106 @@
+ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
  import { PrismaService } from '../prisma/prisma.service'
  import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
  import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
  import { normalizeBigInt } from './utils'
  import { Prisma } from '@prisma/client'
-+import { ImageUploadService } from '../services/ImageUploadService'
+ import { ImageUploadService } from '../services/ImageUploadService'
  import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
++import { ProductQueryDto } from './dto/product-query.dto'
  type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
 
  const toProductTranslationCreateManyData = (
@@ -615,18 +620,62 @@ index 8a351a2c992cf7d81413a6eb2bb9889e04de1261..4e7c7367d410ae5026b5adfcc13d3993
 
  @Injectable()
  export class ProductsService {
--  constructor(private readonly prisma: PrismaService) {}
-+  constructor(
-+    private readonly prisma: PrismaService,
-+    private readonly imageUploadService: ImageUploadService,
-+  ) {}
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly imageUploadService: ImageUploadService,
+   ) {}
 
-   async findAll() {
-     const rows = await this.prisma.catalogProduct.findMany({
-       include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
-       orderBy: { id: 'desc' },
+-  async findAll() {
+-    const rows = await this.prisma.catalogProduct.findMany({
+-      include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
+-      orderBy: { id: 'desc' },
++  async findAll(query: ProductQueryDto = {}) {
++    const page = query.page ?? 1
++    const pageSize = Math.min(query.pageSize ?? 10, 100)
++    const skip = (page - 1) * pageSize
++
++    const where: Prisma.CatalogProductWhereInput = {
++      ...(query.status ? { status: query.status } : {}),
++      ...(query.categoryId ? { categoryId: BigInt(query.categoryId) } : {}),
++      ...(query.search
++        ? {
++            OR: [
++              { sku: { contains: query.search } },
++              {
++                translations: {
++                  some: {
++                    OR: [
++                      { name: { contains: query.search } },
++                      { shortDescription: { contains: query.search } },
++                      { description: { contains: query.search } },
++                    ],
++                  },
++                },
++              },
++            ],
++          }
++        : {}),
++    }
++
++    const [rows, total] = await this.prisma.$transaction([
++      this.prisma.catalogProduct.findMany({
++        where,
++        include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
++        orderBy: { id: 'desc' },
++        skip,
++        take: pageSize,
++      }),
++      this.prisma.catalogProduct.count({ where }),
++    ])
++
++    return normalizeBigInt({
++      items: rows,
++      page,
++      pageSize,
++      total,
++      totalPages: Math.max(1, Math.ceil(total / pageSize)),
      })
-     return normalizeBigInt(rows)
+-    return normalizeBigInt(rows)
    }
 
    async findOne(id: number) {
@@ -645,60 +694,14 @@ index 8a351a2c992cf7d81413a6eb2bb9889e04de1261..4e7c7367d410ae5026b5adfcc13d3993
    }
 
    async create(dto: CreateProductDto) {
-@@ -118,52 +122,70 @@ export class ProductsService {
-     return normalizeBigInt(rows)
-   }
-
-   async replaceIngredients(id: number, dto: UpsertProductIngredientsDto) {
-     await this.findOne(id)
-     const rows = await this.prisma.$transaction(async (tx) => {
-       await tx.productIngredient.deleteMany({ where: { productId: BigInt(id) } })
-       if (dto.items.length) {
-         await tx.productIngredient.createMany({
-           data: dto.items.map((item) => ({
-             productId: BigInt(id),
-             ingredientKeyId: BigInt(item.ingredientKeyId),
-             value: item.value,
-             note: item.note,
-             sortOrder: item.sortOrder ?? 0,
-           })),
-         })
-       }
-       return tx.productIngredient.findMany({ where: { productId: BigInt(id) }, orderBy: { sortOrder: 'asc' } })
-     })
-     return normalizeBigInt(rows)
-   }
-
-   async remove(id: number) {
-     await this.findOne(id)
--    const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
--    return normalizeBigInt(row)
-+
-+    try {
-+      const row = await this.prisma.$transaction(async (tx) => {
-+        const images = await tx.productImage.findMany({ where: { productId: BigInt(id) } })
-+
-+        for (const image of images) {
-+          await this.imageUploadService.deleteImage({ url: image.imageUrl })
-+        }
-+
-+        await tx.productImage.deleteMany({ where: { productId: BigInt(id) } })
-+        return tx.catalogProduct.delete({ where: { id: BigInt(id) } })
-+      })
-+
-+      return normalizeBigInt(row)
-+    } catch (error) {
-+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-+        throw new ConflictException('Không thể xóa sản phẩm do đang được tham chiếu dữ liệu khác. Vui lòng tắt trạng thái hoạt động trước.')
-+      }
-+      throw error
-+    }
-   }
-
-   async listImages(id: number) {
-     await this.findOne(id)
-     const rows = await this.prisma.productImage.findMany({
-       where: { productId: BigInt(id) },
+     const row = await this.prisma.$transaction(async (tx) => {
+       const createdProduct = await tx.catalogProduct.create({
+         data: {
+           sku: dto.sku,
+           categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
+           price: dto.price,
+           status: dto.status ?? 'active',
+@@ -173,48 +214,53 @@ export class ProductsService {
        orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }],
      })
      return normalizeBigInt(rows)
@@ -718,3 +721,37 @@ index 8a351a2c992cf7d81413a6eb2bb9889e04de1261..4e7c7367d410ae5026b5adfcc13d3993
    }
 
    async updateImage(id: number, imageId: number, dto: UpdateProductImageDto) {
+     await this.findOne(id)
+     const existing = await this.prisma.productImage.findFirst({
+       where: { id: BigInt(imageId), productId: BigInt(id) },
+     })
+     if (!existing) throw new NotFoundException('Product image not found')
+
++    if (dto.imageUrl && dto.imageUrl !== existing.imageUrl) {
++      await this.imageUploadService.deleteImage({ url: existing.imageUrl })
++    }
++
+     const updated = await this.prisma.productImage.update({
+       where: { id: BigInt(imageId) },
+       data: {
+         imageUrl: dto.imageUrl,
+         isPrimary: dto.isPrimary,
+         sortOrder: dto.sortOrder,
+       },
+     })
+
+     return normalizeBigInt(updated)
+   }
+
+   async removeImage(id: number, imageId: number) {
+     await this.findOne(id)
+     const existing = await this.prisma.productImage.findFirst({
+       where: { id: BigInt(imageId), productId: BigInt(id) },
+     })
+     if (!existing) throw new NotFoundException('Product image not found')
+
++    await this.imageUploadService.deleteImage({ url: existing.imageUrl })
+     const deleted = await this.prisma.productImage.delete({ where: { id: BigInt(imageId) } })
+     return normalizeBigInt(deleted)
+   }
+ }
