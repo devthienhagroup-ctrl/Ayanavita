@@ -17,7 +17,7 @@ const statusClassMap: Record<string, string> = {
 }
 
 type StatusValue = 'PENDING' | 'CONFIRMED' | 'DONE' | 'CANCELED'
-type ChartType = 'line' | 'doughnut' | 'polarArea'
+type ChartType = 'line' | 'doughnut' | 'bar'
 
 declare global {
   interface Window {
@@ -68,20 +68,51 @@ function ChartJsPanel(props: {
         const Chart = await loadChartJs()
         if (!active || !Chart) return
         chartRef.current?.destroy?.()
+        const totalInCenterPlugin = type === 'doughnut'
+          ? {
+            id: 'totalInCenter',
+            afterDraw: (chart: any) => {
+              const { ctx } = chart
+              const meta = chart.getDatasetMeta(0)
+              if (!meta?.data?.length) return
+              const x = meta.data[0].x
+              const y = meta.data[0].y
+              const total = values.reduce((sum, value) => sum + value, 0)
+              ctx.save()
+              ctx.textAlign = 'center'
+              ctx.textBaseline = 'middle'
+              ctx.fillStyle = '#64748b'
+              ctx.font = '500 11px Inter, system-ui, sans-serif'
+              ctx.fillText('Tổng', x, y - 9)
+              ctx.fillStyle = '#0f172a'
+              ctx.font = '700 20px Inter, system-ui, sans-serif'
+              ctx.fillText(String(total), x, y + 9)
+              ctx.restore()
+            },
+          }
+          : null
+
         chartRef.current = new Chart(canvas, {
           type,
+          plugins: totalInCenterPlugin ? [totalInCenterPlugin] : [],
           data: {
             labels,
             datasets: [{
               label: title,
               data: values,
               backgroundColor: type === 'line' ? 'rgba(14,165,233,0.2)' : colors,
-              borderColor: type === 'line' ? '#0ea5e9' : '#1e293b',
-              borderWidth: type === 'line' ? 3 : 1,
+              borderColor: type === 'line' ? '#0ea5e9' : colors,
+              borderWidth: type === 'line' ? 2 : 1.25,
               pointRadius: type === 'line' ? 3 : 0,
               pointBackgroundColor: '#0284c7',
+              pointBorderColor: '#e0f2fe',
+              pointBorderWidth: 1.5,
               tension: 0.35,
               fill: type === 'line',
+              cutout: type === 'doughnut' ? '78%' : undefined,
+              spacing: type === 'doughnut' ? 2 : 0,
+              hoverOffset: type === 'doughnut' ? 6 : 3,
+              borderRadius: type === 'bar' ? 8 : 0,
             }],
           },
           options: {
@@ -91,14 +122,45 @@ function ChartJsPanel(props: {
               legend: {
                 display: type !== 'line',
                 position: 'bottom',
+                labels: {
+                  usePointStyle: true,
+                  pointStyle: 'circle',
+                  boxWidth: 8,
+                  boxHeight: 8,
+                  padding: 16,
+                  color: '#475569',
+                  font: {
+                    family: 'Inter, system-ui, sans-serif',
+                    size: 12,
+                  },
+                },
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                titleColor: '#f8fafc',
+                bodyColor: '#e2e8f0',
+                cornerRadius: 8,
+                padding: 10,
+                displayColors: true,
               },
             },
-            scales: type === 'line'
+            scales: type === 'line' || type === 'bar'
               ? {
-                x: { ticks: { color: '#475569' }, grid: { color: 'rgba(148,163,184,0.2)' } },
-                y: { beginAtZero: true, ticks: { color: '#475569', precision: 0 }, grid: { color: 'rgba(148,163,184,0.2)' } },
+                x: {
+                  beginAtZero: type === 'bar',
+                  ticks: { color: '#64748b', precision: 0, font: { size: 11 } },
+                  grid: { display: type === 'line', color: 'rgba(148,163,184,0.18)' },
+                  border: { display: false },
+                },
+                y: {
+                  beginAtZero: true,
+                  ticks: { color: '#64748b', precision: 0, font: { size: 11 } },
+                  grid: { color: 'rgba(148,163,184,0.15)' },
+                  border: { display: false },
+                },
               }
               : undefined,
+            layout: type === 'doughnut' ? { padding: 10 } : undefined,
             ...options,
           },
         })
@@ -246,28 +308,30 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
 
           <div className='admin-stats-grid'>
             <ChartJsPanel
-              title='Theo trạng thái (tròn)'
+              title='Theo trạng thái'
               type='doughnut'
               labels={Object.keys(statusLabelMap).map((key) => statusLabelMap[key])}
               values={Object.keys(statusLabelMap).map((key) => stats.byStatus[key] || 0)}
-              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
-            />
-            <ChartJsPanel
-              title='Theo dịch vụ (đa giác)'
-              type='polarArea'
-              labels={stats.byService.slice(0, 6).map((item) => item.label)}
-              values={stats.byService.slice(0, 6).map((item) => item.value)}
-              colors={['#8b5cf6', '#06b6d4', '#f59e0b', '#16a34a', '#ef4444', '#3b82f6']}
+              colors={['#fbbf24', '#60a5fa', '#34d399', '#fb7185']}
             />
             {!isStaff && (
-              <ChartJsPanel
-                title='Theo chuyên viên (tròn)'
-                type='doughnut'
-                labels={stats.bySpecialist.slice(0, 6).map((item) => item.label)}
-                values={stats.bySpecialist.slice(0, 6).map((item) => item.value)}
-                colors={['#0ea5e9', '#4f46e5', '#22c55e', '#f97316', '#ec4899', '#64748b']}
-              />
+                <ChartJsPanel
+                    title='Theo chuyên viên'
+                    type='doughnut'
+                    labels={stats.bySpecialist.slice(0, 6).map((item) => item.label)}
+                    values={stats.bySpecialist.slice(0, 6).map((item) => item.value)}
+                    colors={['#38bdf8', '#818cf8', '#4ade80', '#fb923c', '#f472b6', '#94a3b8']}
+                />
             )}
+            <ChartJsPanel
+              title='Theo dịch vụ'
+              type='bar'
+              labels={stats.byService.slice(0, 6).map((item) => item.label)}
+              values={stats.byService.slice(0, 6).map((item) => item.value)}
+              colors={['#a78bfa', '#38bdf8', '#fbbf24', '#34d399', '#fb7185', '#60a5fa']}
+              options={{ indexAxis: 'y', plugins: { legend: { display: false } } }}
+            />
+
             <ChartJsPanel
               title='Lịch hẹn theo tháng (line)'
               type='line'
@@ -277,6 +341,9 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
               fullWidth
               options={{ plugins: { legend: { display: false } } }}
             />
+
+
+
           </div>
 
           {statsLoading && <p className='admin-helper'>Đang tải thống kê...</p>}

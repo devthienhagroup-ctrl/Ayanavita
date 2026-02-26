@@ -1,219 +1,82 @@
-diff --git a/ayanavita-fontend/src/api/spaAdmin.api.ts b/ayanavita-fontend/src/api/spaAdmin.api.ts
-index 7cdbd012db1497cd19494f05d446491ee4ec75db..431f7e0501ecef2405de32a3d64415dae36553eb 100644
---- a/ayanavita-fontend/src/api/spaAdmin.api.ts
-+++ b/ayanavita-fontend/src/api/spaAdmin.api.ts
-@@ -28,94 +28,112 @@ export type PaginatedServiceResponse = {
- }
-
- export type ServiceCategory = {
-   id: number
-   name: string
-   serviceCount: number
- }
- export type Specialist = {
-   id: number
-   name: string
-   email: string
-   level: string
-   bio?: string
-   branchId: number
-   serviceIds: number[]
- }
- export type ServiceReview = {
-   id: number
-   serviceId: number
-   userId?: number
-   stars: number
-   comment?: string
-   customerName?: string
-   createdAt: string
- }
-+
-+export type AppointmentStatsResponse = {
-+  total: number
-+  byStatus: Record<string, number>
-+  byService: Array<{ label: string; value: number }>
-+  bySpecialist: Array<{ label: string; value: number }>
-+  byMonth: Array<{ label: string; value: number }>
-+}
-+
- export type Appointment = {
-   id: number
-   code?: string
-   customerName: string
-   customerPhone: string
-   customerEmail?: string
-   appointmentAt: string
-   status: string
-   note?: string
-   branch?: { id: number; name: string }
-   service?: { id: number; name: string }
-   specialist?: { id: number; name: string }
- }
-
- export const spaAdminApi = {
-   branches: (params?: boolean | { includeInactive?: boolean; serviceId?: number }) => {
-     const includeInactive = typeof params === 'boolean' ? params : (params?.includeInactive ?? false)
-     const serviceId = typeof params === 'object' ? params.serviceId : undefined
-     const query = new URLSearchParams()
-     if (includeInactive) query.set('includeInactive', 'true')
-     if (serviceId) query.set('serviceId', String(serviceId))
-     const queryString = query.toString()
-     return get<Branch[]>(`/booking/branches${queryString ? `?${queryString}` : ''}`, { auth: false })
-   },
-   services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number; includeInactive?: boolean }) => {
-     const query = new URLSearchParams()
-     if (params?.q?.trim()) query.set('q', params.q.trim())
-     if (params?.page) query.set('page', String(params.page))
-     if (params?.pageSize) query.set('pageSize', String(params.pageSize))
-     if (params?.branchId) query.set('branchId', String(params.branchId))
-     if (params?.includeInactive) query.set('includeInactive', 'true')
-     const queryString = query.toString()
-     return get<PaginatedServiceResponse>(`/booking/services${queryString ? `?${queryString}` : ''}`, { auth: false })
-   },
-   serviceCategories: () => get<ServiceCategory[]>('/booking/service-categories', { auth: false }),
-   specialists: (params?: { branchId?: number; serviceId?: number }) => {
-     const query = new URLSearchParams()
-     if (params?.branchId) query.set('branchId', String(params.branchId))
-     if (params?.serviceId) query.set('serviceId', String(params.serviceId))
-     const queryString = query.toString()
-     return get<Specialist[]>(`/booking/specialists${queryString ? `?${queryString}` : ''}`, { auth: false })
-   },
-   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
-   appointments: () => get<Appointment[]>('/booking/appointments'),
-+  appointmentStats: (params?: { customerPhone?: string; branchId?: number; serviceId?: number; specialistId?: number }) => {
-+    const query = new URLSearchParams()
-+    if (params?.customerPhone?.trim()) query.set('customerPhone', params.customerPhone.trim())
-+    if (params?.branchId) query.set('branchId', String(params.branchId))
-+    if (params?.serviceId) query.set('serviceId', String(params.serviceId))
-+    if (params?.specialistId) query.set('specialistId', String(params.specialistId))
-+    const queryString = query.toString()
-+    return get<AppointmentStatsResponse>(`/booking/appointments/stats${queryString ? `?${queryString}` : ''}`)
-+  },
-
-   createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
-   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
-   deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
-
-   createService: (data: Record<string, any>, file?: File | null) => {
-     const form = new FormData()
-     Object.entries(data).forEach(([key, value]) => {
-       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
-     })
-     if (file) form.append('file', file)
-     return request('/booking/services', { method: 'POST', body: form, auth: false })
-   },
-   updateService: (id: number, data: Record<string, any>, file?: File | null) => {
-     const form = new FormData()
-     Object.entries(data).forEach(([key, value]) => {
-       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
-     })
-     if (file) form.append('file', file)
-     return request(`/booking/services/${id}`, { method: 'PATCH', body: form, auth: false })
-   },
-   deleteService: (id: number) => del(`/booking/services/${id}`, { auth: false }),
-
-   createServiceCategory: (data: Partial<ServiceCategory>) => post('/booking/service-categories', data, { auth: false }),
-   updateServiceCategory: (id: number, data: Partial<ServiceCategory>) => patch(`/booking/service-categories/${id}`, data, { auth: false }),
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index cb8c43f75aa9581c864205ebf8b615515a1b3e39..7232a094abdcb8cf97fc043c9708663be9276d4b 100644
+index 2ff2108848e0bd39a0c423f25e76ed2b89d13fe3..133bfac49235ed09a3973d421f0d21694f67c3d5 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -1612,25 +1612,86 @@
-   padding: 12px;
-   background: #fff;
-   display: grid;
-   gap: 8px;
- }
+@@ -1754,25 +1754,67 @@
+ .admin-stats-layout { display: grid; gap: 14px; margin-top: 12px; }
+ .admin-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+ .admin-kpi-card { border: 1px solid #dbeafe; background: linear-gradient(180deg, #fff, #f8fbff); border-radius: 12px; padding: 12px; display: grid; gap: 4px; }
+ .admin-kpi-card span { font-size: 12px; color: #64748b; }
+ .admin-kpi-card strong { font-size: 24px; color: #0f172a; }
+ .admin-stats-charts { display: grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap: 12px; }
+ .admin-stat-card h4 { margin: 0; font-size: 14px; color: #334155; }
+ .admin-stat-card-wide { grid-column: span 1; }
+ .admin-progress-list { display: grid; gap: 8px; }
+ .admin-progress-row { display: grid; gap: 5px; }
+ .admin-progress-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #334155; }
+ .admin-progress-meta span { max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ .admin-progress-row i { display: block; height: 8px; border-radius: 999px; background: #3b82f6; }
+ .admin-donut-wrap { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; }
+ .admin-donut { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; }
+ .admin-donut-center { width: 74px; height: 74px; border-radius: 50%; background: #fff; border: 1px solid #dbeafe; display: grid; place-items: center; color: #0f172a; font-weight: 700; }
+ .admin-donut-legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+ .admin-donut-legend li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+ .admin-donut-legend i { width: 10px; height: 10px; border-radius: 50%; }
 
- .admin-stat-card span {
-   font-size: 13px;
-   color: #64748b;
-   font-weight: 700;
- }
-
- .admin-stat-card strong {
-   font-size: 26px;
-   color: #0f172a;
- }
-
- .admin-stat-card ul {
-   margin: 0;
-   padding-left: 16px;
-   display: grid;
-   gap: 4px;
-   color: #334155;
-   font-size: 14px;
+ @media (max-width: 900px) {
+   .admin-stats-charts { grid-template-columns: 1fr; }
+   .admin-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
+   .admin-donut-legend { width: 100%; }
  }
 +
-+/* appointments stats redesign */
-+.admin-stats-layout { display: grid; gap: 14px; margin-top: 12px; }
-+.admin-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-+.admin-kpi-card { border: 1px solid #dbeafe; background: linear-gradient(180deg, #fff, #f8fbff); border-radius: 12px; padding: 12px; display: grid; gap: 4px; }
-+.admin-kpi-card span { font-size: 12px; color: #64748b; }
-+.admin-kpi-card strong { font-size: 24px; color: #0f172a; }
-+.admin-stats-charts { display: grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap: 12px; }
-+.admin-stat-card h4 { margin: 0; font-size: 14px; color: #334155; }
-+.admin-stat-card-wide { grid-column: span 1; }
-+.admin-progress-list { display: grid; gap: 8px; }
-+.admin-progress-row { display: grid; gap: 5px; }
-+.admin-progress-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #334155; }
-+.admin-progress-meta span { max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-+.admin-progress-row i { display: block; height: 8px; border-radius: 999px; background: #3b82f6; }
-+.admin-donut-wrap { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; }
-+.admin-donut { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; }
-+.admin-donut-center { width: 74px; height: 74px; border-radius: 50%; background: #fff; border: 1px solid #dbeafe; display: grid; place-items: center; color: #0f172a; font-weight: 700; }
-+.admin-donut-legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-+.admin-donut-legend li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
-+.admin-donut-legend i { width: 10px; height: 10px; border-radius: 50%; }
-+
-+@media (max-width: 900px) {
-+  .admin-stats-charts { grid-template-columns: 1fr; }
-+  .admin-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
-+  .admin-donut-legend { width: 100%; }
++/* appointments chart polish */
++.admin-kpi-card {
++  border: 1px solid #dbeafe;
++  background: linear-gradient(145deg, #ffffff 0%, #f8fbff 45%, #eef6ff 100%);
++  border-radius: 16px;
++  padding: 14px;
++  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 +}
 +
-+.admin-stats-grid {
-+  margin-top: 12px;
-+  display: grid;
-+  grid-template-columns: repeat(3, minmax(220px, 1fr));
-+  gap: 12px;
++.admin-kpi-card strong {
++  font-size: 26px;
++  letter-spacing: -0.02em;
 +}
 +
-+.admin-stat-card-full {
-+  grid-column: 1 / -1;
++.admin-stat-card {
++  border: 1px solid #dbeafe;
++  border-radius: 16px;
++  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
++  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
++  padding: 14px 14px 12px;
++}
++
++.admin-stat-card h4 {
++  font-size: 14px;
++  color: #1e293b;
++  font-weight: 700;
++  letter-spacing: 0.01em;
++  margin-bottom: 10px;
 +}
 +
 +.admin-chart-host-small {
-+  min-height: 230px;
++  min-height: 250px;
 +}
 +
 +.admin-chart-host-line {
-+  min-height: 300px;
++  min-height: 320px;
 +}
 +
-+@media (max-width: 1100px) {
-+  .admin-stats-grid {
-+    grid-template-columns: repeat(2, minmax(220px, 1fr));
-+  }
-+}
-+
-+@media (max-width: 700px) {
-+  .admin-stats-grid {
-+    grid-template-columns: 1fr;
-+  }
-+  .admin-chart-host-line {
-+    min-height: 240px;
-+  }
++.admin-chart-canvas {
++  filter: drop-shadow(0 12px 20px rgba(14, 116, 144, 0.08));
 +}
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
-index 2a0b48e506d8cea47925545cc1f4385cdefa29e2..02dcb6b66f313262dbeabb967d2f53315a7c9bca 100644
+index 02dcb6b66f313262dbeabb967d2f53315a7c9bca..61158e2d1e6ae66b6c7f39917958194756dc9e5e 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
 +++ b/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
-@@ -1,360 +1,335 @@
+@@ -1,126 +1,188 @@
  import { useEffect, useMemo, useRef, useState } from 'react'
--import type { Appointment, Specialist } from '../../../api/spaAdmin.api'
-+import { spaAdminApi, type Appointment, type AppointmentStatsResponse, type Specialist } from '../../../api/spaAdmin.api'
+ import { spaAdminApi, type Appointment, type AppointmentStatsResponse, type Specialist } from '../../../api/spaAdmin.api'
  import type { AppointmentsTabProps } from './types'
 
  const statusLabelMap: Record<string, string> = {
@@ -231,8 +94,8 @@ index 2a0b48e506d8cea47925545cc1f4385cdefa29e2..02dcb6b66f313262dbeabb967d2f5331
  }
 
  type StatusValue = 'PENDING' | 'CONFIRMED' | 'DONE' | 'CANCELED'
--type ChartType = 'bar' | 'line' | 'doughnut' | 'polarArea'
-+type ChartType = 'line' | 'doughnut' | 'polarArea'
+-type ChartType = 'line' | 'doughnut' | 'polarArea'
++type ChartType = 'line' | 'doughnut' | 'bar'
 
  declare global {
    interface Window {
@@ -241,8 +104,8 @@ index 2a0b48e506d8cea47925545cc1f4385cdefa29e2..02dcb6b66f313262dbeabb967d2f5331
    }
  }
 
-+const defaultStats: AppointmentStatsResponse = { total: 0, byStatus: {}, byService: [], bySpecialist: [], byMonth: [] }
-+
+ const defaultStats: AppointmentStatsResponse = { total: 0, byStatus: {}, byService: [], bySpecialist: [], byMonth: [] }
+
  const loadChartJs = () => {
    if (typeof window === 'undefined') return Promise.resolve(null)
    if (window.Chart) return Promise.resolve(window.Chart)
@@ -266,47 +129,70 @@ index 2a0b48e506d8cea47925545cc1f4385cdefa29e2..02dcb6b66f313262dbeabb967d2f5331
    labels: string[]
    values: number[]
    colors: string[]
-+  fullWidth?: boolean
+   fullWidth?: boolean
    options?: Record<string, unknown>
  }) {
--  const { title, type, labels, values, colors, options } = props
-+  const { title, type, labels, values, colors, fullWidth, options } = props
+   const { title, type, labels, values, colors, fullWidth, options } = props
    const canvasRef = useRef<HTMLCanvasElement | null>(null)
    const chartRef = useRef<any>(null)
    const [loadError, setLoadError] = useState('')
 
    useEffect(() => {
      let active = true
--
      const render = async () => {
        const canvas = canvasRef.current
        if (!canvas) return
--
        try {
          const Chart = await loadChartJs()
          if (!active || !Chart) return
--
          chartRef.current?.destroy?.()
--
++        const totalInCenterPlugin = type === 'doughnut'
++          ? {
++            id: 'totalInCenter',
++            afterDraw: (chart: any) => {
++              const { ctx } = chart
++              const meta = chart.getDatasetMeta(0)
++              if (!meta?.data?.length) return
++              const x = meta.data[0].x
++              const y = meta.data[0].y
++              const total = values.reduce((sum, value) => sum + value, 0)
++              ctx.save()
++              ctx.textAlign = 'center'
++              ctx.textBaseline = 'middle'
++              ctx.fillStyle = '#64748b'
++              ctx.font = '500 11px Inter, system-ui, sans-serif'
++              ctx.fillText('Tổng', x, y - 9)
++              ctx.fillStyle = '#0f172a'
++              ctx.font = '700 20px Inter, system-ui, sans-serif'
++              ctx.fillText(String(total), x, y + 9)
++              ctx.restore()
++            },
++          }
++          : null
++
          chartRef.current = new Chart(canvas, {
            type,
++          plugins: totalInCenterPlugin ? [totalInCenterPlugin] : [],
            data: {
              labels,
              datasets: [{
                label: title,
                data: values,
--              backgroundColor: colors,
--              borderColor: '#1e293b',
--              borderWidth: type === 'line' ? 2 : 1,
--              pointRadius: type === 'line' ? 4 : 0,
--              pointBackgroundColor: '#334155',
-+              backgroundColor: type === 'line' ? 'rgba(14,165,233,0.2)' : colors,
-+              borderColor: type === 'line' ? '#0ea5e9' : '#1e293b',
-+              borderWidth: type === 'line' ? 3 : 1,
-+              pointRadius: type === 'line' ? 3 : 0,
-+              pointBackgroundColor: '#0284c7',
+               backgroundColor: type === 'line' ? 'rgba(14,165,233,0.2)' : colors,
+-              borderColor: type === 'line' ? '#0ea5e9' : '#1e293b',
+-              borderWidth: type === 'line' ? 3 : 1,
++              borderColor: type === 'line' ? '#0ea5e9' : colors,
++              borderWidth: type === 'line' ? 2 : 1.25,
+               pointRadius: type === 'line' ? 3 : 0,
+               pointBackgroundColor: '#0284c7',
++              pointBorderColor: '#e0f2fe',
++              pointBorderWidth: 1.5,
                tension: 0.35,
                fill: type === 'line',
++              cutout: type === 'doughnut' ? '78%' : undefined,
++              spacing: type === 'doughnut' ? 2 : 0,
++              hoverOffset: type === 'doughnut' ? 6 : 3,
++              borderRadius: type === 'bar' ? 8 : 0,
              }],
            },
            options: {
@@ -314,41 +200,58 @@ index 2a0b48e506d8cea47925545cc1f4385cdefa29e2..02dcb6b66f313262dbeabb967d2f5331
              responsive: true,
              plugins: {
                legend: {
--                display: type !== 'bar' || labels.length <= 1,
-+                display: type !== 'line',
+                 display: type !== 'line',
                  position: 'bottom',
++                labels: {
++                  usePointStyle: true,
++                  pointStyle: 'circle',
++                  boxWidth: 8,
++                  boxHeight: 8,
++                  padding: 16,
++                  color: '#475569',
++                  font: {
++                    family: 'Inter, system-ui, sans-serif',
++                    size: 12,
++                  },
++                },
++              },
++              tooltip: {
++                backgroundColor: 'rgba(15, 23, 42, 0.92)',
++                titleColor: '#f8fafc',
++                bodyColor: '#e2e8f0',
++                cornerRadius: 8,
++                padding: 10,
++                displayColors: true,
                },
              },
--            scales: type === 'doughnut' || type === 'polarArea'
--              ? undefined
--              : {
--                x: {
--                  ticks: { color: '#475569' },
--                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
--                },
--                y: {
--                  beginAtZero: true,
--                  ticks: { color: '#475569', precision: 0 },
--                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
--                },
--              },
-+            scales: type === 'line'
-+              ? {
-+                x: { ticks: { color: '#475569' }, grid: { color: 'rgba(148,163,184,0.2)' } },
-+                y: { beginAtZero: true, ticks: { color: '#475569', precision: 0 }, grid: { color: 'rgba(148,163,184,0.2)' } },
-+              }
-+              : undefined,
+-            scales: type === 'line'
++            scales: type === 'line' || type === 'bar'
+               ? {
+-                x: { ticks: { color: '#475569' }, grid: { color: 'rgba(148,163,184,0.2)' } },
+-                y: { beginAtZero: true, ticks: { color: '#475569', precision: 0 }, grid: { color: 'rgba(148,163,184,0.2)' } },
++                x: {
++                  beginAtZero: type === 'bar',
++                  ticks: { color: '#64748b', precision: 0, font: { size: 11 } },
++                  grid: { display: type === 'line', color: 'rgba(148,163,184,0.18)' },
++                  border: { display: false },
++                },
++                y: {
++                  beginAtZero: true,
++                  ticks: { color: '#64748b', precision: 0, font: { size: 11 } },
++                  grid: { color: 'rgba(148,163,184,0.15)' },
++                  border: { display: false },
++                },
+               }
+               : undefined,
++            layout: type === 'doughnut' ? { padding: 10 } : undefined,
              ...options,
            },
          })
--
          setLoadError('')
        } catch {
--        if (active) setLoadError('Không tải được Chart.js (CDN bị chặn trong môi trường hiện tại).')
-+        if (active) setLoadError('Không tải được Chart.js (CDN bị chặn).')
+         if (active) setLoadError('Không tải được Chart.js (CDN bị chặn).')
        }
      }
--
      void render()
 
      return () => {
@@ -359,776 +262,89 @@ index 2a0b48e506d8cea47925545cc1f4385cdefa29e2..02dcb6b66f313262dbeabb967d2f5331
    }, [colors, labels, options, title, type, values])
 
    return (
--    <article className='admin-stat-card'>
--      <span>{title}</span>
--      <div className='admin-chart-host'>
-+    <article className={`admin-stat-card ${fullWidth ? 'admin-stat-card-full' : ''}`}>
-+      <h4>{title}</h4>
-+      <div className={`admin-chart-host ${fullWidth ? 'admin-chart-host-line' : 'admin-chart-host-small'}`}>
+     <article className={`admin-stat-card ${fullWidth ? 'admin-stat-card-full' : ''}`}>
+       <h4>{title}</h4>
+       <div className={`admin-chart-host ${fullWidth ? 'admin-chart-host-line' : 'admin-chart-host-small'}`}>
          <canvas ref={canvasRef} className='admin-chart-canvas' />
        </div>
        {loadError && <small className='admin-helper'>{loadError}</small>}
      </article>
-   )
- }
+@@ -224,70 +286,71 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
+           <div className='admin-filters-grid'>
+             <input className='admin-input' placeholder='Số điện thoại' value={statsPhone} onChange={(e) => setStatsPhone(e.target.value)} />
+             <select className='admin-input' value={statsBranchId} onChange={(e) => setStatsBranchId(Number(e.target.value))}>
+               <option value={0}>Tất cả chi nhánh</option>
+               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <select className='admin-input' value={statsServiceId} onChange={(e) => setStatsServiceId(Number(e.target.value))}>
+               <option value={0}>Tất cả dịch vụ</option>
+               {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <select className='admin-input' value={statsSpecialistId} onChange={(e) => setStatsSpecialistId(Number(e.target.value))}>
+               <option value={0}>Tất cả chuyên viên</option>
+               {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+           </div>
 
- function statusActionItems(isStaff: boolean) {
-   const adminItems: Array<{ value: StatusValue; label: string }> = [
-     { value: 'PENDING', label: statusLabelMap.PENDING },
-     { value: 'CONFIRMED', label: statusLabelMap.CONFIRMED },
-     { value: 'DONE', label: statusLabelMap.DONE },
-     { value: 'CANCELED', label: statusLabelMap.CANCELED },
-   ]
-   if (!isStaff) return adminItems
-   return adminItems.filter((item) => item.value === 'DONE' || item.value === 'CANCELED')
- }
+           <div className='admin-kpi-grid'>
+             <article className='admin-kpi-card'><span>Tổng lịch hẹn</span><strong>{stats.total}</strong></article>
+             <article className='admin-kpi-card'><span>Đã hoàn tất</span><strong>{stats.byStatus.DONE || 0}</strong></article>
+             <article className='admin-kpi-card'><span>Chờ xác nhận</span><strong>{stats.byStatus.PENDING || 0}</strong></article>
+             <article className='admin-kpi-card'><span>Đã hủy</span><strong>{stats.byStatus.CANCELED || 0}</strong></article>
+           </div>
 
- export function AppointmentsTab({ appointments, specialists, branches, services, isStaff, loading, onAssignSpecialist, onUpdateStatus, onDeleteAppointment }: AppointmentsTabProps) {
-   const [view, setView] = useState<'list' | 'stats'>('list')
--  const [searchName, setSearchName] = useState('')
--  const [searchPhone, setSearchPhone] = useState('')
--  const [branchId, setBranchId] = useState(0)
--  const [serviceId, setServiceId] = useState(0)
--  const [specialistId, setSpecialistId] = useState(0)
--  const [filterMonth, setFilterMonth] = useState('')
--  const [filterDate, setFilterDate] = useState('')
--  const [page, setPage] = useState(1)
--  const [pageSize, setPageSize] = useState(10)
--  const [actionMenuId, setActionMenuId] = useState<number | null>(null)
--  const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null)
-
--  const filteredAppointments = useMemo(() => {
--    return appointments.filter((item) => {
--      const date = new Date(item.appointmentAt)
--      const monthValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
--      const dayValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
--      if (searchName.trim() && !item.customerName.toLowerCase().includes(searchName.trim().toLowerCase())) return false
--      if (searchPhone.trim() && !item.customerPhone.toLowerCase().includes(searchPhone.trim().toLowerCase())) return false
--      if (branchId && item.branch?.id !== branchId) return false
--      if (serviceId && item.service?.id !== serviceId) return false
--      if (specialistId && item.specialist?.id !== specialistId) return false
--      if (filterMonth && monthValue !== filterMonth) return false
--      if (filterDate && dayValue !== filterDate) return false
--      return true
--    })
--  }, [appointments, branchId, filterDate, filterMonth, searchName, searchPhone, serviceId, specialistId])
-+  const [listSearchName, setListSearchName] = useState('')
-+  const [listSearchPhone, setListSearchPhone] = useState('')
-+  const [listBranchId, setListBranchId] = useState(0)
-+  const [listServiceId, setListServiceId] = useState(0)
-+  const [listSpecialistId, setListSpecialistId] = useState(0)
-+  const [listFilterMonth, setListFilterMonth] = useState('')
-+  const [listFilterDate, setListFilterDate] = useState('')
-+  const [listPage, setListPage] = useState(1)
-+  const [listPageSize, setListPageSize] = useState(10)
-+
-+  const [statsPhone, setStatsPhone] = useState('')
-+  const [statsBranchId, setStatsBranchId] = useState(0)
-+  const [statsServiceId, setStatsServiceId] = useState(0)
-+  const [statsSpecialistId, setStatsSpecialistId] = useState(0)
-
--  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / pageSize))
--  const safePage = Math.min(page, totalPages)
-+  const [actionMenuId, setActionMenuId] = useState<number | null>(null)
-+  const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null)
-+  const [stats, setStats] = useState<AppointmentStatsResponse>(defaultStats)
-+  const [statsLoading, setStatsLoading] = useState(false)
-+  const [statsError, setStatsError] = useState('')
-+
-+  const filteredAppointments = useMemo(() => appointments.filter((item) => {
-+    const date = new Date(item.appointmentAt)
-+    const monthValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-+    const dayValue = `${monthValue}-${String(date.getDate()).padStart(2, '0')}`
-+    if (listSearchName.trim() && !item.customerName.toLowerCase().includes(listSearchName.trim().toLowerCase())) return false
-+    if (listSearchPhone.trim() && !item.customerPhone.toLowerCase().includes(listSearchPhone.trim().toLowerCase())) return false
-+    if (listBranchId && item.branch?.id !== listBranchId) return false
-+    if (listServiceId && item.service?.id !== listServiceId) return false
-+    if (listSpecialistId && item.specialist?.id !== listSpecialistId) return false
-+    if (listFilterMonth && monthValue !== listFilterMonth) return false
-+    if (listFilterDate && dayValue !== listFilterDate) return false
-+    return true
-+  }), [appointments, listBranchId, listFilterDate, listFilterMonth, listSearchName, listSearchPhone, listServiceId, listSpecialistId])
-+
-+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / listPageSize))
-+  const safePage = Math.min(listPage, totalPages)
-   const pagedAppointments = useMemo(() => {
--    const start = (safePage - 1) * pageSize
--    return filteredAppointments.slice(start, start + pageSize)
--  }, [filteredAppointments, pageSize, safePage])
-+    const start = (safePage - 1) * listPageSize
-+    return filteredAppointments.slice(start, start + listPageSize)
-+  }, [filteredAppointments, listPageSize, safePage])
-
--  const statusStats = useMemo(() => {
--    return filteredAppointments.reduce<Record<string, number>>((acc, item) => {
--      const status = item.status || 'PENDING'
--      acc[status] = (acc[status] || 0) + 1
--      return acc
--    }, {})
--  }, [filteredAppointments])
--
--  const specialistStats = useMemo(() => {
--    const bucket = new Map<string, number>()
--    filteredAppointments.forEach((item) => {
--      const key = item.specialist?.name || 'Chưa phân công'
--      bucket.set(key, (bucket.get(key) || 0) + 1)
--    })
--    return [...bucket.entries()].sort((a, b) => b[1] - a[1])
--  }, [filteredAppointments])
--
--  const serviceStats = useMemo(() => {
--    const bucket = new Map<string, number>()
--    filteredAppointments.forEach((item) => {
--      const key = item.service?.name || 'Khác'
--      bucket.set(key, (bucket.get(key) || 0) + 1)
--    })
--    return [...bucket.entries()].sort((a, b) => b[1] - a[1])
--  }, [filteredAppointments])
--
--  const monthStats = useMemo(() => {
--    const bucket = new Map<string, number>()
--    filteredAppointments.forEach((item) => {
--      const date = new Date(item.appointmentAt)
--      const key = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
--      bucket.set(key, (bucket.get(key) || 0) + 1)
-+  useEffect(() => {
-+    let active = true
-+    setStatsLoading(true)
-+    setStatsError('')
-+    spaAdminApi.appointmentStats({
-+      customerPhone: statsPhone,
-+      branchId: statsBranchId || undefined,
-+      serviceId: statsServiceId || undefined,
-+      specialistId: statsSpecialistId || undefined,
-     })
--    return [...bucket.entries()].sort((a, b) => a[0].localeCompare(b[0]))
--  }, [filteredAppointments])
-+      .then((res) => {
-+        if (!active) return
-+        setStats(res)
-+      })
-+      .catch(() => {
-+        if (!active) return
-+        setStats(defaultStats)
-+        setStatsError('Không tải được thống kê từ máy chủ. Vui lòng thử lại.')
-+      })
-+      .finally(() => {
-+        if (active) setStatsLoading(false)
-+      })
-+
-+    return () => { active = false }
-+  }, [statsBranchId, statsPhone, statsServiceId, statsSpecialistId])
-
-   return (
-     <section className='admin-card admin-card-glow'>
-       <div className='admin-row admin-row-between'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> Lịch hẹn ({filteredAppointments.length})</h3>
-         <div className='admin-row'>
-           <button className={`admin-btn admin-btn-ghost ${view === 'list' ? 'admin-btn-active' : ''}`} onClick={() => setView('list')}>Danh sách</button>
-           <button className={`admin-btn admin-btn-ghost ${view === 'stats' ? 'admin-btn-active' : ''}`} onClick={() => setView('stats')}>Thống kê</button>
-         </div>
-       </div>
-
--      <div className='admin-filters-grid'>
--        <input className='admin-input' placeholder='Tên khách' value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1) }} />
--        <input className='admin-input' placeholder='Số điện thoại' value={searchPhone} onChange={(e) => { setSearchPhone(e.target.value); setPage(1) }} />
--        <select className='admin-input' value={branchId} onChange={(e) => { setBranchId(Number(e.target.value)); setPage(1) }}>
--          <option value={0}>Tất cả chi nhánh</option>
--          {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
--        </select>
--        <select className='admin-input' value={serviceId} onChange={(e) => { setServiceId(Number(e.target.value)); setPage(1) }}>
--          <option value={0}>Tất cả dịch vụ</option>
--          {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
--        </select>
--        <select className='admin-input' value={specialistId} onChange={(e) => { setSpecialistId(Number(e.target.value)); setPage(1) }}>
--          <option value={0}>Tất cả chuyên viên</option>
--          {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
--        </select>
--        <input className='admin-input' type='month' value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setPage(1) }} />
--        <input className='admin-input' type='date' value={filterDate} onChange={(e) => { setFilterDate(e.target.value); setPage(1) }} />
--        <select className='admin-input' value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
--          <option value={10}>10 / trang</option>
--          <option value={20}>20 / trang</option>
--          <option value={50}>50 / trang</option>
--        </select>
--      </div>
--
-       {view === 'stats' ? (
--        <div className='admin-grid admin-grid-stats'>
--          {!isStaff && (
--            <ChartJsPanel
--              title='Theo trạng thái (Doughnut)'
--              type='doughnut'
--              labels={Object.entries(statusLabelMap).map(([, label]) => label)}
--              values={Object.keys(statusLabelMap).map((key) => statusStats[key] || 0)}
+           <div className='admin-stats-grid'>
+             <ChartJsPanel
+-              title='Theo trạng thái (tròn)'
++              title='Theo trạng thái'
+               type='doughnut'
+               labels={Object.keys(statusLabelMap).map((key) => statusLabelMap[key])}
+               values={Object.keys(statusLabelMap).map((key) => stats.byStatus[key] || 0)}
 -              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
--            />
--          )}
-+        <>
-+          <div className='admin-filters-grid'>
-+            <input className='admin-input' placeholder='Số điện thoại' value={statsPhone} onChange={(e) => setStatsPhone(e.target.value)} />
-+            <select className='admin-input' value={statsBranchId} onChange={(e) => setStatsBranchId(Number(e.target.value))}>
-+              <option value={0}>Tất cả chi nhánh</option>
-+              {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-+            </select>
-+            <select className='admin-input' value={statsServiceId} onChange={(e) => setStatsServiceId(Number(e.target.value))}>
-+              <option value={0}>Tất cả dịch vụ</option>
-+              {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-+            </select>
-+            <select className='admin-input' value={statsSpecialistId} onChange={(e) => setStatsSpecialistId(Number(e.target.value))}>
-+              <option value={0}>Tất cả chuyên viên</option>
-+              {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
-+            </select>
-+          </div>
-
--          {!isStaff && (
--            <ChartJsPanel
--              title='Theo chuyên viên (Bar ngang)'
--              type='bar'
--              labels={specialistStats.slice(0, 8).map(([label]) => label)}
--              values={specialistStats.slice(0, 8).map(([, value]) => value)}
--              colors={specialistStats.slice(0, 8).map((_, idx) => idx % 2 === 0 ? '#4f46e5cc' : '#0ea5e9cc')}
--              options={{ indexAxis: 'y' }}
--            />
--          )}
-+          <div className='admin-kpi-grid'>
-+            <article className='admin-kpi-card'><span>Tổng lịch hẹn</span><strong>{stats.total}</strong></article>
-+            <article className='admin-kpi-card'><span>Đã hoàn tất</span><strong>{stats.byStatus.DONE || 0}</strong></article>
-+            <article className='admin-kpi-card'><span>Chờ xác nhận</span><strong>{stats.byStatus.PENDING || 0}</strong></article>
-+            <article className='admin-kpi-card'><span>Đã hủy</span><strong>{stats.byStatus.CANCELED || 0}</strong></article>
-+          </div>
-
--          {!isStaff && (
-+          <div className='admin-stats-grid'>
-             <ChartJsPanel
--              title='Theo tháng (Line)'
--              type='line'
--              labels={monthStats.slice(-12).map(([label]) => label)}
--              values={monthStats.slice(-12).map(([, value]) => value)}
--              colors={['#0ea5e9']}
--              options={{ plugins: { legend: { display: false } } }}
-+              title='Theo trạng thái (tròn)'
-+              type='doughnut'
-+              labels={Object.keys(statusLabelMap).map((key) => statusLabelMap[key])}
-+              values={Object.keys(statusLabelMap).map((key) => stats.byStatus[key] || 0)}
-+              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
++              colors={['#fbbf24', '#60a5fa', '#34d399', '#fb7185']}
              />
--          )}
--
--          {!isStaff && (
              <ChartJsPanel
--              title='Theo dịch vụ (Polar Area)'
-+              title='Theo dịch vụ (đa giác)'
-               type='polarArea'
--              labels={serviceStats.slice(0, 6).map(([label]) => label)}
--              values={serviceStats.slice(0, 6).map(([, value]) => value)}
-+              labels={stats.byService.slice(0, 6).map((item) => item.label)}
-+              values={stats.byService.slice(0, 6).map((item) => item.value)}
-               colors={['#8b5cf6', '#06b6d4', '#f59e0b', '#16a34a', '#ef4444', '#3b82f6']}
+-              title='Theo dịch vụ (đa giác)'
+-              type='polarArea'
++              title='Theo dịch vụ'
++              type='bar'
+               labels={stats.byService.slice(0, 6).map((item) => item.label)}
+               values={stats.byService.slice(0, 6).map((item) => item.value)}
+-              colors={['#8b5cf6', '#06b6d4', '#f59e0b', '#16a34a', '#ef4444', '#3b82f6']}
++              colors={['#a78bfa', '#38bdf8', '#fbbf24', '#34d399', '#fb7185', '#60a5fa']}
++              options={{ indexAxis: 'y', plugins: { legend: { display: false } } }}
              />
--          )}
--
--          {isStaff && (
-+            {!isStaff && (
-+              <ChartJsPanel
-+                title='Theo chuyên viên (tròn)'
-+                type='doughnut'
-+                labels={stats.bySpecialist.slice(0, 6).map((item) => item.label)}
-+                values={stats.bySpecialist.slice(0, 6).map((item) => item.value)}
-+                colors={['#0ea5e9', '#4f46e5', '#22c55e', '#f97316', '#ec4899', '#64748b']}
-+              />
-+            )}
+             {!isStaff && (
+               <ChartJsPanel
+-                title='Theo chuyên viên (tròn)'
++                title='Theo chuyên viên'
+                 type='doughnut'
+                 labels={stats.bySpecialist.slice(0, 6).map((item) => item.label)}
+                 values={stats.bySpecialist.slice(0, 6).map((item) => item.value)}
+-                colors={['#0ea5e9', '#4f46e5', '#22c55e', '#f97316', '#ec4899', '#64748b']}
++                colors={['#38bdf8', '#818cf8', '#4ade80', '#fb923c', '#f472b6', '#94a3b8']}
+               />
+             )}
              <ChartJsPanel
--              title='Lịch hẹn theo thời gian (Line)'
-+              title='Lịch hẹn theo tháng (line)'
+               title='Lịch hẹn theo tháng (line)'
                type='line'
--              labels={monthStats.slice(-8).map(([label]) => label)}
--              values={monthStats.slice(-8).map(([, value]) => value)}
--              colors={['#4f46e5']}
--              options={{ plugins: { legend: { display: false } } }}
--            />
--          )}
--
--          {isStaff && (
--            <ChartJsPanel
--              title='Lịch hẹn theo dịch vụ (Bar)'
--              type='bar'
--              labels={serviceStats.slice(0, 6).map(([label]) => label)}
--              values={serviceStats.slice(0, 6).map(([, value]) => value)}
--              colors={['#0ea5e9aa']}
-+              labels={stats.byMonth.slice(-12).map((item) => item.label)}
-+              values={stats.byMonth.slice(-12).map((item) => item.value)}
-+              colors={['#0ea5e9']}
-+              fullWidth
+               labels={stats.byMonth.slice(-12).map((item) => item.label)}
+               values={stats.byMonth.slice(-12).map((item) => item.value)}
+               colors={['#0ea5e9']}
+               fullWidth
                options={{ plugins: { legend: { display: false } } }}
              />
--          )}
-+          </div>
+           </div>
 
--          {isStaff && (
--            <ChartJsPanel
--              title='Theo trạng thái (Doughnut)'
--              type='doughnut'
--              labels={Object.entries(statusLabelMap).map(([, label]) => label)}
--              values={Object.keys(statusLabelMap).map((key) => statusStats[key] || 0)}
--              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
--            />
--          )}
--        </div>
-+          {statsLoading && <p className='admin-helper'>Đang tải thống kê...</p>}
-+          {statsError && <p className='admin-helper'>{statsError}</p>}
-+        </>
+           {statsLoading && <p className='admin-helper'>Đang tải thống kê...</p>}
+           {statsError && <p className='admin-helper'>{statsError}</p>}
+         </>
        ) : (
          <>
-+          <div className='admin-filters-grid'>
-+            <input className='admin-input' placeholder='Tên khách' value={listSearchName} onChange={(e) => { setListSearchName(e.target.value); setListPage(1) }} />
-+            <input className='admin-input' placeholder='Số điện thoại' value={listSearchPhone} onChange={(e) => { setListSearchPhone(e.target.value); setListPage(1) }} />
-+            <select className='admin-input' value={listBranchId} onChange={(e) => { setListBranchId(Number(e.target.value)); setListPage(1) }}>
-+              <option value={0}>Tất cả chi nhánh</option>
-+              {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-+            </select>
-+            <select className='admin-input' value={listServiceId} onChange={(e) => { setListServiceId(Number(e.target.value)); setListPage(1) }}>
-+              <option value={0}>Tất cả dịch vụ</option>
-+              {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-+            </select>
-+            <select className='admin-input' value={listSpecialistId} onChange={(e) => { setListSpecialistId(Number(e.target.value)); setListPage(1) }}>
-+              <option value={0}>Tất cả chuyên viên</option>
-+              {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
-+            </select>
-+            <input className='admin-input' type='month' value={listFilterMonth} onChange={(e) => { setListFilterMonth(e.target.value); setListPage(1) }} />
-+            <input className='admin-input' type='date' value={listFilterDate} onChange={(e) => { setListFilterDate(e.target.value); setListPage(1) }} />
-+            <select className='admin-input' value={listPageSize} onChange={(e) => { setListPageSize(Number(e.target.value)); setListPage(1) }}>
-+              <option value={10}>10 / trang</option>
-+              <option value={20}>20 / trang</option>
-+              <option value={50}>50 / trang</option>
-+            </select>
-+          </div>
-+
-           <div className='admin-table-wrap'>
-             <table className='admin-table'>
-               <thead>
-                 <tr>
-                   <th>Mã</th>
-                   <th>Khách hàng</th>
-                   <th>SĐT</th>
-                   <th>Chi nhánh</th>
-                   <th>Dịch vụ</th>
-                   <th>Chuyên viên</th>
-                   <th>Trạng thái</th>
-                   <th>Thao tác</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {pagedAppointments.map((appointment) => (
-                   <tr key={appointment.id}>
-                     <td className='td-strong'>{appointment.code || `#${appointment.id}`}</td>
-                     <td>{appointment.customerName}</td>
-                     <td>{appointment.customerPhone}</td>
-                     <td>{appointment.branch?.name || '-'}</td>
-                     <td>{appointment.service?.name || '-'}</td>
-                     <td>
-                       {isStaff ? (
-                         appointment.specialist?.name || '-'
-@@ -371,53 +346,53 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
-                     <td>
-                       <div className='admin-action-menu-wrap'>
-                         <button className='admin-btn admin-btn-ghost' onClick={() => setActionMenuId((prev) => prev === appointment.id ? null : appointment.id)}><i className='fa-solid fa-ellipsis' /></button>
-                         {actionMenuId === appointment.id && (
-                           <div className='admin-action-menu'>
-                             {statusActionItems(isStaff).map((item) => (
-                               <button key={item.value} className='admin-btn admin-btn-ghost' disabled={appointment.status === item.value || loading} onClick={() => { setActionMenuId(null); void onUpdateStatus(appointment, item.value) }}>
-                                 {item.label}
-                               </button>
-                             ))}
-                             <button className='admin-btn admin-btn-ghost' onClick={() => { setDetailAppointment(appointment); setActionMenuId(null) }}>Xem chi tiết</button>
-                             {!isStaff && <button className='admin-btn admin-btn-danger' onClick={() => { setActionMenuId(null); void onDeleteAppointment(appointment) }}>Xóa lịch</button>}
-                           </div>
-                         )}
-                       </div>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-
-           <div className='admin-row admin-row-between'>
-             <span className='admin-helper'>Hiển thị {pagedAppointments.length}/{filteredAppointments.length} lịch hẹn</span>
-             <div className='admin-row'>
--              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>Trước</button>
-+              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setListPage((prev) => Math.max(1, prev - 1))}>Trước</button>
-               <span className='admin-helper'>Trang {safePage}/{totalPages}</span>
--              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
-+              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setListPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
-             </div>
-           </div>
-         </>
-       )}
-
-       {detailAppointment && (
-         <div className='admin-modal-backdrop' onClick={() => setDetailAppointment(null)}>
-           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
-             <h4>Chi tiết lịch hẹn {detailAppointment.code || `#${detailAppointment.id}`}</h4>
-             <div className='admin-detail-grid'>
-               <p><strong>Khách hàng:</strong> {detailAppointment.customerName}</p>
-               <p><strong>SĐT:</strong> {detailAppointment.customerPhone}</p>
-               <p><strong>Email:</strong> {detailAppointment.customerEmail || '-'}</p>
-               <p><strong>Trạng thái:</strong> {statusLabelMap[detailAppointment.status] || detailAppointment.status}</p>
-               <p><strong>Chi nhánh:</strong> {detailAppointment.branch?.name || '-'}</p>
-               <p><strong>Dịch vụ:</strong> {detailAppointment.service?.name || '-'}</p>
-               <p><strong>Chuyên viên:</strong> {detailAppointment.specialist?.name || 'Chưa phân công'}</p>
-               <p><strong>Thời gian:</strong> {new Date(detailAppointment.appointmentAt).toLocaleString('vi-VN')}</p>
-               <p className='admin-detail-note'><strong>Ghi chú:</strong> {detailAppointment.note || 'Không có ghi chú'}</p>
-             </div>
-             <div className='admin-row'>
-               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailAppointment(null)}>Đóng</button>
-             </div>
-           </div>
-         </div>
-diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-index 8483f66155cb984fcd12d9b95d37d2ce034149aa..24eecbdcfef6e29180431c7415c5dbf0a4becd10 100644
---- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-@@ -1,48 +1,48 @@
- import {
-   BadRequestException,
-   Body,
-   Controller,
-   Delete,
-   Get,
-   Param,
-   ParseIntPipe,
-   Patch,
-   Post,
-   Query,
-   UploadedFile,
-   UseGuards,
-   UseInterceptors,
- } from '@nestjs/common'
- import { FileInterceptor } from '@nestjs/platform-express'
- import { memoryStorage } from 'multer'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { RolesGuard } from '../auth/guards/roles.guard'
- import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator'
- import { Roles } from '../auth/decorators/roles.decorator'
- import { BookingService } from './booking.service'
--import { BookingFilterQueryDto } from './dto/booking-query.dto'
-+import { AppointmentStatsQueryDto, BookingFilterQueryDto } from './dto/booking-query.dto'
- import { CreateAppointmentDto } from './dto/create-appointment.dto'
-
-
- const parseMultipartData = (input: Record<string, any>) => {
-   const data = { ...input }
-   for (const [key, value] of Object.entries(data)) {
-     if (typeof value === 'string') {
-       const trimmed = value.trim()
-       if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-         try {
-           data[key] = JSON.parse(trimmed)
-         } catch {
-           data[key] = value
-         }
-       }
-     }
-   }
-   return data
- }
-
-
- @Controller('booking')
- export class BookingController {
-   constructor(private readonly booking: BookingService) {}
-
-@@ -202,50 +202,57 @@ export class BookingController {
-     @Query('serviceId') serviceId: string,
-     @Query('date') date: string,
-   ) {
-     const parsedBranchId = Number(branchId)
-     const parsedServiceId = Number(serviceId)
-     if (!Number.isInteger(parsedBranchId) || parsedBranchId < 1) {
-       throw new BadRequestException('branchId must be a positive integer')
-     }
-     if (!Number.isInteger(parsedServiceId) || parsedServiceId < 1) {
-       throw new BadRequestException('serviceId must be a positive integer')
-     }
-     if (!date) {
-       throw new BadRequestException('date is required')
-     }
-
-     return this.booking.getSlotSuggestions(parsedBranchId, parsedServiceId, date)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN', 'STAFF')
-   @Get('appointments')
-   appointments(@CurrentUser() user: JwtUser) {
-     return this.booking.listAppointments(user)
-   }
-
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles('ADMIN', 'STAFF')
-+  @Get('appointments/stats')
-+  appointmentStats(@Query() query: AppointmentStatsQueryDto, @CurrentUser() user: JwtUser) {
-+    return this.booking.getAppointmentStats(query, user)
-+  }
-+
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN', 'STAFF')
-   @Patch('appointments/:id')
-   updateAppointment(@Param('id', ParseIntPipe) id: number, @Body() data: any, @CurrentUser() user: JwtUser) {
-     return this.booking.updateAppointment(id, data, user)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Delete('appointments/:id')
-   deleteAppointment(@Param('id', ParseIntPipe) id: number) {
-     return this.booking.deleteAppointment(id)
-   }
-
-   @Get('service-reviews')
-   serviceReviews(@Query() query: BookingFilterQueryDto) {
-     return this.booking.listServiceReviews(query.serviceId)
-   }
-
-   @Post('service-reviews')
-   createServiceReview(@Body() data: any) {
-     return this.booking.createServiceReview(data)
-   }
-
-   @Delete('service-reviews/:id')
-diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-index ed1f6748184bb93f9d97db08520fa3c1207e7d70..c37113084272f0e1d37c278a77bfb73e4f3c4cf5 100644
---- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-@@ -1,35 +1,36 @@
- import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
- import { Prisma, Role } from '@prisma/client'
- import * as bcrypt from 'bcrypt'
- import { promises as fs } from 'fs'
- import { createHash, createHmac, randomBytes } from 'crypto'
- import { extname, join } from 'path'
- import * as tls from 'tls'
- import { PrismaService } from '../prisma/prisma.service'
- import type { JwtUser } from '../auth/decorators/current-user.decorator'
- import { CreateAppointmentDto } from './dto/create-appointment.dto'
-+import { AppointmentStatsQueryDto } from './dto/booking-query.dto'
- import {
-   BranchResponseDto,
-   ServiceCatalogItemDto,
-   ServiceCategoryResponseDto,
-   ServiceListResponseDto,
-   ServiceDetailResponseDto,
-   ServiceResponseDto,
-   ServiceReviewResponseDto,
-   SpecialistResponseDto,
-   TempImageResponseDto,
- } from './dto/booking-response.dto'
-
- @Injectable()
- export class BookingService {
-   private readonly logger = new Logger(BookingService.name)
-
-   constructor(private readonly prisma: PrismaService) {}
-
-   private toPositiveIntArray(value: unknown): number[] {
-     if (!Array.isArray(value)) return []
-     return [...new Set(value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0))]
-   }
-
-   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
-   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
-@@ -367,50 +368,139 @@ export class BookingService {
-       },
-       select: {
-         id: true,
-         name: true,
-         level: true,
-         bio: true,
-         branchId: true,
-         user: { select: { email: true } },
-         serviceLinks: { select: { serviceId: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
-
-     return rows.map((s) => ({
-       id: s.id,
-       name: s.name,
-       email: s.user.email,
-       level: s.level,
-       bio: s.bio,
-       branchId: s.branchId,
-       serviceIds: [...new Set(s.serviceLinks.map((srv) => srv.serviceId))],
-     }))
-   }
-
-
-+
-+
-+  async getAppointmentStats(query: AppointmentStatsQueryDto, user: JwtUser) {
-+    const whereScope = await this.resolveAppointmentScope(user)
-+    const where: Prisma.AppointmentWhereInput = {
-+      ...whereScope,
-+      ...(query.branchId ? { branchId: query.branchId } : {}),
-+      ...(query.serviceId ? { serviceId: query.serviceId } : {}),
-+      ...(query.specialistId ? { specialistId: query.specialistId } : {}),
-+      ...(query.customerPhone?.trim() ? { customerPhone: { contains: query.customerPhone.trim() } } : {}),
-+    }
-+
-+    const [total, statsRows] = await Promise.all([
-+      this.prisma.appointment.count({ where }),
-+      this.prisma.appointment.findMany({
-+        where,
-+        select: {
-+          status: true,
-+          serviceId: true,
-+          specialistId: true,
-+          appointmentAt: true,
-+        },
-+      }),
-+    ])
-+
-+    const statusBucket = new Map<string, number>()
-+    const serviceBucket = new Map<number | null, number>()
-+    const specialistBucket = new Map<number | null, number>()
-+    const monthBucket = new Map<string, number>()
-+
-+    statsRows.forEach((row) => {
-+      const statusKey = row.status || 'PENDING'
-+      statusBucket.set(statusKey, (statusBucket.get(statusKey) || 0) + 1)
-+      serviceBucket.set(row.serviceId ?? null, (serviceBucket.get(row.serviceId ?? null) || 0) + 1)
-+      specialistBucket.set(row.specialistId ?? null, (specialistBucket.get(row.specialistId ?? null) || 0) + 1)
-+
-+      const date = row.appointmentAt
-+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-+      monthBucket.set(monthKey, (monthBucket.get(monthKey) || 0) + 1)
-+    })
-+
-+    const byServiceRows = [...serviceBucket.entries()]
-+      .sort((a, b) => b[1] - a[1])
-+      .slice(0, 8)
-+      .map(([serviceId, count]) => ({ serviceId, count }))
-+
-+    const bySpecialistRows = [...specialistBucket.entries()]
-+      .sort((a, b) => b[1] - a[1])
-+      .slice(0, 8)
-+      .map(([specialistId, count]) => ({ specialistId, count }))
-+
-+    const serviceIds = byServiceRows
-+      .map((row) => row.serviceId)
-+      .filter((id): id is number => typeof id === 'number')
-+
-+    const specialistIds = bySpecialistRows
-+      .map((row) => row.specialistId)
-+      .filter((id): id is number => typeof id === 'number')
-+
-+    const [serviceMapRows, specialistMapRows] = await Promise.all([
-+      serviceIds.length
-+        ? this.prisma.service.findMany({ where: { id: { in: serviceIds } }, select: { id: true, name: true } })
-+        : Promise.resolve([]),
-+      specialistIds.length
-+        ? this.prisma.specialist.findMany({ where: { id: { in: specialistIds } }, select: { id: true, name: true } })
-+        : Promise.resolve([]),
-+    ])
-+
-+    const serviceNameMap = new Map(serviceMapRows.map((row) => [row.id, row.name]))
-+    const specialistNameMap = new Map(specialistMapRows.map((row) => [row.id, row.name]))
-+
-+    return {
-+      total,
-+      byStatus: [...statusBucket.entries()].reduce<Record<string, number>>((acc, [status, value]) => {
-+        acc[status] = value
-+        return acc
-+      }, {}),
-+      byService: byServiceRows.map((row) => ({
-+        label: row.serviceId ? (serviceNameMap.get(row.serviceId) || `Dịch vụ #${row.serviceId}`) : 'Khác',
-+        value: row.count,
-+      })),
-+      bySpecialist: bySpecialistRows.map((row) => ({
-+        label: row.specialistId ? (specialistNameMap.get(row.specialistId) || `Chuyên viên #${row.specialistId}`) : 'Chưa phân công',
-+        value: row.count,
-+      })),
-+      byMonth: [...monthBucket.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value })),
-+    }
-+  }
-+
-   async listAppointments(user: JwtUser) {
-     const where = await this.resolveAppointmentScope(user)
-     return this.prisma.appointment.findMany({
-       where,
-       include: {
-         branch: { select: { id: true, name: true } },
-         service: { select: { id: true, name: true, durationMin: true, price: true } },
-         specialist: { select: { id: true, name: true, level: true } },
-       },
-       orderBy: { appointmentAt: 'desc' },
-     })
-   }
-
-   private parseDateWindow(date: string) {
-     const dayStart = new Date(`${date}T00:00:00`)
-     const dayEnd = new Date(`${date}T23:59:59.999`)
-     if (Number.isNaN(dayStart.getTime()) || Number.isNaN(dayEnd.getTime())) {
-       throw new BadRequestException('Invalid date format, expected yyyy-mm-dd')
-     }
-     return { dayStart, dayEnd }
-   }
-
-   private toTimeLabel(date: Date) {
-     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-   }
-diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-index 4240dfabb17a02bdccf06e8c197aae43e4896c49..70907530f9de2a72e76d849a94667f2196ac0450 100644
---- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-@@ -13,25 +13,49 @@ export class BookingFilterQueryDto {
-   @IsInt()
-   @Min(1)
-   serviceId?: number
-
-   @IsOptional()
-   @IsString()
-   q?: string
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   page?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   @Max(100)
-   pageSize?: number
-
-   @IsOptional()
-   @Transform(({ value }) => value === 'true' || value === true)
-   includeInactive?: boolean
- }
-+
-+export class AppointmentStatsQueryDto {
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  branchId?: number
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  serviceId?: number
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  specialistId?: number
-+
-+  @IsOptional()
-+  @IsString()
-+  customerPhone?: string
-+}
+           <div className='admin-filters-grid'>
+             <input className='admin-input' placeholder='Tên khách' value={listSearchName} onChange={(e) => { setListSearchName(e.target.value); setListPage(1) }} />
+             <input className='admin-input' placeholder='Số điện thoại' value={listSearchPhone} onChange={(e) => { setListSearchPhone(e.target.value); setListPage(1) }} />
+             <select className='admin-input' value={listBranchId} onChange={(e) => { setListBranchId(Number(e.target.value)); setListPage(1) }}>
+               <option value={0}>Tất cả chi nhánh</option>
+               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
