@@ -12,7 +12,6 @@ import CoursePlayerPage from "./pages/CoursePlayerPage";
 import CoursesPage from "./pages/CoursesPage";
 import HomePage from "./pages/HomePage";
 import LessonDetailPage from "./pages/LessonDetailPage";
-import ProductCategoryPage from "./pages/ProductCategoryPage";
 import ProductCheckoutPage from "./pages/ProductCheckoutPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 
@@ -38,7 +37,6 @@ export default function App() {
 
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:sku" element={<ProductDetailPage />} />
-        <Route path="/product-cate" element={<ProductCategoryPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/product-checkout" element={<ProductCheckoutPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
