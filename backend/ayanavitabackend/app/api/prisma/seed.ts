@@ -27,13 +27,7 @@ async function main() {
     },
   })
 
-  const seedCourses = [
-    { title: 'Course 1 - Basic', price: 99000 },
-    { title: 'Course 2 - Pro', price: 199000 },
-    { title: 'Course 3 - Master', price: 299000 },
-  ].map((c) => ({ ...c, slug: slugify(c.title) }))
-
-  await prisma.course.createMany({ data: seedCourses, skipDuplicates: true })
+  // Course/Lesson sample seeds removed as requested
 
   const branchSeeds = [
     { code: 'HCM_Q1', name: 'AYANAVITA • Quận 1 (HCM)', address: '12 Nguyễn Huệ, Quận 1, TP.HCM', phone: '0900000001' },

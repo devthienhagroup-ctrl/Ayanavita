@@ -7,6 +7,8 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UploadedFile,
+  UseInterceptors,
   UseGuards,
 } from '@nestjs/common'
 import { LessonsService } from './lessons.service'
@@ -16,6 +18,8 @@ import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { RolesGuard } from '../auth/guards/roles.guard'
 import { Roles } from '../auth/decorators/roles.decorator'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { memoryStorage } from 'multer'
 
 @UseGuards(AccessTokenGuard) // bắt buộc đăng nhập cho toàn controller
 @Controller()
@@ -41,6 +45,20 @@ export class LessonsController {
     @Body() dto: CreateLessonDto,
   ) {
     return this.lessons.create(courseId, dto)
+  }
+
+
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Post('lessons/:id/modules/:moduleId/videos/upload')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadModuleVideo(
+    @Param('id', ParseIntPipe) lessonId: number,
+    @Param('moduleId') moduleId: string,
+    @UploadedFile() file?: any,
+  ) {
+    if (!file) return { message: 'Missing video file' }
+    return this.lessons.uploadModuleVideo(lessonId, moduleId, file)
   }
 
   // ADMIN: update lesson

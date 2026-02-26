@@ -1,28 +1,4 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator'
+import { PartialType } from '@nestjs/mapped-types'
+import { CreateLessonDto } from './create-lesson.dto'
 
-export class UpdateLessonDto {
-  @IsOptional()
-  @IsString()
-  title?: string
-
-  @IsOptional()
-  @IsString()
-  slug?: string
-
-  @IsOptional()
-  @IsString()
-  content?: string
-
-  @IsOptional()
-  @IsString()
-  videoUrl?: string
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  order?: number
-
-  @IsOptional()
-  @IsBoolean()
-  published?: boolean
-}
+export class UpdateLessonDto extends PartialType(CreateLessonDto) {}

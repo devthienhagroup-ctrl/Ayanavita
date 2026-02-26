@@ -272,6 +272,43 @@ export default function AdminCoursesPage() {
     setTopicForm(toTopicForm(topic))
   }
 
+
+  const createCourse = async (payload: any) => {
+    try {
+      await adminCoursesApi.createCourse(payload)
+      AlertJs.success('Đã tạo khoá học')
+      await loadAll()
+    } catch (e: any) {
+      AlertJs.error(e?.message || 'Tạo khoá học thất bại')
+      throw e
+    }
+  }
+
+  const updateCourse = async (id: number, payload: any) => {
+    try {
+      await adminCoursesApi.updateCourse(id, payload)
+      AlertJs.success('Đã cập nhật khoá học')
+      await loadAll()
+    } catch (e: any) {
+      AlertJs.error(e?.message || 'Cập nhật khoá học thất bại')
+      throw e
+    }
+  }
+
+  const deleteCourse = async (course: CourseAdmin) => {
+    const ok = window.confirm(`Xoá khoá học "${course.title}"?`)
+    if (!ok) return
+
+    try {
+      await adminCoursesApi.deleteCourse(course.id)
+      AlertJs.success('Đã xoá khoá học')
+      await loadAll()
+    } catch (e: any) {
+      AlertJs.error(e?.message || 'Xoá khoá học thất bại')
+      throw e
+    }
+  }
+
   return (
     <main className={`admin-page admin-courses-theme ${theme === 'dark' ? 'admin-courses-theme-dark' : ''}`}>
       <section className='admin-header'>
@@ -367,7 +404,16 @@ export default function AdminCoursesPage() {
         />
       )}
 
-      {!loading && tab === 'courses' && <CoursesTab courses={courses} />}
+      {!loading && tab === 'courses' && (
+        <CoursesTab
+          courses={courses}
+          topics={topics}
+          text={t}
+          onCreateCourse={createCourse}
+          onUpdateCourse={updateCourse}
+          onDeleteCourse={deleteCourse}
+        />
+      )}
     </main>
   )
 }

@@ -243,16 +243,25 @@ model RegistrationOtp {
 }
 
 model Course {
-  id          Int      @id @default(autoincrement())
-  topicId     Int?
-  title       String
-  slug        String   @unique
-  description String?
-  thumbnail   String?
-  price       Int      @default(0)
-  published   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  topicId             Int?
+  title               String
+  slug                String   @unique
+  description         String?
+  thumbnail           String?
+  price               Int      @default(0)
+  published           Boolean  @default(false)
+  titleI18n           Json?
+  descriptionI18n     Json?
+  shortDescriptionI18n Json?
+  objectives          Json?
+  targetAudience      Json?
+  benefits            Json?
+  ratingAvg           Float    @default(0)
+  ratingCount         Int      @default(0)
+  enrollmentCount     Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   lessons     Lesson[]
   enrollments Enrollment[]
@@ -291,21 +300,63 @@ model CourseTopicTranslation {
 }
 
 model Lesson {
-  id        Int              @id @default(autoincrement())
-  courseId  Int
-  title     String
-  slug      String
-  content   String?          @db.LongText
-  videoUrl  String?
-  order     Int              @default(0)
-  published Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  progress  LessonProgress[]
+  id              Int              @id @default(autoincrement())
+  courseId        Int
+  title           String
+  slug            String
+  description     String?
+  content         String?          @db.LongText
+  videoUrl        String?
+  titleI18n       Json?
+  descriptionI18n Json?
+  order           Int              @default(0)
+  published       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress        LessonProgress[]
+  modules         LessonModule[]
 
   @@unique([courseId, slug])
   @@index([courseId, order])
+}
+
+model LessonModule {
+  id              Int          @id @default(autoincrement())
+  lessonId        Int
+  title           String
+  description     String?
+  titleI18n       Json?
+  descriptionI18n Json?
+  order           Int          @default(0)
+  published       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  videos LessonVideo[]
+
+  @@index([lessonId, order])
+}
+
+model LessonVideo {
+  id              Int          @id @default(autoincrement())
+  moduleId        Int
+  title           String
+  description     String?
+  titleI18n       Json?
+  descriptionI18n Json?
+  sourceUrl       String?
+  hlsPlaylistKey  String?
+  durationSec     Int          @default(0)
+  order           Int          @default(0)
+  published       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId, order])
 }
 
 model Enrollment {
