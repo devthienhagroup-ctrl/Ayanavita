@@ -497,13 +497,7 @@ export default function ProductDetailPage() {
 
                 <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                   <div className="font-extrabold">{cmsData.gallery.highlightsTitle}</div>
-                  <ul className="mt-2 grid gap-2 text-sm text-slate-700">
-                    {detail.highlights.map((x, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-amber-600 font-extrabold">{cmsData.gallery.bulletIcon}</span>{x}
-                        </li>
-                    ))}
-                  </ul>
+                  Mô tả ngắn ở đây
                 </div>
               </div>
 
@@ -635,21 +629,8 @@ export default function ProductDetailPage() {
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="card p-6 lg:col-span-2">
               <div className="text-xs font-extrabold text-slate-500">{cmsData.overview.sectionTitle}</div>
-              <div className="text-2xl font-extrabold">{cmsData.overview.title}</div>
-              <p className="mt-4 text-slate-700 leading-relaxed">{detail.longDesc}</p>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {cmsData.overview.boxes.map((box, idx) => (
-                    <div key={idx} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                      <div className="font-extrabold"><i className={`${box.icon} mr-2 ${box.iconColor}`} />{box.title}</div>
-                      <div className="mt-1 text-sm text-slate-700">
-                        {idx === 0 && goalLabel(detail.target as any)}
-                        {idx === 1 && "7–14 ngày thấy thay đổi (demo)"}
-                        {idx === 2 && "Thấm nhanh • Không nặng mặt (demo)"}
-                      </div>
-                    </div>
-                ))}
-              </div>
+              <p className="mt-4 text-slate-700 leading-relaxed">Mô tả chi tiết ở đây</p>
             </div>
 
             <div className="card p-6">
@@ -657,18 +638,14 @@ export default function ProductDetailPage() {
               <div className="text-2xl font-extrabold">{cmsData.specs.title}</div>
 
               <div className="mt-5 grid gap-3 text-sm">
-                {cmsData.specs.items.map((item, idx) => (
-                    <div key={idx} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex items-center justify-between">
-                      <span className="text-slate-500 font-extrabold">{item.label}</span>
+                  {/*Lặp qua danh sách thuộc tính*/}
+                    <div  className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex items-center justify-between">
+                      <span className="text-slate-500 font-extrabold">Tên hiển thị của thuộc tính</span>
                       <b>
-                        {idx === 0 && detail.size}
-                        {idx === 1 && detail.skinType}
-                        {idx === 2 && "Việt Nam (demo)"}
-                        {idx === 3 && "24 tháng"}
-                        {idx === 4 && "Nơi khô ráo"}
+                        Giá trị thuộc tính
                       </b>
                     </div>
-                ))}
+
               </div>
 
               <div className="mt-5 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -692,26 +669,15 @@ export default function ProductDetailPage() {
               <div>
                 <div className="text-xs font-extrabold text-slate-500">{cmsData.ingredients.sectionTitle}</div>
                 <div className="text-2xl font-extrabold">{cmsData.ingredients.title}</div>
-                <div className="mt-1 text-sm text-slate-700">{cmsData.ingredients.description}</div>
               </div>
-              <span className="chip">
-              <i className={`${cmsData.ingredients.chip.icon} ${cmsData.ingredients.chip.iconColor}`} />
-                {cmsData.ingredients.chip.text}
-            </span>
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {detail.ingredients.map((i, idx) => (
-                  <div key={idx} className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                    <div className="font-extrabold">{i.name}</div>
-                    <div className="mt-2 text-sm text-slate-700">{i.desc}</div>
+              {/*Lặp qua thành phần*/}
+                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                    <div className="font-extrabold">Tên Thành phần  </div>
+                    <div className="mt-2 text-sm text-slate-700">Giá trị thành phần</div>
                   </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-              <div className="font-extrabold">{cmsData.ingredients.noteTitle}</div>
-              <div className="mt-2 text-sm text-slate-700">{cmsData.ingredients.noteText}</div>
             </div>
           </div>
         </section>
@@ -722,40 +688,17 @@ export default function ProductDetailPage() {
             <div className="card p-6 lg:col-span-2">
               <div className="text-xs font-extrabold text-slate-500">{cmsData.usage.sectionTitle}</div>
               <div className="text-2xl font-extrabold">{cmsData.usage.title}</div>
+              <p>Mô tả ngắn của hướng dẫn sử dụng</p>
+              <div className="mt-4">
+                <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                  <ol className="mt-3 grid gap-2 text-sm text-slate-700">
+                   {/*Lặp qua các bước trong hướng dẫn sử dụng*/}
+                        <li className="flex gap-2"><span className="font-extrabold text-amber-600">STT. </span>Nội dung bước</li>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                  <div className="font-extrabold">
-                    <i className={`${cmsData.usage.morning.icon} mr-2 ${cmsData.usage.morning.iconColor}`} />
-                    {cmsData.usage.morning.title}
-                  </div>
-                  <ol className="mt-3 grid gap-2 text-sm text-slate-700">
-                    {detail.usage.am.map((x, i) => (
-                        <li key={i} className="flex gap-2"><span className="font-extrabold text-amber-600">{i + 1}.</span>{x}</li>
-                    ))}
-                  </ol>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                  <div className="font-extrabold">
-                    <i className={`${cmsData.usage.evening.icon} mr-2 ${cmsData.usage.evening.iconColor}`} />
-                    {cmsData.usage.evening.title}
-                  </div>
-                  <ol className="mt-3 grid gap-2 text-sm text-slate-700">
-                    {detail.usage.pm.map((x, i) => (
-                        <li key={i} className="flex gap-2"><span className="font-extrabold text-indigo-600">{i + 1}.</span>{x}</li>
-                    ))}
                   </ol>
                 </div>
               </div>
 
-              <div className="mt-5 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                <div className="font-extrabold">{cmsData.usage.checklistTitle}</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {detail.checklist.map((x, i) => (
-                      <span key={i} className="chip"><i className="fa-solid fa-circle-check text-emerald-600" />{x}</span>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div className="card p-6">
