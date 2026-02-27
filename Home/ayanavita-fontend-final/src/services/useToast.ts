@@ -12,7 +12,7 @@ export function useToast() {
 
   const push = useCallback((title: string, desc = "") => {
     const id = Math.random().toString(16).slice(2);
-    setItems([{ id, title, desc }]);
+    setItems((prev) => [{ id, title, desc }, ...prev]);
     window.setTimeout(() => {
       setItems((prev) => prev.filter((x) => x.id !== id));
     }, 4200);

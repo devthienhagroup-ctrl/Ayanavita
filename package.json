@@ -11,13 +11,11 @@
     "url": "https://github.com/devthienhagroup-ctrl/Ayanavita.git"
   },
   "private": true,
-  "dependencies": {
-    "@prisma/client": "^7.4.1",
-    "flag-icons": "^7.5.0",
-    "prisma": "^7.4.1",
+  "devDependencies": {
     "vite": "^7.3.1"
   },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^5.1.4"
+  "dependencies": {
+    "@prisma/client": "^7.4.1",
+    "prisma": "^7.4.1"
   }
 }
