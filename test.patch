@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
 index 8dadf09184750b19b99d2469dc1275352b126441..0f8781a0286cc222b0d9817b7445ae9bb5bbf619 100644
 --- a/ayanavita-fontend/src/api/adminCourses.api.ts
@@ -2696,5 +2697,622 @@ index 985136e456ea0cf01f1d275fc570f28d3ea5c9a5..addf16d317fe52ae31d7b1958d37cbb6
 -  // ADMIN: delete lesson
    remove(id: number) {
      return this.prisma.lesson.delete({ where: { id } })
+=======
+diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
+index ec0414b697beac79b80e2be8f84c8b11fc5ffafb..3ac96cbb997fddd2695c68b639f0dd5868d89c94 100644
+--- a/Home/ayanavita-fontend-final/src/App.tsx
++++ b/Home/ayanavita-fontend-final/src/App.tsx
+@@ -14,44 +14,44 @@ import HomePage from "./pages/HomePage";
+ import LessonDetailPage from "./pages/LessonDetailPage";
+ import ProductCheckoutPage from "./pages/ProductCheckoutPage";
+ import ProductDetailPage from "./pages/ProductDetailPage";
+
+ import ProductsPage from "./pages/ProductsPage";
+ import ReviewsCenterPage from "./pages/ReviewsCenterPage";
+ import ServiceDetailPage from "./pages/ServiceDetailPage";
+ import ServicesPage from "./pages/ServicesPage";
+ import TrackOrderPage from "./pages/TrackOrderPage";
+
+ export default function App() {
+   return (
+     <Routes>
+       <Route element={<Layout />}>
+         <Route path="/" element={<HomePage />} />
+         <Route path="/services" element={<ServicesPage />} />
+         <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
+         <Route path="/booking" element={<BookingPage />} />
+
+         <Route path="/courses" element={<CoursesPage />} />
+         <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+         <Route path="/courses/:courseId/lesson" element={<LessonDetailPage />} />
+         <Route path="/courses/player" element={<CoursePlayerPage />} />
+
+         <Route path="/products" element={<ProductsPage />} />
+-        <Route path="/products/:sku" element={<ProductDetailPage />} />
++        <Route path="/products/:slug" element={<ProductDetailPage />} />
+         <Route path="/cart" element={<CartPage />} />
+         <Route path="/product-checkout" element={<ProductCheckoutPage />} />
+         <Route path="/checkout" element={<CheckoutPage />} />
+         <Route path="/compare" element={<ComparePage />} />
+         <Route path="/track-order" element={<TrackOrderPage />} />
+
+         <Route path="/reviews" element={<ReviewsCenterPage />} />
+         <Route path="/blog" element={<BlogPage />} />
+         <Route path="/contact" element={<ContactPage />} />
+
+
+         <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>} />
+         <Route path="/account" element={<div className="p-6">Account (todo)</div>} />
+         <Route path="*" element={<div className="p-6">Not found</div>} />
+       </Route>
+     </Routes>
+   );
+ }
+diff --git a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
+index 846f6fa15fdb1799b2cb22e7a86594f0db6b37db..37eeed5d3c95d72fc9ebc8d5597fe3edfa8f30ef 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
+@@ -131,51 +131,51 @@ const defaultCmsData = {
+       items: [
+         "Giá niêm yết rõ ràng",
+         "Hỗ trợ tư vấn routine",
+         "Review minh bạch (demo)"
+       ],
+       bulletIcon: "•"
+     }
+   },
+   ingredients: {
+     sectionTitle: "Thành phần",
+     title: "Thành phần nổi bật (demo)",
+     description: "Bạn thay bằng thành phần thật theo sản phẩm trong DB.",
+     chip: { text: "INCI (mô phỏng)", icon: "fa-solid fa-flask", iconColor: "text-indigo-600" },
+     noteTitle: "Lưu ý",
+     noteText: "Prototype: không đưa claim y khoa. Khi làm thật nên có cảnh báo dị ứng/patch test và hướng dẫn theo chuyên gia."
+   },
+   usage: {
+     sectionTitle: "Cách dùng",
+     title: "Routine gợi ý",
+     morning: { title: "Buổi sáng", icon: "fa-solid fa-sun", iconColor: "text-amber-600" },
+     evening: { title: "Buổi tối", icon: "fa-solid fa-moon", iconColor: "text-indigo-600" },
+     checklistTitle: "Checklist nhanh"
+   },
+   combo: {
+     sectionTitle: "Combo đề xuất",
+-    title: "Mua cùng",
++    title: "Sản phẩm cùng danh mục",
+     disclaimer: "Prototype: sản phẩm liên quan lấy từ dữ liệu demo."
+   },
+   reviews: {
+     sectionTitle: "Đánh giá",
+     summaryTitle: "Tổng quan review",
+     filterTitle: "Bộ lọc",
+     sortOptions: [
+       { value: "new", text: "Mới nhất" },
+       { value: "high", text: "Sao cao" },
+       { value: "low", text: "Sao thấp" }
+     ],
+     starFilterOptions: [
+       { value: "all", text: "Tất cả sao" },
+       { value: "5", text: "5 sao" },
+       { value: "4", text: "4 sao" },
+       { value: "3", text: "3 sao" },
+       { value: "2", text: "2 sao" },
+       { value: "1", text: "1 sao" }
+     ],
+     writeReviewButton: { text: "Viết đánh giá", icon: "fa-solid fa-pen-to-square" },
+     listTitle: "Review",
+     listSubtitle: "Khách hàng nói gì?",
+     disclaimer: "Prototype: review lưu localStorage, bạn có thể nối backend.",
+     searchPlaceholder: "Tìm trong review...",
+     noReviewsText: "Không có review phù hợp bộ lọc."
+@@ -193,129 +193,129 @@ const defaultCmsData = {
+         answer: "Thường 7–14 ngày (demo). Khi làm thật mô tả theo khuyến nghị thực tế."
+       },
+       {
+         question: "Giá niêm yết có thay đổi không?",
+         answer: "Giá có thể cập nhật theo thời điểm. Khi làm thật, lưu lịch sử giá/khuyến mãi."
+       }
+     ]
+   }
+ };
+
+ // ==================== UTILS ====================
+ function copyToClipboard(text: string) {
+   if (!text) return;
+   const nav: any = navigator;
+   if (nav.clipboard?.writeText) return nav.clipboard.writeText(text);
+   const ta = document.createElement("textarea");
+   ta.value = text;
+   document.body.appendChild(ta);
+   ta.select();
+   document.execCommand("copy");
+   document.body.removeChild(ta);
+ }
+
+ // ==================== COMPONENT ====================
+ export default function ProductDetailPage() {
+-  const { sku: skuParam } = useParams<{ sku: string }>();
++  const { slug: slugParam } = useParams<{ slug: string }>();
+   const navigate = useNavigate();
+
+   // ===== NGÔN NGỮ & CMS DYNAMIC =====
+   const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+     return localStorage.getItem("preferred-language") || "vi";
+   });
+
+   const [detailData, setDetailData] = useState<any>(null);
+   const [cmsData, setCmsData] = useState(defaultCmsData);
+   const [apiProduct, setApiProduct] = useState<any>(null);
+   const [loadingProduct, setLoadingProduct] = useState(false);
+   const [productError, setProductError] = useState<string | null>(null);
+
+   // Lắng nghe sự kiện thay đổi ngôn ngữ
+   useEffect(() => {
+     const handleLanguageChange = (event: CustomEvent) => {
+       setCurrentLanguage(event.detail.language);
+     };
+
+     window.addEventListener('languageChange', handleLanguageChange as EventListener);
+     return () => {
+       window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+     };
+   }, []);
+
+   // Gọi API khi ngôn ngữ thay đổi
+   useEffect(() => {
+     const fetchData = async () => {
+       try {
+         const res = await http.get(`/public/pages/productDetail?lang=${currentLanguage}`);
+         setDetailData(res.data);
+         console.log("Product Detail CMS data:", res.data);
+         // Ghi đè cmsData bằng dữ liệu từ sections[2] nếu có
+         if (res.data?.sections?.[2]?.data) {
+           console.log("Overriding CMS data with API data from sections[2].data", res.data.sections[2].data);
+           setCmsData(res.data.sections[2].data);
+           setTimeout(() => {console.log("Sau khi đợi 2s",cmsData)}, 2000)
+
+         }
+       } catch (error) {
+         console.error("Failed to fetch CMS data:", error);
+         // Giữ nguyên cmsData mặc định
+       }
+     };
+     fetchData();
+   }, [currentLanguage]);
+
+   useEffect(() => {
+-    if (!skuParam) return;
++    if (!slugParam) return;
+
+     let cancelled = false;
+     const fetchProductDetail = async () => {
+       setLoadingProduct(true);
+       setProductError(null);
+       try {
+-        const res = await http.get(`/public/catalog/products/${skuParam}?lang=${currentLanguage}`);
++        const res = await http.get(`/public/catalog/products/slug/${slugParam}?lang=${currentLanguage}`);
+         if (!cancelled) {
+           setApiProduct(res.data);
+         }
+-        console.log(`GET /public/catalog/products/${skuParam} response:`, res.data);
++        console.log(`GET /public/catalog/products/slug/${slugParam} response:`, res.data);
+       } catch (error) {
+-        console.error('GET /public/catalog/products/:sku failed:', error);
++        console.error('GET /public/catalog/products/slug/:slug failed:', error);
+         if (!cancelled) {
+           setApiProduct(null);
+           setProductError("Không tải được dữ liệu sản phẩm từ API.");
+         }
+       } finally {
+         if (!cancelled) setLoadingProduct(false);
+       }
+     };
+
+     fetchProductDetail();
+     return () => {
+       cancelled = true;
+     };
+-  }, [skuParam, currentLanguage]);
++  }, [slugParam, currentLanguage]);
+
+-  const productKey = useMemo(() => String(apiProduct?.sku || skuParam || ""), [apiProduct?.sku, skuParam]);
++  const productKey = useMemo(() => String(apiProduct?.sku || slugParam || ""), [apiProduct?.sku, slugParam]);
+
+   const images = useMemo(() => {
+     const rows = Array.isArray(apiProduct?.images) ? apiProduct.images.slice() : [];
+     // Ưu tiên sortOrder tăng dần, rồi ưu tiên isPrimary
+     rows.sort((a: any, b: any) => {
+       const ao = Number.isFinite(Number(a?.sortOrder)) ? Number(a.sortOrder) : 999999;
+       const bo = Number.isFinite(Number(b?.sortOrder)) ? Number(b.sortOrder) : 999999;
+       if (ao !== bo) return ao - bo;
+       if (!!a?.isPrimary !== !!b?.isPrimary) return a?.isPrimary ? -1 : 1;
+       return 0;
+     });
+     const urls = rows.map((x: any) => x?.imageUrl).filter(Boolean);
+     if (urls.length) {
+       const primary = rows.find((x: any) => x?.isPrimary && x?.imageUrl)?.imageUrl;
+       if (primary) return [primary, ...urls.filter((u: string) => u !== primary)];
+       return urls;
+     }
+     return apiProduct?.image ? [apiProduct.image] : [];
+   }, [apiProduct]);
+
+   const [mainImg, setMainImg] = useState(images[0]);
+   useEffect(() => {
+     setMainImg(images[0]);
+     window.scrollTo({ top: 0, behavior: "smooth" });
+   }, [productKey, images]);
+@@ -369,57 +369,57 @@ export default function ProductDetailPage() {
+   const shortDesc = apiProduct?.shortDescription || "";
+   const longDesc = apiProduct?.description || "";
+
+   const ingredients = useMemo(() => {
+     return Array.isArray(apiProduct?.ingredients)
+         ? apiProduct.ingredients
+             .map((x: any) => ({ name: x?.name, desc: x?.value || x?.note || "" }))
+             .filter((x: any) => x?.name)
+         : [];
+   }, [apiProduct?.ingredients]);
+
+   const formatAttributeValue = (a: any) => {
+     if (a?.valueText != null && String(a.valueText).trim() !== "") return String(a.valueText);
+     if (a?.valueNumber != null && a.valueNumber !== "") return String(a.valueNumber);
+     if (a?.valueBoolean != null) return a.valueBoolean ? "Có" : "Không";
+     if (a?.valueJson != null) {
+       try {
+         return typeof a.valueJson === "string" ? a.valueJson : JSON.stringify(a.valueJson);
+       } catch {
+         return "[json]";
+       }
+     }
+     return "—";
+   };
+
+-  if (!skuParam) {
++  if (!slugParam) {
+     return (
+         <div className="text-slate-900">
+           <main className="px-4 pb-10">
+             <div className="max-w-4xl mx-auto card p-6">
+               <div className="text-2xl font-extrabold">Thiếu mã sản phẩm</div>
+-              <div className="mt-2 text-slate-600">URL không có tham số SKU.</div>
++              <div className="mt-2 text-slate-600">URL không có tham số slug sản phẩm.</div>
+               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
+             </div>
+           </main>
+         </div>
+     );
+   }
+
+   if (loadingProduct) {
+     return (
+         <div className="text-slate-900">
+           <main className="px-4 pb-10">
+             <div className="max-w-7xl mx-auto">
+               <div className="card p-6">
+                 <div className="text-2xl font-extrabold">Đang tải sản phẩm…</div>
+                 <div className="mt-2 text-slate-600">Vui lòng đợi một chút.</div>
+               </div>
+             </div>
+           </main>
+         </div>
+     );
+   }
+
+   if (productError || !apiProduct) {
+     return (
+         <div className="text-slate-900">
+@@ -754,65 +754,65 @@ export default function ProductDetailPage() {
+         {/* USAGE */}
+         <section id="usage" className="mx-auto max-w-7xl px-4 pb-10">
+           <div className="grid gap-5 lg:grid-cols-3">
+             <div className="card p-6 lg:col-span-2">
+               <div className="text-xs font-extrabold text-slate-500">{cmsData.usage.sectionTitle}</div>
+               <div className="text-2xl font-extrabold">{cmsData.usage.title}</div>
+               <p>{guideIntro || "—"}</p>
+               <div className="mt-4">
+                 <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                   <ol className="mt-3 grid gap-2 text-sm text-slate-700">
+                     {guideSteps.length ? guideSteps.map((s: any, idx: number) => (
+                         <li key={`${s?.order || idx}`} className="flex gap-2">
+                           <span className="font-extrabold text-amber-600">{idx + 1}. </span>
+                           {s?.content || "—"}
+                         </li>
+                     )) : (
+                         <li className="text-slate-600">Chưa có các bước hướng dẫn.</li>
+                     )}
+
+                   </ol>
+                 </div>
+               </div>
+
+             </div>
+
+-            {/* Combo đề xuất: chỉ hiển thị khi backend có dữ liệu liên quan */}
++            {/* Sản phẩm cùng danh mục: chỉ hiển thị khi backend có dữ liệu liên quan */}
+             {Array.isArray(apiProduct?.relatedProducts) && apiProduct.relatedProducts.length ? (
+                 <div className="card p-6">
+                   <div className="text-xs font-extrabold text-slate-500">{cmsData.combo.sectionTitle}</div>
+                   <div className="text-2xl font-extrabold">{cmsData.combo.title}</div>
+
+                   <div className="mt-4 grid gap-3">
+-                    {apiProduct.relatedProducts.map((p: any) => (
++                    {apiProduct.relatedProducts.slice(0, 5).map((p: any) => (
+                         <div key={p?.sku || p?.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                           <div className="flex gap-3">
+                             <img className="h-16 w-16 rounded-2xl object-cover border border-slate-200" src={p?.image || p?.img || images?.[0]} alt={p?.name || ""} />
+                             <div className="min-w-0">
+                               <div className="font-extrabold truncate">{p?.name}</div>
+                               <div className="text-sm text-slate-500">{money(Number(p?.price || 0))}</div>
+-                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.sku || p?.id}`)}>
++                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.slug || p?.sku || p?.id}`)}>
+                                 <i className="fa-solid fa-arrow-right mr-2" />Xem
+                               </button>
+                             </div>
+                           </div>
+                         </div>
+                     ))}
+                   </div>
+
+                   <div className="mt-4 text-xs text-slate-500">{cmsData.combo.disclaimer}</div>
+                 </div>
+             ) : null}
+           </div>
+         </section>
+
+         {/* REVIEWS */}
+         <section id="reviews" className="mx-auto max-w-7xl px-4 pb-10">
+           <div className="grid gap-5 lg:grid-cols-3">
+             <div className="card p-6">
+               <div className="text-xs font-extrabold text-slate-500">{cmsData.reviews.sectionTitle}</div>
+               <div className="text-2xl font-extrabold">{cmsData.reviews.summaryTitle}</div>
+
+               <div className="mt-4 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                 <div className="text-5xl font-extrabold">{effectiveAvg ? effectiveAvg.toFixed(1) : "—"}</div>
+                 <div className="mt-2 text-xl"><Stars value={effectiveAvg} /></div>
+                 <div className="mt-1 text-sm text-slate-500">{effectiveCount} {cmsData.purchaseBox.reviewText} • (demo)</div>
+diff --git a/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
+index 057571275eef1f7332637219ce694c283dc5f284..ce6a6a62a7406d6f1579ef9664569c1a37f9b941 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
+@@ -365,51 +365,51 @@ export default function ProductsPage() {
+               </div>
+             </aside>
+
+             <section className="lg:col-span-3">
+               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                 <div className="flex items-center gap-2 flex-wrap">
+                   {(cmsData?.badges || []).map((b: any) => (
+                     <span key={`${b.icon}-${b.text}`} className="chip">
+                       <i className={b.icon} />
+                       <span className="ml-2">{b.text}</span>
+                     </span>
+                   ))}
+                 </div>
+                 <div className="text-sm text-slate-600">
+                   {cmsData?.results?.label}: <b>{apiTotal}</b> {cmsData?.results?.unit}
+                 </div>
+               </div>
+
+               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                 {pageItems.length ? (
+                   pageItems.map((p) => (
+                     <ProductCard
+                       cmsData={productData?.sections?.[1]?.data}
+                       key={p.id}
+                       p={p}
+-                      detailTo={`/products/${String(p.sku)}`}
++                      detailTo={`/products/${String((p as any).slug || p.sku)}`}
+                       onCompare={handleCompareProduct}
+                     />
+                   ))
+                 ) : (
+                   <div className="text-slate-600 p-6">{cmsData?.emptyState}</div>
+                 )}
+               </div>
+
+               <PaginationBar
+                 cmsData={cmsData}
+                 page={safePage}
+                 totalPages={totalPages}
+                 onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                 onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+               />
+             </section>
+           </div>
+         </div>
+
+         <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">{cmsData?.footer}</div>
+       </main>
+
+       {compareToast.open ? (
+         <div className="fixed bottom-4 right-4 z-[90] w-[min(420px,calc(100vw-32px))] rounded-2xl border border-white/10 bg-slate-900 p-3 text-white shadow-2xl">
+           <div className="flex items-start justify-between gap-3">
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts
+index ebd49346c86df40081210422e0c1849c0fc22922..705fe07f930a0564fac051070bc617d768ac4ef4 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts
+@@ -1,18 +1,23 @@
+ import { Controller, Get, Param, Query } from '@nestjs/common'
+ import { PublicCatalogService } from './public-catalog.service'
+ import { PublicCatalogQueryDto } from './dto/public-catalog-query.dto'
+
+ @Controller('public/catalog')
+ export class PublicCatalogController {
+   constructor(private readonly service: PublicCatalogService) {}
+
+   @Get('products')
+   list(@Query() query: PublicCatalogQueryDto) {
+     return this.service.list(query, query.lang ?? 'vi')
+   }
+
+   @Get('products/:sku')
+   detail(@Param('sku') sku: string, @Query('lang') lang = 'vi') {
+     return this.service.detailBySku(sku, lang)
+   }
++
++  @Get('products/slug/:slug')
++  detailBySlug(@Param('slug') slug: string, @Query('lang') lang = 'vi') {
++    return this.service.detailBySlug(slug, lang)
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
+index c29cbb72b016cef1e62da985553d7493ce3366bf..4154a1a8b7a5385867fd13092ae440396609438f 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
+@@ -139,68 +139,129 @@ export class PublicCatalogService {
+         skip,
+         take: pageSize,
+       }),
+       this.prisma.catalogProduct.count({ where }),
+     ])
+
+     const items = rows.map((item) => this.mapProduct(item, lang))
+
+     if (query.sort === 'nameAsc') {
+       items.sort((a, b) => String(a.name).localeCompare(String(b.name), lang))
+     }
+
+     if (query.sort === 'nameDesc') {
+       items.sort((a, b) => String(b.name).localeCompare(String(a.name), lang))
+     }
+
+     return normalizeBigInt({
+       items,
+       page,
+       pageSize,
+       total,
+       totalPages: Math.max(1, Math.ceil(total / pageSize)),
+     })
+   }
+
+-  async detailBySku(sku: string, lang = 'vi') {
+-    const row = await this.prisma.catalogProduct.findFirst({
++  private getDetailInclude(lang: string): Prisma.CatalogProductInclude {
++    return {
++      translations: { where: { languageCode: lang }, take: 1 },
++      category: {
++        include: {
++          translations: { where: { languageCode: lang }, take: 1 },
++        },
++      },
++      images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
++      attributes: {
++        include: {
++          attributeKey: {
++            include: {
++              translations: { where: { languageCode: lang }, take: 1 },
++            },
++          },
++        },
++      },
++      ingredients: {
++        include: {
++          ingredientKey: {
++            include: {
++              translations: { where: { languageCode: lang }, take: 1 },
++            },
++          },
++        },
++        orderBy: { sortOrder: 'asc' },
++      },
++    }
++  }
++
++  private async buildDetailResponse(row: any, lang: string) {
++    const mapped = this.mapProduct(row, lang)
++
++    const relatedRows = await this.prisma.catalogProduct.findMany({
+       where: {
+-        sku,
+         status: 'active',
++        categoryId: row.categoryId,
++        id: { not: row.id },
+         translations: {
+           some: { languageCode: lang },
+         },
+       },
+       include: {
+         translations: { where: { languageCode: lang }, take: 1 },
+-        category: {
+-          include: {
+-            translations: { where: { languageCode: lang }, take: 1 },
+-          },
+-        },
+         images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
+-        attributes: {
+-          include: {
+-            attributeKey: {
+-              include: {
+-                translations: { where: { languageCode: lang }, take: 1 },
+-              },
+-            },
+-          },
++      },
++      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
++      take: 5,
++    })
++
++    const relatedProducts = relatedRows.map((item) => {
++      const translation = item.translations[0] ?? null
++      const primaryImage = item.images?.[0] ?? null
++      return {
++        id: item.id,
++        sku: item.sku,
++        slug: translation?.slug ?? item.sku,
++        name: translation?.name ?? item.sku,
++        price: item.price,
++        image: primaryImage?.imageUrl ?? null,
++      }
++    })
++
++    return normalizeBigInt({
++      ...mapped,
++      relatedProducts,
++    })
++  }
++
++  async detailBySku(sku: string, lang = 'vi') {
++    const row = await this.prisma.catalogProduct.findFirst({
++      where: {
++        sku,
++        status: 'active',
++        translations: {
++          some: { languageCode: lang },
+         },
+-        ingredients: {
+-          include: {
+-            ingredientKey: {
+-              include: {
+-                translations: { where: { languageCode: lang }, take: 1 },
+-              },
+-            },
++      },
++      include: this.getDetailInclude(lang),
++    })
++
++    if (!row) throw new NotFoundException('Product not found')
++    return this.buildDetailResponse(row, lang)
++  }
++
++  async detailBySlug(slug: string, lang = 'vi') {
++    const row = await this.prisma.catalogProduct.findFirst({
++      where: {
++        status: 'active',
++        translations: {
++          some: {
++            languageCode: lang,
++            slug,
+           },
+-          orderBy: { sortOrder: 'asc' },
+         },
+       },
++      include: this.getDetailInclude(lang),
+     })
+
+     if (!row) throw new NotFoundException('Product not found')
+-    return normalizeBigInt(this.mapProduct(row, lang))
++    return this.buildDetailResponse(row, lang)
+>>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
    }
  }

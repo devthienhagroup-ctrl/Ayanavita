@@ -1,8 +1,5 @@
 // src/pages/HomePage.tsx
-import React, { useCallback, useMemo, useState } from "react";
-import { ParticlesBackground } from "../components/layout/ParticlesBackground";
-import { Header } from "../components/layout/Header";
-import { Footer } from "../components/layout/Footer";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { TopBanner } from "../components/home/TopBanner";
 import { Stats } from "../components/home/Stats";
@@ -14,112 +11,116 @@ import { Outcomes } from "../components/home/Outcomes";
 import { Reviews } from "../components/home/Reviews";
 import { PricingSection } from "../components/home/PricingSection";
 import { ContactSection } from "../components/home/ContactSection";
-import { AuthModal } from "../components/home/AuthModal";
-import { SuccessModal } from "../components/home/SuccessModal";
-
-import { bannerSlides, partners } from "../data/home";
 import { BannerSlider } from "../components/home/BannerSlider";
 
-type AuthTab = "login" | "register";
-
-/**
- * Nếu bạn đã có component BannerSlider thật:
- * -> Hãy tạo file: src/components/home/BannerSlider.tsx
- * -> rồi import ở đây thay cho fallback bên dưới.
- */
-
-// ===== Fallback BannerSlider tối giản (không lỗi build) =====
-export type BannerSliderProps = {
-  slides?: any[];
-  onAction?: (action: unknown) => void;
-  intervalMs?: number;
-};
-
+import { partners } from "../data/home";
+import { http } from "../api/http";
 
 export default function HomePage() {
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authTab, setAuthTab] = useState<AuthTab>("login");
-  const [success, setSuccess] = useState<{ open: boolean; message: string }>({
-    open: false,
-    message: "",
-  });
+    const [homeData, setHomeData] = useState<any>(null);
 
-  const openAuth = useCallback((tab: AuthTab) => {
-    setAuthTab(tab);
-    setAuthOpen(true);
-  }, []);
+    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+        return localStorage.getItem("preferred-language") || "vi";
+    });
 
-  const openSuccess = useCallback((message: string) => {
-    setSuccess({ open: true, message });
-  }, []);
+    /* ================= Language Listener ================= */
 
-  const onSlideAction = useCallback(
-    (action: unknown) => {
-      if (action === "OPEN_AUTH_REGISTER") openAuth("register");
-    },
-    [openAuth]
-  );
+    useEffect(() => {
+        const handleLanguageChange = (event: CustomEvent) => {
+            setCurrentLanguage(event.detail.language);
+        };
 
-  const marqueeItems = useMemo(() => [...partners, ...partners], []);
+        window.addEventListener(
+            "languageChange",
+            handleLanguageChange as EventListener
+        );
 
-  return (
-    <div className="bg-slate-50 text-slate-900">
-      <ParticlesBackground />
+        return () => {
+            window.removeEventListener(
+                "languageChange",
+                handleLanguageChange as EventListener
+            );
+        };
+    }, []);
 
-      <div className="page-content">
-        <Header onLogin={() => openAuth("login")} onRegister={() => openAuth("register")} />
+    /* ================= Fetch Home CMS ================= */
 
-        <TopBanner
-          onConsult={() =>
-            document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
-          }
-        />
+    useEffect(() => {
+        let alive = true;
 
-        <BannerSlider slides={bannerSlides} onAction={onSlideAction} />
+        const fetchHome = async () => {
+            try {
+                const res = await http.get(
+                    `/public/pages/home?lang=${currentLanguage}`
+                );
+                if (!alive) return;
+                setHomeData(res.data);
+            } catch (error) {
+                console.error("Lỗi gọi API home:", error);
+            }
+        };
 
-        <Stats />
+        fetchHome();
 
-        <Partners gridItems={partners.slice(0, 6)} marqueeItems={marqueeItems} />
+        return () => {
+            alive = false;
+        };
+    }, [currentLanguage]);
 
-        <CourseGallery onGetDeal={() => openAuth("register")} />
+    /* ================= Banner Action ================= */
 
-        <RegisterSection
-          onRegisterSuccess={() => openSuccess("Đăng ký thành công.")}
-        />
+    const onSlideAction = useCallback((action: unknown) => {
+        console.log("Slide action:", action);
+    }, []);
 
-        <ProductSection />
+    const marqueeItems = useMemo(() => [...partners, ...partners], []);
 
-        <Outcomes />
+    /* ================= Render ================= */
 
-        <Reviews />
+    return (
+        <div className="bg-slate-50 text-slate-900">
+            <div className="page-content">
+                <TopBanner
+                    cmsData={homeData?.sections?.[0]?.data}
+                    onConsult={() =>
+                        document
+                            .getElementById("contact")
+                            ?.scrollIntoView({ behavior: "smooth" })
+                    }
+                />
 
-        <PricingSection />
+                <BannerSlider
+                    slides={homeData?.sections?.[1]?.data?.bannerSlides}
+                    onAction={onSlideAction}
+                />
 
-        <ContactSection onSubmit={() => openSuccess("Đã nhận yêu cầu tư vấn (prototype).")} />
+                <Stats cmsData={homeData?.sections?.[2]?.data} />
 
-        <Footer />
-      </div>
+                <Partners cmsData={homeData?.sections?.[3]?.data} />
 
-      <SuccessModal
-        open={success.open}
-        message={success.message}
-        onClose={() => setSuccess({ open: false, message: "" })}
-      />
+                <CourseGallery
+                    cmsData={homeData?.sections?.[4]?.data}
+                    onGetDeal={() => {}}
+                />
 
-      <AuthModal
-        open={authOpen}
-        tab={authTab}
-        onClose={() => setAuthOpen(false)}
-        onSwitchTab={setAuthTab}
-        onLoginSuccess={() => {
-          setAuthOpen(false);
-          openSuccess("Đăng nhập thành công.");
-        }}
-        onRegisterSuccess={() => {
-          setAuthOpen(false);
-          openSuccess("Đăng ký thành công.");
-        }}
-      />
-    </div>
-  );
+                <RegisterSection
+                    cmsData={homeData?.sections?.[5]?.data}
+                    onRegisterSuccess={() => {}}
+                />
+
+                <ProductSection cmsData={homeData?.sections?.[6]?.data} />
+
+                <Outcomes cmsData={homeData?.sections?.[7]?.data} />
+
+                <ContactSection
+                    cmsData={homeData?.sections?.[8]?.data}
+                    onSubmit={() => {}}
+                />
+
+                <Reviews cmsData={homeData?.sections?.[9]?.data} />
+
+                <PricingSection cmsData={homeData?.sections?.[10]?.data} />
+            </div>
+        </div>
+    );
 }
